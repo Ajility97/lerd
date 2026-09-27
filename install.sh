@@ -704,8 +704,9 @@ cmd_install() {
   fi
 
   # Offer the desktop app on a fresh Linux install. Its own installer does the
-  # download; here we only record the notification sink the user prefers.
-  if [ -z "$was_installed" ] && [ "$(uname -s)" = "Linux" ] && have_tty; then
+  # download; here we only record the notification sink the user prefers. Not
+  # on WSL: the Flatpak cannot run there, the Windows browser is the desktop.
+  if [ -z "$was_installed" ] && [ "$(uname -s)" = "Linux" ] && ! is_wsl && have_tty; then
     offer_desktop_app
   fi
 
@@ -744,6 +745,14 @@ setup_omarchy() {
     warn "Could not add the Lerd Glance plugin. Add it later with:"
     echo -e "     ${CYAN}omarchy-plugin-add ${OMARCHY_PLUGIN_REPO} --enable --yes${RESET}"
   fi
+}
+
+# Overridable so the tests can point the WSL check at a fixture.
+OSRELEASE_FILE="${OSRELEASE_FILE:-/proc/sys/kernel/osrelease}"
+
+# is_wsl reports a WSL distro: its kernel release names Microsoft.
+is_wsl() {
+  grep -qi microsoft "$OSRELEASE_FILE" 2>/dev/null
 }
 
 # offer_desktop_app asks whether to use the Lerd desktop app (which delivers
