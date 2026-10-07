@@ -542,6 +542,9 @@ type FrameworkCommand struct {
 	// (top-level commands or framework_def), so the host-execution gate can require
 	// consent before running it. Never persisted; set only at the merge point.
 	ProjectOrigin bool `yaml:"-" json:"-"`
+	// Plugin names the installed plugin a command came from; it runs that
+	// plugin's file instead of Command. Never read from yaml.
+	Plugin string `yaml:"-" json:"plugin,omitempty"`
 }
 
 // Valid Output values for FrameworkCommand.
