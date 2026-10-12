@@ -3,12 +3,15 @@ import type { Site, EnvProposeEntry, NginxScope } from "./sites";
 
 export type ModalKind =
   | "domain"
+  | "browserLogs"
   | "group"
   | "link"
   | "preset"
   | "remoteControl"
   | "lanProgress"
   | "worktreeAdd"
+  | "branchSwitch"
+  | "gitPull"
   | "worktreeRemove"
   | "phpAdd"
   | "phpRebuild"
@@ -201,9 +204,12 @@ export interface ErrorTarget {
 export interface ModalState {
   kind: ModalKind;
   site?: Site;
+  browserLogsSite?: string;
   lanAction?: LANAction;
   onSuccess?: () => void;
   branch?: string;
+  // The checkout to pull: '' for the site's main one, else a worktree's branch.
+  pull?: { domain: string; branch: string; label: string };
   envSave?: EnvSaveTarget;
   envRestore?: EnvRestoreTarget;
   envPropose?: EnvProposeTarget;
@@ -261,6 +267,10 @@ export function openDomainModal(site: Site) {
   modal.set({ kind: "domain", site });
 }
 
+export function openBrowserLogsModal(site: string) {
+  modal.set({ kind: "browserLogs", browserLogsSite: site });
+}
+
 export function openGroupModal(site: Site) {
   modal.set({ kind: "group", site });
 }
@@ -283,6 +293,14 @@ export function openLANProgressModal(lanAction: LANAction) {
 
 export function openWorktreeAddModal(site: Site) {
   modal.set({ kind: "worktreeAdd", site });
+}
+
+export function openBranchSwitchModal(site: Site) {
+  modal.set({ kind: "branchSwitch", site });
+}
+
+export function openPullModal(domain: string, branch: string, label: string, onDone: () => void) {
+  modal.set({ kind: "gitPull", pull: { domain, branch, label }, onSuccess: onDone });
 }
 
 export function openWorktreeRemoveModal(site: Site, branch: string) {

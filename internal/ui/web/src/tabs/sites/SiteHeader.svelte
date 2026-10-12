@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import Badge from '$components/Badge.svelte';
+  import BackButton from '$components/BackButton.svelte';
+  import { isDesktop } from '$lib/media';
   import FrameworkMark from '$components/FrameworkMark.svelte';
   import { frameworkMarks } from '$stores/frameworkMarks';
   import {
@@ -14,6 +16,7 @@
     initGit,
     openSiteInBrowser,
     openTerminal,
+    openInEditor,
     openFolder,
     loadSites,
     activeWorktreeDomain,
@@ -28,11 +31,13 @@
     openGroupModal,
     openSiteUnlinkModal,
     openWorktreeAddModal,
+    openBranchSwitchModal,
     openWorktreeRemoveModal
   } from '$stores/modals';
   import Icon from '$components/Icon.svelte';
   import { tooltip } from '$lib/tooltip';
   import { accessMode } from '$stores/accessMode';
+  import { editors, loadEditors } from '$stores/editors';
   import { idleEnabled } from '$stores/idle';
   import { status, loadStatus } from '$stores/status';
   import { xdebugOn, xdebugOff, type XdebugMode } from '$stores/xdebug';
@@ -44,7 +49,11 @@
   import WorkspacePicker from './WorkspacePicker.svelte';
   import WorkspaceMenuItems from './WorkspaceMenuItems.svelte';
   import GitStatusBadge from '$components/GitStatusBadge.svelte';
+  import GitSync from '$components/GitSync.svelte';
+  import BrowserLogsSiteToggle from '$components/BrowserLogsSiteToggle.svelte';
+  import { debugCaptureEnabled } from '$stores/queries';
   import { loadGitStatus, checkoutFor, type GitCheckout } from '$lib/gitStatus';
+  import { marquee } from '$lib/marquee';
   import { m } from '../../paraglide/messages.js';
 
   import type { Snippet } from 'svelte';
@@ -116,16 +125,18 @@
   const activePathLabel = $derived(homeShorten(activePath, $status.home));
   const activeFrameworkLabel = $derived(activeWorktree?.framework_label || site.framework_label);
 
-  type TabEntry = { branch: string; domain: string; path: string; isMain: boolean };
+  type TabEntry = { branch: string; gitBranch: string; domain: string; path: string; isMain: boolean };
   const tabEntries = $derived.by<TabEntry[]>(() => {
     const main: TabEntry = {
       branch: site.branch || 'main',
+      gitBranch: site.branch || 'main',
       domain: site.domain,
       path: site.path || '',
       isMain: true
     };
     const wts: TabEntry[] = (site.worktrees || []).map((wt) => ({
       branch: wt.branch || '',
+      gitBranch: wt.git_branch || wt.branch || '',
       domain: wt.domain || '',
       path: wt.path || '',
       isMain: false
@@ -133,16 +144,24 @@
     return [main, ...wts];
   });
   const showWorktreeTabs = $derived(Boolean(site.branch) && !site.paused);
+  const activeEntry = $derived(
+    tabEntries.find((e) => (e.isMain ? activeWorktreeBranch === '' : e.branch === activeWorktreeBranch))
+  );
 
   // Git state changes outside lerd (an editor, a terminal), so it is polled while
   // the site is open and re-read when the window regains focus.
-  let gitCheckouts = $state<GitCheckout[]>([]);
+  // The last answer stays up until the next one lands: clearing it on every rerun
+  // made the marker blink. Keyed by domain so another site's state never shows.
+  let gitLast = $state<{ domain: string; checkouts: GitCheckout[] }>({ domain: '', checkouts: [] });
+  const gitCheckouts = $derived(gitLast.domain === site.domain ? gitLast.checkouts : []);
   $effect(() => {
     const domain = site.domain;
     if (!showWorktreeTabs) return;
     const refresh = () => {
       if (document.hidden) return;
-      loadGitStatus(domain).then((c) => (gitCheckouts = c)).catch(() => (gitCheckouts = []));
+      loadGitStatus(domain)
+        .then((checkouts) => (gitLast = { domain, checkouts }))
+        .catch(() => {});
     };
     refresh();
     const timer = setInterval(refresh, 10_000);
@@ -150,7 +169,6 @@
     return () => {
       clearInterval(timer);
       window.removeEventListener('focus', refresh);
-      gitCheckouts = [];
     };
   });
   // No branch can also mean a subfolder of a bigger repo, where a nested init
@@ -166,6 +184,13 @@
       })
       .catch(() => {});
   });
+  // Pull is fast-forward only, so a failure means git refused and its own words say why.
+  function refreshGit() {
+    const domain = site.domain;
+    loadGitStatus(domain)
+      .then((checkouts) => (gitLast = { domain, checkouts }))
+      .catch(() => {});
+  }
   let initingGit = $state(false);
   async function runInitGit() {
     initingGit = true;
@@ -301,6 +326,14 @@
       ev.stopPropagation();
     }
   }
+  // Only the host may read the editor choice; a remote session would get a 403.
+  $effect(() => {
+    if ($accessMode.local) loadEditors();
+  });
+  async function openEditor() {
+    const res = await openInEditor(site.domain, activeWorktreeBranch);
+    if (!res.ok) openErrorModal(res.error ?? '');
+  }
   onMount(() => {
     document.addEventListener('click', onDocClick, true);
     document.addEventListener('keydown', onDocKey);
@@ -315,6 +348,7 @@
   {#if showWorktreeTabs}
     <div class="flex items-center page-header">
       <div class="flex items-center gap-1 px-3 overflow-x-auto flex-1 min-w-0">
+      {#if !$isDesktop}<BackButton />{/if}
       {#each tabEntries as e (e.isMain ? '__main__' : e.branch)}
         {@const isActive = e.isMain ? activeWorktreeBranch === '' : e.branch === activeWorktreeBranch}
         {@const git = checkoutFor(gitCheckouts, e)}
@@ -326,7 +360,7 @@
           <button
             type="button"
             onclick={() => pickWorktree(e)}
-            use:tooltip={e.domain}
+            use:tooltip={`${e.gitBranch} · ${e.domain}`}
             class="flex items-center gap-1.5 pl-3 pr-3 py-2 text-xs min-w-0 {isActive
               ? 'text-gray-800 dark:text-gray-100 font-medium'
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
@@ -357,7 +391,7 @@
                 <path d="M6 3v12M15 6a3 3 0 1 0 6 0a3 3 0 1 0-6 0M3 18a3 3 0 1 0 6 0a3 3 0 1 0-6 0M18 9a9 9 0 0 1-9 9" />
               </svg>
             {/if}
-            <span class="font-mono truncate leading-none">{e.branch}</span>
+            <span class="font-mono truncate leading-none" use:marquee><span>{e.branch}</span></span>
             {#if git}<GitStatusBadge status={git} />{/if}
           </button>
           {#if !e.isMain}
@@ -373,6 +407,21 @@
             >
               <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
                 <path d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          {:else if $accessMode.localControl}
+            <button
+              type="button"
+              onclick={(ev) => {
+                ev.stopPropagation();
+                openBranchSwitchModal(site);
+              }}
+              use:tooltip={m.sites_switchBranch()}
+              aria-label={m.sites_switchBranch()}
+              class="shrink-0 mr-1 w-4 h-4 flex items-center justify-center rounded-sm text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+            >
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
               </svg>
             </button>
           {/if}
@@ -392,6 +441,20 @@
         </button>
       {/if}
       </div>
+      {#if activeEntry}
+        {@const git = checkoutFor(gitCheckouts, activeEntry)}
+        {#if (git?.upstream || git?.publishable) && $accessMode.localControl}
+          <div class="shrink-0 mr-3">
+            <GitSync
+              domain={site.domain}
+              branch={activeEntry.isMain ? '' : activeEntry.branch}
+              branchLabel={activeEntry.branch}
+              status={git}
+              onDone={refreshGit}
+            />
+          </div>
+        {/if}
+      {/if}
     </div>
   {:else if noRepo && !site.paused}
     <div class="flex items-center page-header px-3">
@@ -411,6 +474,7 @@
   {/if}
 
   <div class="p-3 flex items-center gap-3">
+    {#if !$isDesktop && !showWorktreeTabs}<BackButton />{/if}
     <div
       class="group flex-1 min-w-0 flex items-center gap-2 h-8 pl-3 pr-2 rounded-full border bg-gray-50 dark:bg-white/[0.03] transition-colors {site.paused
         ? 'border-gray-200 dark:border-lerd-border opacity-70'
@@ -551,6 +615,12 @@
               {activeFrameworkLabel}
             </Badge>
           </span>
+        {/if}
+        {#if site.runtime === 'frankenphp'}
+          <Badge tone="frankenphp" title={m.sites_badges_frankenphpTip()}>
+            {m.sites_badges_frankenphp()}{#if site.runtime_worker}
+              · {m.sites_badges_frankenphpWorker()}{/if}
+          </Badge>
         {/if}
         {#if lanOn && lanURL}
           <span class="hidden @md:inline-flex items-center gap-1 text-[10px] text-teal-600 dark:text-teal-400">
@@ -697,6 +767,26 @@
               <path d="M6.53 9C4.6 8.8 3 7.1 3 5M6 13H2M3 21c0-2.1 1.7-3.9 3.8-4M20.97 5c0 2.1-1.6 3.8-3.5 4M22 13h-4M17.2 17c2.1.1 3.8 1.9 3.8 4" />
             </svg>
           {/if}
+        </button>
+      {/if}
+
+      <!-- Pages carry the script only while debug capture is on, and FrankenPHP
+           sites are not covered yet. -->
+      {#if $accessMode.localControl && $debugCaptureEnabled && !site.paused && site.runtime !== 'frankenphp'}
+        <BrowserLogsSiteToggle site={site.name ?? site.domain} class="hidden @md:flex" />
+      {/if}
+
+      {#if $accessMode.local && $editors.global}
+        <button
+          type="button"
+          onclick={() => openEditor()}
+          aria-label={m.sites_openInEditor()}
+          use:tooltip={m.sites_openInEditor()}
+          class="hidden @md:flex w-8 h-8 items-center justify-center rounded-md text-gray-500 dark:text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+          </svg>
         </button>
       {/if}
 

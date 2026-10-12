@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -85,20 +84,6 @@ func NewInstallCmd() *cobra.Command {
 func step(label string) { fmt.Printf(" %s %s ", feedback.Dim("→"), feedback.Dim(label+"…")) }
 func ok()               { fmt.Println(feedback.Green("✓")) }
 
-// fileChangedBy runs mutate and reports whether the file at path differs
-// before vs after. A read error on either side is treated as empty content,
-// so a file that didn't exist before and does after counts as a change. Used
-// by the install pass to bounce a unit only when its on-disk config actually
-// moved, rather than on every reinstall.
-func fileChangedBy(path string, mutate func() error) (bool, error) {
-	before, _ := os.ReadFile(path)
-	if err := mutate(); err != nil {
-		return false, err
-	}
-	after, _ := os.ReadFile(path)
-	return string(after) != string(before), nil
-}
-
 // portPreflightConflicts returns the core host ports lerd needs to bind first
 // (nginx HTTP/HTTPS and DNS) that are already held by a foreign process.
 // portList is the host listener dump from PortListOutput; the seams mirror
@@ -137,6 +122,14 @@ func ensurePortsAvailable() {
 		feedback.Note("find it: " + FindListenerCmd(c.Port))
 	}
 	feedback.Note("another local stack such as Laravel Herd may be hosting sites; stop it to free these ports, then re-run lerd install")
+}
+
+// warnHostMysqldProfiles flags a native server's AppArmor profile, which also
+// confines the database in lerd's container; lerd doctor names the fix.
+func warnHostMysqldProfiles() {
+	for _, p := range enforcedMysqldProfiles("/") {
+		feedback.Warn("%s also confines lerd's MySQL/MariaDB container, which then ignores its config; run lerd doctor for the fix", p)
+	}
 }
 
 func runInstall(cmd *cobra.Command, _ []string) error {
@@ -182,6 +175,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	healMachineRestartIfNeeded(preEnsureLastUp)
 
 	ensurePortsAvailable()
+	warnHostMysqldProfiles()
 
 	// Resolved before the root pass below, which needs to know whether to
 	// install the resolver sudoers grant. The side effects of a changed answer
@@ -456,12 +450,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		teardownDNS()
 	}
 
-	// Tracks whether the dnsmasq config or the lerd-dns quadlet actually
-	// changed this run. A no-op reinstall (the common case after a version
-	// bump) then leaves the running container alone instead of bouncing it,
-	// which used to drop .test resolution for a few seconds.
-	dnsChanged := false
-
 	if wantDNS {
 		// 4. mkcert CA.
 		ensureMkcertCA(unattended)
@@ -476,14 +464,9 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 		// 5. DNS config
 		step("Writing DNS configuration")
-		dnsConfPath := filepath.Join(config.DnsmasqDir(), "lerd.conf")
-		confChanged, err := fileChangedBy(dnsConfPath, func() error {
-			return dns.WriteDnsmasqConfig(config.DnsmasqDir())
-		})
-		if err != nil {
+		if err := dns.WriteDnsmasqConfig(config.DnsmasqDir()); err != nil {
 			return err
 		}
-		dnsChanged = dnsChanged || confChanged
 		ok()
 
 		// Platform-dependent: on Linux the root pass already installed the grant
@@ -593,6 +576,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 				}
 			}
 		}
+		rewakeSleepingSites(reg.Sites)
 	}
 	ok()
 
@@ -646,14 +630,9 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 	if wantDNS {
 		step("Writing DNS service unit")
-		dnsUnitPath := filepath.Join(config.QuadletDir(), "lerd-dns.container")
-		unitChanged, err := fileChangedBy(dnsUnitPath, func() error {
-			return writeDNSUnit(os.Stdout)
-		})
-		if err != nil {
+		if err := installDNSService(); err != nil {
 			return err
 		}
-		dnsChanged = dnsChanged || unitChanged
 		ok()
 	}
 
@@ -758,11 +737,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		},
 	}
 	plan := imagepull.Plan{imagepull.Pull(nginxImage, "the lerd web server image")}
-	if wantDNS {
-		pullJobs = append(pullJobs, pullDNSImages()...)
-		plan = append(plan, dnsImagePlan()...)
-	}
-	plan.Fill().Report(os.Stdout)
+	withoutKeptImages(plan, podman.OfflineKeeps).Fill().Report(os.Stdout)
 	for _, job := range pullJobs {
 		step(job.Label)
 		if err := job.Run(io.Discard); err != nil {
@@ -778,28 +753,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// forward non-.test queries correctly on a fresh install.
 	if lerdSystemd.IsAutostartEnabled() {
 		ensureImages()
-	}
-
-	// On macOS, DNS runs natively (no container image needed) and DaemonReload
-	// is a no-op, so we can start lerd-dns and configure the resolver here.
-	if wantDNS && !isDNSContainerUnit() {
-		step("Starting lerd-dns")
-		if err := services.Mgr.Restart("lerd-dns"); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
-		}
-		ok()
-
-		step("Waiting for lerd-dns to be ready")
-		if err := dns.WaitReady(15 * time.Second); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
-		}
-		ok()
-
-		feedback.Line("configuring DNS resolver")
-		dns.NoteNixOSOwnsResolver()
-		if err := dns.ConfigureResolver(); err != nil {
-			fmt.Printf("    WARN: %v\n", err)
-		}
 	}
 
 	// 8. Systemd / services
@@ -840,23 +793,12 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	// On Linux, DNS is a container — start it after images are pulled.
-	// On macOS it was already started before RunParallel above.
-	if wantDNS && isDNSContainerUnit() {
-		// Only bounce the running container when its config or quadlet
-		// actually changed. Otherwise Start is a no-op against the live
-		// unit, so a routine reinstall doesn't drop .test resolution.
-		dnsRunning, _ := podman.ContainerRunning("lerd-dns")
-		if dnsChanged || !dnsRunning {
-			step("Starting lerd-dns")
-			if err := services.Mgr.Restart("lerd-dns"); err != nil {
-				fmt.Printf("    WARN: %v\n", err)
-			}
-		} else {
-			step("Checking lerd-dns")
-			if err := services.Mgr.Start("lerd-dns"); err != nil {
-				fmt.Printf("    WARN: %v\n", err)
-			}
+	if wantDNS {
+		// Always restart: lerd-dns runs the lerd binary, so this is what moves it
+		// onto the version just installed, and a native restart takes milliseconds.
+		step("Starting lerd-dns")
+		if err := services.Mgr.Restart("lerd-dns"); err != nil {
+			fmt.Printf("    WARN: %v\n", err)
 		}
 		ok()
 
@@ -1009,19 +951,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		// every install into a full rebuild of the ones just built.
 		if lifecycle.FPMContainersWanted() &&
 			(podman.NeedsFPMRebuild(ensuredFPMVersions()) || podman.NeedsFrankenPHPRebuild(activeFrankenPHPVersions())) {
-			feedback.Header("Rebuilding PHP images")
-			self, err := os.Executable()
-			if err != nil {
-				fmt.Printf("  WARN: locating lerd binary for php:rebuild: %v\n", err)
-			} else {
-				rebuildCmd := exec.Command(self, "php:rebuild")
-				rebuildCmd.Stdout = os.Stdout
-				rebuildCmd.Stderr = os.Stderr
-				rebuildCmd.Stdin = os.Stdin
-				if err := rebuildCmd.Run(); err != nil {
-					fmt.Printf("  WARN: php:rebuild failed: %v\n", err)
-				}
-			}
+			rebuildStalePHPImages(runPHPRebuild)
 		}
 
 		// Start the installed PHP FPM containers whose images are now available,
@@ -1129,14 +1059,6 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	// package manager swaps underneath it is recognised on the next command.
 	writeInstalledVersion(version.Version)
 
-	// Every other step still reports success when this one build fails, so the
-	// install reads as complete while lerd-dns crash-loops on a missing image
-	// and no .test name ever resolves (#1537). Say so instead.
-	if wantDNS && isDNSContainerUnit() && !podman.ImageExists(podman.DNSMasqImage) {
-		feedback.Begin()
-		feedback.Warn("the dnsmasq image did not build, so lerd-dns cannot start and .test names will not resolve. Check the container's network access with `lerd doctor`, then run `lerd install` again")
-	}
-
 	feedback.Begin()
 	feedback.Done("lerd installation complete")
 	feedback.Begin()
@@ -1144,6 +1066,47 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	feedback.Note("Terminal:  " + feedback.Val("lerd tui"))
 	feedback.Begin()
 	return nil
+}
+
+// rebuildStalePHPImages force-rebuilds the PHP images after the ensure pass.
+// Offline it only says how to: the ensure pass already built any image that was
+// missing, and a forced rebuild skips the offline gate and re-downloads each base.
+func rebuildStalePHPImages(rebuild func() error) {
+	if imagepull.Offline() {
+		feedback.Note("offline: keeping the current PHP images, run `lerd php:rebuild` to refresh them")
+		return
+	}
+	feedback.Header("Rebuilding PHP images")
+	if err := rebuild(); err != nil {
+		fmt.Printf("  WARN: php:rebuild failed: %v\n", err)
+	}
+}
+
+// runPHPRebuild runs `lerd php:rebuild` in a child, so the rebuild happens with
+// the binary install just put in place.
+func runPHPRebuild() error {
+	self, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("locating lerd binary for php:rebuild: %w", err)
+	}
+	rebuildCmd := exec.Command(self, "php:rebuild")
+	rebuildCmd.Stdout = os.Stdout
+	rebuildCmd.Stderr = os.Stderr
+	rebuildCmd.Stdin = os.Stdin
+	return rebuildCmd.Run()
+}
+
+// withoutKeptImages drops the pulls offline mode will skip, so the disclosure
+// names only the downloads that really happen.
+func withoutKeptImages(plan imagepull.Plan, kept func(string) bool) imagepull.Plan {
+	var out imagepull.Plan
+	for _, it := range plan {
+		if !it.Build && kept(it.Ref) {
+			continue
+		}
+		out = append(out, it)
+	}
+	return out
 }
 
 // shouldRestartDaemon reports whether install has to bounce one of the
@@ -1283,19 +1246,6 @@ func ensureSystemdLinger() error {
 	}
 	ok()
 	return nil
-}
-
-// checkUnattendedSupported refuses --unattended where the other half of the
-// arrangement does not exist. The flag skips the sudo-gated steps because
-// `lerd bootstrap --system` and `--trust-ca` do them as root around it, and
-// bootstrap is Linux-only; anywhere else the flag would silently leave the
-// resolver grant unwritten and the CA untrusted, which reads as broken HTTPS
-// and a watcher asking for a password rather than as a missing feature.
-func checkUnattendedSupported(unattended bool) error {
-	if !unattended || runtime.GOOS == "linux" {
-		return nil
-	}
-	return fmt.Errorf("--unattended is for package installs on Linux, where `lerd bootstrap` applies the root-level setup around it; run `lerd install` without it")
 }
 
 // currentUserName resolves the login name the per-user setup steps apply to.
@@ -1689,7 +1639,7 @@ func resolveDNSChoice(fromUpdate, configExisted bool, dnsFlag string) (want, hav
 	want, needPrompt := dnsManageDecision(fromUpdate, configExisted, flagDNS, prevEnabled)
 	if needPrompt {
 		want = confirmInstallPromptDefault(
-			"Let lerd manage DNS for local sites (No: use *.localhost, no dnsmasq, no HTTPS)?",
+			"Let lerd manage DNS for local sites (No: use *.localhost, no lerd-dns, no HTTPS)?",
 			true,
 		)
 	}
@@ -1916,16 +1866,6 @@ func installShellCompletions(home, lerdBin string) {
 			installCompletion(lerdBin, "bash", bashCompDir, "lerd")
 		}
 	}
-}
-
-// bashRCPath picks the bash startup file lerd should write its PATH line to.
-// macOS Terminal launches bash as a login shell that reads .bash_profile (not
-// .bashrc); Linux interactive bash reads .bashrc.
-func bashRCPath(home string) string {
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(home, ".bash_profile")
-	}
-	return filepath.Join(home, ".bashrc")
 }
 
 func appendShellRC(rcFile, binDir string) error {

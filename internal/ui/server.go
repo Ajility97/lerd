@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -46,6 +47,7 @@ import (
 	lerdNode "github.com/geodro/lerd/internal/node"
 	phpPkg "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/phpsets"
+	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/profiler"
 	"github.com/geodro/lerd/internal/reqstats"
@@ -123,11 +125,11 @@ func Start(currentVersion string) error {
 	// answer on a machine with no desktop to read, so it is dropped rather than
 	// logged.
 	if d := config.CurrentDesktop(); d.WatchDir != "" {
-		_ = watchDesktopTheme(context.Background(), d.WatchDir, d.WatchNames, 300*time.Millisecond, broker.broadcastThemeList)
+		_ = watchDir(context.Background(), d.WatchDir, d.WatchNames, 300*time.Millisecond, broker.broadcastThemeList)
 	}
 	// Theme files and their stylesheets repaint every open dashboard as they are saved.
 	_ = os.MkdirAll(config.ThemesDir(), 0755)
-	_ = watchDesktopTheme(context.Background(), config.ThemesDir(), nil, 300*time.Millisecond, broker.broadcastThemeList)
+	_ = watchDir(context.Background(), config.ThemesDir(), nil, 300*time.Millisecond, broker.broadcastThemeList)
 
 	// Restart any LAN share proxies that were active before this process started.
 	go cli.RestoreLANShareProxies()
@@ -141,7 +143,7 @@ func Start(currentVersion string) error {
 	// reparented out of the client's tree, so a killed lerd-ui leaves it
 	// running and there is no pid left to recognise it by.
 	go cli.ReapOrphanNgrokContainers()
-	stopTunnelsOnShutdown()
+	cleanUpOnShutdown()
 
 	// Single coalescer for the two event sources that need to refresh the
 	// container cache and broadcast a snapshot: in-process mutations
@@ -287,6 +289,10 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/sites/worktree-options", withCORS(handleSiteWorktreeOptions))
 	mux.HandleFunc("/api/sites/git-status", withCORS(handleSiteGitStatus))
 	mux.HandleFunc("/api/sites/worktree-add", withCORS(publishAfter(handleSiteWorktreeAdd, eventbus.KindSites)))
+	mux.HandleFunc("/api/sites/branch-plan", withCORS(handleSiteBranchPlan))
+	mux.HandleFunc("/api/sites/branch-switch", withCORS(publishAfter(handleSiteBranchSwitch, eventbus.KindSites)))
+	mux.HandleFunc("/api/sites/pull-plan", withCORS(handleSitePullPlan))
+	mux.HandleFunc("/api/sites/pull", withCORS(publishAfter(handleSitePull, eventbus.KindSites)))
 	mux.HandleFunc("/api/browse", withCORS(handleBrowse))
 	mux.HandleFunc("/api/runs", withCORS(publishAfter(handleRuns, eventbus.KindSites)))
 	mux.HandleFunc("/api/runs/", withCORS(handleRunStream))
@@ -300,22 +306,33 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/queries/route-timing", withCORS(handleRouteTiming))
 	mux.HandleFunc("/api/queries/optimize", withCORS(handleOptimize))
 	mux.HandleFunc("/api/dumps/stream", withCORS(handleDumpsStream))
+	mux.HandleFunc("/api/dumps/counts", withCORS(handleDumpsCounts))
+	mux.HandleFunc("/api/dumps/groups", withCORS(handleDumpsGroups))
+	mux.HandleFunc("/api/dumps/groups/rows", withCORS(handleDumpsGroupRows))
+	mux.HandleFunc("/api/dumps/facets", withCORS(handleDumpsFacets))
+	mux.HandleFunc("/api/dumps/event", withCORS(handleDumpsEvent))
 	mux.HandleFunc("/api/dumps/status", withCORS(handleDumpsStatus))
 	mux.HandleFunc("/api/dumps/clear", withCORS(handleDumpsClear))
 	mux.HandleFunc("/api/dumps/toggle", withCORS(publishAfter(handleDumpsToggle, eventbus.KindDumpsStatus)))
 	mux.HandleFunc("/api/dumps/passthrough", withCORS(publishAfter(handleDumpsPassthrough, eventbus.KindDumpsStatus)))
+	mux.HandleFunc("/api/dumps/buffer", withCORS(publishAfter(handleDumpsBuffer, eventbus.KindDumpsStatus)))
 	mux.HandleFunc("/api/dumps/notify-changed", withCORS(handleDumpsNotifyChanged))
 	mux.HandleFunc("/api/devtools/status", withCORS(handleDevtoolsStatus))
 	mux.HandleFunc("/api/devtools/workers", withCORS(publishAfter(handleDevtoolsWorkers, eventbus.KindDevtoolsStatus)))
 	mux.HandleFunc("/api/devtools/tests", withCORS(publishAfter(handleDevtoolsTests, eventbus.KindDevtoolsStatus)))
 	mux.HandleFunc("/api/open-editor", withCORS(handleOpenEditor))
+	mux.HandleFunc("/api/editors", withCORS(handleEditors))
 	mux.HandleFunc("/api/open-folder", withCORS(handleOpenFolder))
 	mux.HandleFunc("/api/profiler/toggle", withCORS(publishAfter(handleProfilerToggle, eventbus.KindProfilerStatus)))
 	mux.HandleFunc("/api/profiler/status", withCORS(handleProfilerStatus))
 	mux.HandleFunc("/api/profiler/captures", withCORS(handleProfilerCaptures))
+	mux.HandleFunc("/api/profiler/report", withCORS(handleProfilerReport))
 	mux.HandleFunc("/api/profiler/clear", withCORS(handleProfilerClear))
+	mux.HandleFunc("/api/browser-logs/sites/", withCORS(handleBrowserLogsSite))
+	mux.HandleFunc("/api/browser-logs/presets", withCORS(handleBrowserLogsPresets))
 	mux.HandleFunc("/_spx/", handleSpxProxy)
 	mux.HandleFunc("/_svc/", handleDashProxy)
+	mux.HandleFunc("/api/dashboard/keepalive", withCORS(handleDashboardKeepAlive))
 	mux.HandleFunc("/api/queue/", withCORS(handleUnitLogStream))
 	mux.HandleFunc("/api/horizon/", withCORS(handleUnitLogStream))
 	mux.HandleFunc("/api/stripe/", withCORS(handleUnitLogStream))
@@ -412,7 +429,7 @@ func Start(currentVersion string) error {
 	})
 	mux.Handle("/", serveSvelte())
 
-	handler := withDashboardMounts(withRemoteControlGate(mux))
+	handler := withWakeHold(withBrowserLogs(withDashboardMounts(withRemoteControlGate(mux))))
 
 	// Unix socket listener for the lerd.localhost nginx vhost. Linux only:
 	// on macOS, lerd-nginx runs inside the podman-machine VM and unix
@@ -420,7 +437,7 @@ func Start(currentVersion string) error {
 	// vhost falls back to TCP via host.containers.internal there.
 	// Errors are non-fatal — direct http://localhost:7073 access still
 	// works even if the socket can't be created.
-	if runtime.GOOS != "darwin" {
+	if !platform.Current.UsesMachineVM {
 		if err := os.MkdirAll(config.RunDir(), 0755); err != nil {
 			fmt.Printf("[WARN] creating %s: %v — lerd.localhost vhost will not work\n", config.RunDir(), err)
 		} else {
@@ -593,35 +610,11 @@ func terminalDirCandidates(dir string) []terminalCmd {
 		candidates = append(candidates, namedTerminal(t, dir))
 	}
 
-	// A terminal the user picked in System Settings outranks one that merely
-	// happens to be on PATH, so it goes ahead of the list rather than after it.
-	if bundle := macDefaultTerminal(); bundle != "" {
-		candidates = append(candidates, terminalCmd{"open", []string{"-b", bundle, dir}})
-	}
-	// The same on Linux, where the choice lives in the freedesktop launcher, the
-	// distribution's alternatives link, or the desktop's own setting.
-	if t := linuxDefaultTerminal(); t != "" {
-		candidates = append(candidates, namedTerminal(t, dir))
-	}
-
+	// A terminal the user picked in the desktop's settings outranks one that
+	// merely happens to be on PATH, so it goes ahead of the list.
+	candidates = append(candidates, osDefaultDirTerminal(dir)...)
 	candidates = append(candidates, knownTerminals(dir)...)
-
-	if runtime.GOOS == "darwin" {
-		// `open -a Terminal dir` opens a new window at dir without echoing any
-		// command — cleaner than `do script "cd ... && exec $SHELL"` which types
-		// the command visibly into the shell. iTerm2 supports the same via open.
-		// Warp registers public.folder, so it takes the directory the same way
-		// the other two do and needs none of its warp:// URI scheme.
-		if _, err := os.Stat("/Applications/Warp.app"); err == nil {
-			candidates = append(candidates, terminalCmd{"open", []string{"-a", "Warp", dir}})
-		}
-		if _, err := os.Stat("/Applications/iTerm.app"); err == nil {
-			candidates = append(candidates, terminalCmd{"open", []string{"-a", "iTerm", dir}})
-		}
-		candidates = append(candidates, terminalCmd{"open", []string{"-a", "Terminal", dir}})
-	}
-
-	return candidates
+	return append(candidates, osFallbackDirTerminals(dir)...)
 }
 
 // namedTerminal builds the invocation for a terminal named by the user or the
@@ -669,9 +662,7 @@ func openTerminalAt(dir string) error {
 		}
 		cmd := exec.Command(bin, t.args...)
 		cmd.Dir = dir
-		if runtime.GOOS != "darwin" {
-			cmd.Env = graphicalEnv()
-		}
+		cmd.Env = terminalBaseEnv()
 		if err := cmd.Start(); err != nil {
 			return err
 		}
@@ -685,6 +676,27 @@ func openTerminalAt(dir string) error {
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v) //nolint:errcheck
+}
+
+// writeJSONRevalidated is writeJSON for what rarely changes between loads: the
+// browser keeps its copy and asks whether it still holds, and gets an empty 304
+// when it does rather than the whole body again.
+func writeJSONRevalidated(w http.ResponseWriter, r *http.Request, v any) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	sum := sha256.Sum256(b)
+	etag := `"` + hex.EncodeToString(sum[:8]) + `"`
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "no-cache")
+	if r.Header.Get("If-None-Match") == etag {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(b)
 }
 
 func mustJSON(v any) string {
@@ -737,7 +749,7 @@ type StatusResponse struct {
 	// Instance identifies this lerd-ui process. An open dashboard reloads when
 	// it changes, so a restarted server never leaves a stale page behind.
 	Instance string `json:"instance"`
-	// Tools reports the managed host binaries (composer, fnm, mkcert) against
+	// Tools reports the managed host binaries (composer, mise, fnm, mkcert) against
 	// their pinned versions; fnm is omitted on nvm-managed setups where its
 	// absence is deliberate.
 	Tools []tools.ToolStatus `json:"tools"`
@@ -882,6 +894,7 @@ func buildStatusJSON() ([]byte, error) { return []byte(mustJSON(buildStatus())),
 // the worktree's .lerd.yaml set them explicitly or it's inherited.
 type WorktreeResponse struct {
 	Branch              string `json:"branch"`
+	GitBranch           string `json:"git_branch,omitempty"`
 	Domain              string `json:"domain"`
 	Path                string `json:"path"`
 	PHPVersion          string `json:"php_version,omitempty"`
@@ -1205,6 +1218,7 @@ func buildSites() ([]SiteResponse, error) {
 			wtTunnel, _ := cli.TunnelStatus(e.Name, wt.Branch)
 			worktreeResponses = append(worktreeResponses, WorktreeResponse{
 				Branch:               wt.Branch,
+				GitBranch:            wt.GitBranch,
 				Domain:               wt.Domain,
 				Path:                 wt.Path,
 				PHPVersion:           wt.PHPVersion,
@@ -1409,10 +1423,12 @@ type ServiceResponse struct {
 	IsDatabase bool `json:"is_database,omitempty"`
 	// EntityKinds are the non-database entity kinds this service declares
 	// (buckets, keyspaces…), so the detail view can show a generic overview tab.
-	EntityKinds        []string `json:"entity_kinds,omitempty"`
-	SiteCount          int      `json:"site_count"`
-	SiteDomains        []string `json:"site_domains,omitempty"`
-	Pinned             bool     `json:"pinned"`
+	EntityKinds []string `json:"entity_kinds,omitempty"`
+	SiteCount   int      `json:"site_count"`
+	SiteDomains []string `json:"site_domains,omitempty"`
+	Pinned      bool     `json:"pinned"`
+	// IdleSuspended marks a service idle-suspend stopped; it wakes on its own.
+	IdleSuspended      bool     `json:"idle_suspended,omitempty"`
 	Paused             bool     `json:"paused,omitempty"`
 	DependsOn          []string `json:"depends_on,omitempty"`
 	QueueSite          string   `json:"queue_site,omitempty"`
@@ -1647,6 +1663,7 @@ func buildServiceResponseWithPortList(services map[string]config.ServiceConfig, 
 		SiteDomains:       sitesUsingService(name),
 		Pinned:            config.ServiceIsPinned(name),
 		Paused:            config.ServiceIsPaused(name),
+		IdleSuspended:     config.ServiceIsIdleSuspended(name),
 		IsDefault:         isDefault,
 		IsDatabase:        name != "sqlite" && isDatabaseEngine(name),
 		EntityKinds:       serviceops.EntityKinds(name),
@@ -1995,7 +2012,7 @@ func handleServiceIcons(w http.ResponseWriter, r *http.Request) {
 	if icons == nil {
 		icons = map[string]string{}
 	}
-	writeJSON(w, icons)
+	writeJSONRevalidated(w, r, icons)
 }
 
 // handleFrameworkMarks returns the mark and brand colour of every framework
@@ -2012,7 +2029,7 @@ func handleFrameworkMarks(w http.ResponseWriter, r *http.Request) {
 	if marks == nil {
 		marks = map[string]config.FrameworkMark{}
 	}
-	writeJSON(w, marks)
+	writeJSONRevalidated(w, r, marks)
 }
 
 // handleWorkerMarks returns how each cached framework's workers ask to be
@@ -2025,7 +2042,7 @@ func handleWorkerMarks(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	writeJSON(w, config.WorkerMarks())
+	writeJSONRevalidated(w, r, config.WorkerMarks())
 }
 
 // handleImageEstimate reports what a service or PHP operation would download,
@@ -3937,6 +3954,8 @@ type SiteActionResponse struct {
 	// the action: a PHP version clamped to the framework's range, or a target
 	// image that never built part of the declared extension set.
 	Warning string `json:"warning,omitempty"`
+	// Message is a success summary worth showing, like git's last line after a pull.
+	Message string `json:"message,omitempty"`
 }
 
 // handlePHPExtensions reports what a PHP version's image actually carries: its
@@ -4073,6 +4092,10 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	action := parts[1]
+	if action == "editor:open" && !isLocalControlRequest(r) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 
 	// Favicon is a GET endpoint served separately.
 	if action == "favicon" {
@@ -4220,12 +4243,41 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
+	case "editor:open":
+		path := resolveSitePath(site, r.URL.Query().Get("branch"))
+		if path == "" {
+			writeJSON(w, SiteActionResponse{Error: "unknown worktree branch"})
+			return
+		}
+		if err := openProjectInEditor(*site, path); err != nil {
+			writeJSON(w, SiteActionResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, SiteActionResponse{OK: true})
+		return
 	case "git:init":
 		if err := gitpkg.Init(site.Path); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
+		return
+	case "git:fetch", "git:push":
+		dir := resolveSitePath(site, r.URL.Query().Get("branch"))
+		if dir == "" {
+			writeJSON(w, SiteActionResponse{Error: "unknown worktree branch"})
+			return
+		}
+		op := map[string]func(string) (string, error){
+			"git:fetch": gitpkg.Fetch, "git:push": gitpkg.Push,
+		}[action]
+		out, err := op(dir)
+		if err != nil {
+			writeJSON(w, SiteActionResponse{Error: err.Error()})
+			return
+		}
+		lines := strings.Split(out, "\n")
+		writeJSON(w, SiteActionResponse{OK: true, Message: strings.TrimSpace(lines[len(lines)-1])})
 		return
 	case "restart":
 		if err := cli.RestartSite(site.Name); err != nil {
@@ -5567,6 +5619,7 @@ type SettingsResponse struct {
 	PHPRuntimeSwitching       bool     `json:"php_runtime_switching"` // a switch is running; every red row below is transient
 	IdleSuspendEnabled        bool     `json:"idle_suspend_enabled"`
 	IdleSuspendTimeoutMinutes int      `json:"idle_suspend_timeout_minutes"`
+	IdleSuspendServices       bool     `json:"idle_suspend_services"`
 	DNSEnabled                bool     `json:"dns_enabled"`
 	DNSUpstream               []string `json:"dns_upstream"`          // pinned upstreams, empty = auto-detect
 	DNSUpstreamDetected       []string `json:"dns_upstream_detected"` // what auto-detection currently sees
@@ -5582,6 +5635,7 @@ func handleSettings(w http.ResponseWriter, _ *http.Request) {
 	mode := config.WorkerExecModeExec
 	idleEnabled := false
 	idleMinutes := int(config.DefaultIdleSuspendTimeout / time.Minute)
+	idleServices := false
 	dnsEnabled := true
 	startOnOpen := false
 	trayEnabled := true
@@ -5593,6 +5647,7 @@ func handleSettings(w http.ResponseWriter, _ *http.Request) {
 		mode = cfg.WorkerExecMode()
 		idleEnabled = cfg.IdleSuspend.Enabled
 		idleMinutes = int(cfg.IdleSuspendTimeout() / time.Minute)
+		idleServices = cfg.IdleSuspend.Services
 		dnsEnabled = cfg.DNSManaged()
 		dnsUpstream = cfg.DNS.Upstream
 		startOnOpen = cfg.Autostart.OnDashboardOpen
@@ -5608,9 +5663,10 @@ func handleSettings(w http.ResponseWriter, _ *http.Request) {
 		PHPRuntime:                cfg.PHPRuntimeMode(),
 		PHPRuntimeSwitching:       config.RuntimeSwitchInProgress(),
 		PHPRuntimeApplies:         nativeRuntimeApplies(runtime.GOOS, runtime.GOARCH),
-		WorkerModeApplies:         runtime.GOOS == "darwin",
+		WorkerModeApplies:         platform.Current.WorkerModes,
 		IdleSuspendEnabled:        idleEnabled,
 		IdleSuspendTimeoutMinutes: idleMinutes,
+		IdleSuspendServices:       idleServices,
 		DNSEnabled:                dnsEnabled,
 		DNSUpstream:               dnsUpstream,
 		DNSUpstreamDetected:       dns.ReadUpstreamDNS(),
@@ -5631,8 +5687,9 @@ func handleSettingsIdleSuspend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
-		Enabled        bool `json:"enabled"`
-		TimeoutMinutes int  `json:"timeout_minutes"`
+		Enabled        bool  `json:"enabled"`
+		TimeoutMinutes int   `json:"timeout_minutes"`
+		Services       *bool `json:"services"` // omitted leaves it as it is
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid body", http.StatusBadRequest)
@@ -5649,6 +5706,9 @@ func handleSettingsIdleSuspend(w http.ResponseWriter, r *http.Request) {
 	}
 	cfg.IdleSuspend.Enabled = body.Enabled
 	cfg.IdleSuspend.Timeout = (time.Duration(body.TimeoutMinutes) * time.Minute).String()
+	if body.Services != nil {
+		cfg.IdleSuspend.Services = *body.Services
+	}
 	if err := config.SaveGlobal(cfg); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
@@ -5983,10 +6043,6 @@ func namedTerminalCommand(name, script string) terminalCmd {
 	return terminalCmd{name, []string{"-e", "sh", "-c", script}}
 }
 
-// defaultTerminal is the seam tests replace to stand in for the desktop's own
-// setting, which is read off the host.
-var defaultTerminal = linuxDefaultTerminal
-
 // terminalScriptCandidates returns the ordered emulator candidates for running
 // a script. Same precedence as terminalDirCandidates: $TERMINAL, then the
 // terminal the desktop is set to use, then the fixed list. macOS is absent from
@@ -6001,16 +6057,7 @@ func terminalScriptCandidates(script string) []terminalCmd {
 		candidates = append(candidates, namedTerminalCommand(t, script))
 	}
 	candidates = append(candidates, knownTerminalCommands(script)...)
-
-	if runtime.GOOS == "darwin" {
-		if _, err := os.Stat("/Applications/iTerm.app"); err == nil {
-			as := "tell application \"iTerm2\"\n\tcreate window with default profile\n\ttell current session of current window\n\t\twrite text " + appleScriptStr(script) + "\n\tend tell\nend tell"
-			candidates = append(candidates, terminalCmd{"osascript", []string{"-e", as}})
-		}
-		as := "tell application \"Terminal\"\n\tdo script " + appleScriptStr(script) + "\n\tactivate\nend tell"
-		candidates = append(candidates, terminalCmd{"osascript", []string{"-e", as}})
-	}
-	return candidates
+	return append(candidates, osFallbackScriptTerminals(script)...)
 }
 
 // openTerminalCommand opens the user's terminal emulator and runs the given
@@ -6022,11 +6069,7 @@ func terminalScriptCandidates(script string) []terminalCmd {
 // PATH; without it the emulator inherits whatever the user's service manager
 // happened to import and a declared command can fail as not found.
 func terminalEnv() []string {
-	env := os.Environ()
-	if runtime.GOOS != "darwin" {
-		env = graphicalEnv()
-	}
-	return append(env, "PATH="+config.PathWithBinDir())
+	return append(terminalBaseEnv(), "PATH="+config.PathWithBinDir())
 }
 
 func openTerminalCommand(script string) error {
@@ -6338,7 +6381,7 @@ func handleAppLogs(w http.ResponseWriter, r *http.Request) {
 			}
 			info, statErr := os.Stat(fullPath)
 			more := len(page) == maxEntries || (statErr == nil && info.Size() > applog.MaxReadBytes)
-			writeJSON(w, map[string]any{"entries": page, "more": more})
+			writeJSONRevalidated(w, r, map[string]any{"entries": page, "more": more})
 			return
 		}
 		all, err := applog.ParseFile(fullPath, format, 0)
@@ -6347,7 +6390,10 @@ func handleAppLogs(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		page, more := applog.Page(all, offset, maxEntries)
-		writeJSON(w, map[string]any{"entries": page, "more": more})
+		if tail, err := applog.ParseFile(fullPath, format, applog.MaxReadBytes); err == nil {
+			applog.MarkPastTail(page, offset, len(tail))
+		}
+		writeJSONRevalidated(w, r, map[string]any{"entries": page, "more": more})
 		return
 	}
 
@@ -6359,7 +6405,7 @@ func handleAppLogs(w http.ResponseWriter, r *http.Request) {
 	if entries == nil {
 		entries = []applog.LogEntry{}
 	}
-	writeJSON(w, map[string]any{"entries": entries})
+	writeJSONRevalidated(w, r, map[string]any{"entries": entries})
 }
 
 // handleBrowse returns a listing of directories for the file browser.
@@ -6606,6 +6652,8 @@ func handleSiteWorktreeOptions(w http.ResponseWriter, r *http.Request) {
 		branch = gitpkg.SanitizeBranch(raw)
 	}
 	localBranches, remoteBranches, currentBranch := worktreeBranchCandidates(site.Path)
+	// A new branch can start anywhere, including at a branch open in a worktree.
+	baseLocal, baseRemote := gitpkg.Branches(site.Path)
 	canMigrate := false
 	if _, statErr := os.Stat(filepath.Join(site.Path, "artisan")); statErr == nil {
 		canMigrate = true
@@ -6614,6 +6662,9 @@ func handleSiteWorktreeOptions(w http.ResponseWriter, r *http.Request) {
 		"local_branches":       localBranches,
 		"remote_branches":      remoteBranches,
 		"default_branch_label": currentBranch,
+		"branch_dates":         gitpkg.BranchDates(site.Path),
+		"base_local_branches":  baseLocal,
+		"base_remote_branches": baseRemote,
 		"build_options":        worktreeBuildOptions(site),
 		"build_default":        "auto",
 		"db_options":           worktreeDBOptions(site, branch),
@@ -6753,6 +6804,136 @@ func handleSiteWorktreeAdd(w http.ResponseWriter, r *http.Request) {
 	done(map[string]any{"ok": true, "branch": branch, "domain": branch + "." + site.PrimaryDomain(), "warnings": warnings})
 }
 
+// handleSiteBranchPlan answers GET /api/sites/branch-plan?domain=&branch= with
+// what switching the main checkout to branch would call for.
+func handleSiteBranchPlan(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.NotFound(w, r)
+		return
+	}
+	site, err := config.FindSiteByDomain(r.URL.Query().Get("domain"))
+	if err != nil {
+		http.Error(w, "site not found", http.StatusNotFound)
+		return
+	}
+	plan, err := cli.PlanSiteBranch(site, strings.TrimSpace(r.URL.Query().Get("branch")))
+	if err != nil {
+		writeJSON(w, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, plan)
+}
+
+// handleSiteBranchSwitch answers POST /api/sites/branch-switch?domain=&branch= plus
+// the chosen steps (composer, js, migrate, snapshot, restore, create, base), streaming
+// their output; the done event names any snapshot taken first.
+func handleSiteBranchSwitch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	q := r.URL.Query()
+	site, err := config.FindSiteByDomain(q.Get("domain"))
+	if err != nil {
+		writeJSON(w, SiteActionResponse{Error: "site not found"})
+		return
+	}
+	branch := strings.TrimSpace(q.Get("branch"))
+	if branch == "" {
+		writeJSON(w, SiteActionResponse{Error: "branch is required"})
+		return
+	}
+	steps := branchStepsFrom(q)
+	steps.Restore = q.Get("restore")
+	steps.Create = q.Get("create") == "1"
+	steps.Base = strings.TrimSpace(q.Get("base"))
+	streamSteps(w, func(out io.Writer) (string, error) { return cli.SwitchSiteBranch(site, branch, steps, out) })
+}
+
+// handleSitePullPlan answers GET /api/sites/pull-plan?domain=&branch= with what
+// pulling the checkout (the main one, or the worktree on branch) would call for.
+func handleSitePullPlan(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.NotFound(w, r)
+		return
+	}
+	site, err := config.FindSiteByDomain(r.URL.Query().Get("domain"))
+	if err != nil {
+		http.Error(w, "site not found", http.StatusNotFound)
+		return
+	}
+	dir := resolveSitePath(site, r.URL.Query().Get("branch"))
+	if dir == "" {
+		writeJSON(w, map[string]any{"error": "unknown worktree branch"})
+		return
+	}
+	plan, err := cli.PlanSitePull(site, dir)
+	if err != nil {
+		writeJSON(w, map[string]any{"error": err.Error()})
+		return
+	}
+	writeJSON(w, plan)
+}
+
+// handleSitePull answers POST /api/sites/pull?domain=&branch=&from=&head=&target=
+// plus the chosen steps (composer, js, migrate, snapshot, isolate), streaming
+// their output like a switch. from and head are what the plan saw checked out,
+// target the upstream commit it reviewed.
+func handleSitePull(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.NotFound(w, r)
+		return
+	}
+	q := r.URL.Query()
+	site, err := config.FindSiteByDomain(q.Get("domain"))
+	if err != nil {
+		writeJSON(w, SiteActionResponse{Error: "site not found"})
+		return
+	}
+	dir := resolveSitePath(site, q.Get("branch"))
+	if dir == "" {
+		writeJSON(w, SiteActionResponse{Error: "unknown worktree branch"})
+		return
+	}
+	steps := branchStepsFrom(q)
+	reviewed := cli.Reviewed{Branch: strings.TrimSpace(q.Get("from")), Head: strings.TrimSpace(q.Get("head")), Commit: strings.TrimSpace(q.Get("target"))}
+	streamSteps(w, func(out io.Writer) (string, error) { return cli.PullSite(site, dir, reviewed, steps, out) })
+}
+
+func branchStepsFrom(q url.Values) cli.BranchSteps {
+	return cli.BranchSteps{
+		Composer: q.Get("composer") == "1",
+		JS:       q.Get("js") == "1",
+		Migrate:  q.Get("migrate") == "1",
+		Snapshot: q.Get("snapshot") == "1",
+		Isolate:  q.Get("isolate") == "1",
+	}
+}
+
+// streamSteps streams run's output as server-sent events; the done event
+// names any snapshot taken first, so a failure can offer it back.
+func streamSteps(w http.ResponseWriter, run func(io.Writer) (string, error)) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	sw := &sseLineWriter{w: w, f: flusher}
+	snap, runErr := run(sw)
+	sw.flushTail()
+	payload := map[string]any{"ok": runErr == nil, "snapshot": snap}
+	if runErr != nil {
+		payload["error"] = runErr.Error()
+	}
+	fmt.Fprintf(w, "event: done\ndata: %s\n\n", mustJSON(payload))
+	flusher.Flush()
+}
+
 // syncLerdYAMLWorkersDelayed waits briefly for the worker unit to start, then syncs.
 func syncLerdYAMLWorkersDelayed(site *config.Site) {
 	time.Sleep(2 * time.Second)
@@ -6783,7 +6964,7 @@ func handleSettingsPHPRuntime(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": false, "error": "unknown runtime"})
 		return
 	}
-	if body.Mode == config.PHPRuntimeNative && runtime.GOOS != "darwin" {
+	if body.Mode == config.PHPRuntimeNative && !platform.Current.NativePHPRuntime {
 		writeJSON(w, map[string]any{"ok": false, "error": "the native runtime is macOS only"})
 		return
 	}
