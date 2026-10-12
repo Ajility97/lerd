@@ -215,13 +215,15 @@ func (e *idleEngine) suspendServicesAsync(names []string) {
 	}
 
 	e.spawn("suspend-svc", func() {
+		e.svcMu.Lock()
+		defer e.svcMu.Unlock()
+		// Cleared before svcMu is released: a wake queued on svcMu that still
+		// saw the suspend in flight would count the service asleep and wake it twice.
 		defer func() {
 			for _, name := range batch {
 				e.clearInFlight(svcKey(name))
 			}
 		}()
-		e.svcMu.Lock()
-		defer e.svcMu.Unlock()
 		stopped, err := suspendServices(batch)
 		if err != nil {
 			fmt.Printf("[WARN] idle-suspend services %v: %v\n", batch, err)
