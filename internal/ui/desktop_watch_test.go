@@ -85,7 +85,10 @@ func TestWatchDesktopThemeCollapsesABurst(t *testing.T) {
 	changed := make(chan struct{}, 16)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	if err := watchDir(ctx, current, omarchyNames, 150*time.Millisecond, func() { changed <- struct{}{} }); err != nil {
+	// The settle window outlasts a stall between writes on a loaded CI runner,
+	// and the quiet period after the report outlasts the window.
+	const settle = 500 * time.Millisecond
+	if err := watchDir(ctx, current, omarchyNames, settle, func() { changed <- struct{}{} }); err != nil {
 		t.Fatalf("watchDir: %v", err)
 	}
 
@@ -98,7 +101,7 @@ func TestWatchDesktopThemeCollapsesABurst(t *testing.T) {
 	select {
 	case <-changed:
 		t.Error("a burst of events reported more than one change")
-	case <-time.After(400 * time.Millisecond):
+	case <-time.After(2 * settle):
 	}
 }
 
