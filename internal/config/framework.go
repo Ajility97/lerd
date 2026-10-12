@@ -184,6 +184,9 @@ type FrameworkNginx struct {
 	// Snippet is nginx config with three placeholders expanded before render:
 	// {{root}} (project root), {{public}} (document root), {{fpm}} (FPM container).
 	Snippet string `yaml:"snippet"`
+	// FastCGIParams are added to the site's PHP location, so PHP sees them as
+	// server variables. Values take the {{root}} and {{public}} placeholders.
+	FastCGIParams map[string]string `yaml:"fastcgi_params,omitempty"`
 }
 
 // ValidateNginxSnippet returns nil when s is balanced enough to splice into a

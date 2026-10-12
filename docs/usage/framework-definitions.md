@@ -780,6 +780,16 @@ The snippet must have balanced braces, since an unbalanced one would close the e
 
 Snippets are only honoured from the framework store and from user-defined definitions: an embedded `framework_def` in a project's `.lerd.yaml` is untrusted input, so its `nginx` block is stripped, the same way its host workers and command-type doctor checks are.
 
+`nginx.fastcgi_params` passes server variables to PHP without taking over the PHP location. Each entry becomes a `fastcgi_param` in lerd's own `location ~ \.php$`, after the params lerd sets, so profiling, `LERD_SITE` and the forwarded headers all stay in place. Values take `{{root}}` and `{{public}}`, expanded to the site's path (a worktree's own path on a worktree vhost). Testbench uses it to tell the skeleton under `vendor/` where the package lives:
+
+```yaml
+nginx:
+  fastcgi_params:
+    TESTBENCH_WORKING_PATH: "{{root}}"
+```
+
+A name must be a plain identifier and a value must not contain `{`, `}`, `;`, `#` or a newline once expanded; an entry failing either is dropped with a warning and the others still render. Like the snippet, the params are stripped from an embedded `framework_def`. An older lerd ignores the key, so a definition that needs it simply behaves on that binary as it did before the key existed.
+
 An app whose router owns its `.php` URLs needs no snippet at all. `front_controller: true` makes `index.php` the only script nginx runs: a request for any other `.php` file is rewritten onto it, with the original URL still in `REQUEST_URI`, and `PATH_INFO` is split off for URLs like `/index.php/api/status`. GLPI 11 is the case it exists for, where `/front/central.php` is a route rather than a file on disk. It is plain routing rather than raw config, so unlike the snippet it is kept in an embedded `framework_def`, and a project can also set it on its own in `.lerd.yaml` (see [nginx overrides](nginx-overrides.md#a-single-front-controller)).
 
 This is distinct from the per-site [nginx override](nginx-overrides.md) in `custom.d/`, which you author yourself and which is included at the *end* of the server block. Use the framework snippet for what every site of that framework needs; use the override for what one site needs.
