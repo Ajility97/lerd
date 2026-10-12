@@ -132,3 +132,29 @@ fi
 check "the mobile half installs" bash -c "cd $natm && (grep -q nativephp/mobile composer.json || lerd composer require nativephp/mobile -W --no-interaction)"
 check_out "its commands are offered on Laravel" 'native:install-mobile' bash -c "cd $natm && lerd run"
 check_not "9.15 [partial] and not on Symfony" 'native:install-mobile' bash -c "cd $SHOP_DIR && lerd run"
+
+# A framework definition can hand PHP server variables through nginx, which is
+# how Testbench finds the package it serves. A throwaway user definition keyed
+# off a marker file stands in for it, so the check needs no package install.
+fcgi=$PROJECTS/vmfcgi
+mkdir -p "$fcgi/public" "$HOME/.config/lerd/frameworks"
+touch "$fcgi/vmfcgi.marker"
+cat >"$fcgi/public/index.php" <<'PHP'
+<?php
+echo ($_SERVER['VM_ROOT'] ?? 'unset'), '|', isset($_SERVER['VM_BAD']) ? 'bad' : 'nobad';
+PHP
+cat >"$HOME/.config/lerd/frameworks/vmfcgi.yaml" <<'YAML'
+name: vmfcgi
+label: VM FastCGI
+public_dir: public
+detect:
+  - file: vmfcgi.marker
+nginx:
+  fastcgi_params:
+    VM_ROOT: "{{root}}"
+    VM_BAD: "$price"
+YAML
+check_out "the dollar entry is dropped with a warning at link" 'dropping vmfcgi fastcgi param VM_BAD' bash -c "cd $fcgi && lerd link"
+check_out "9.17 fastcgi_params reach PHP with {{root}} expanded, the dollar entry left out" "^${fcgi}\|nobad$" curl -s --max-time 30 "$(site_url "$fcgi")"
+(cd "$fcgi" && lerd unlink </dev/null >/dev/null 2>&1)
+rm -rf "$fcgi" "$HOME/.config/lerd/frameworks/vmfcgi.yaml"
