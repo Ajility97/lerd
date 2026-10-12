@@ -26,6 +26,7 @@ func TestMain(m *testing.M) {
 	// A developer running Claude Code under another profile would otherwise
 	// have the global skill tests write into that real profile.
 	os.Unsetenv("CLAUDE_CONFIG_DIR")
+	noTrayHost = func() bool { return false }
 	os.Exit(m.Run())
 }
 
