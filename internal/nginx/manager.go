@@ -310,6 +310,10 @@ func frameworkFastCGIParams(w io.Writer, framework, domain string, params map[st
 			fmt.Fprintf(w, "[WARN] dropping %s fastcgi param %s for %s: unknown {{placeholder}}\n", framework, name, domain)
 		case strings.ContainsAny(value, nginxValueForbidden):
 			fmt.Fprintf(w, "[WARN] dropping %s fastcgi param %s for %s: value would end the directive\n", framework, name, domain)
+		// nginx reads $ as a variable even inside quotes: an unknown one fails the
+		// config for every site, a known one changes what PHP receives.
+		case strings.Contains(value, "$"):
+			fmt.Fprintf(w, "[WARN] dropping %s fastcgi param %s for %s: value contains $, which nginx would read as a variable\n", framework, name, domain)
 		default:
 			fmt.Fprintf(&out, "        fastcgi_param %s %s;\n", name, nginxQuote(value))
 		}

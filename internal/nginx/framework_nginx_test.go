@@ -243,6 +243,7 @@ func TestFrameworkFastCGIParamsDropsHostileEntries(t *testing.T) {
 		"bad name":            {map[string]string{"A;B": "x"}, "/p"},
 		"bad value":           {map[string]string{"A": "x;y"}, "/p"},
 		"unknown placeholder": {map[string]string{"A": "{{roots}}"}, "/p"},
+		"nginx variable":      {map[string]string{"A": "$price"}, "/p"},
 		"hostile path":        {map[string]string{"A": "{{root}}"}, "/p;q"},
 	} {
 		var buf bytes.Buffer

@@ -788,7 +788,7 @@ nginx:
     TESTBENCH_WORKING_PATH: "{{root}}"
 ```
 
-A name must be a plain identifier and a value must not contain `{`, `}`, `;`, `#` or a newline once expanded; an entry failing either is dropped with a warning and the others still render. Like the snippet, the params are stripped from an embedded `framework_def`. An older lerd ignores the key, so a definition that needs it simply behaves on that binary as it did before the key existed.
+A name must be a plain identifier and a value must not contain `{`, `}`, `;`, `#`, `$` or a newline once expanded, since nginx would read a `$` as one of its own variables; an entry failing either is dropped with a warning and the others still render. Like the snippet, the params are stripped from an embedded `framework_def`. An older lerd ignores the key, so a definition that needs it simply behaves on that binary as it did before the key existed.
 
 An app whose router owns its `.php` URLs needs no snippet at all. `front_controller: true` makes `index.php` the only script nginx runs: a request for any other `.php` file is rewritten onto it, with the original URL still in `REQUEST_URI`, and `PATH_INFO` is split off for URLs like `/index.php/api/status`. GLPI 11 is the case it exists for, where `/front/central.php` is a route rather than a file on disk. It is plain routing rather than raw config, so unlike the snippet it is kept in an embedded `framework_def`, and a project can also set it on its own in `.lerd.yaml` (see [nginx overrides](nginx-overrides.md#a-single-front-controller)).
 
