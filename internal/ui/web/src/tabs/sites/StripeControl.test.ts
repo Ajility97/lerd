@@ -19,7 +19,7 @@ describe('StripeControl', () => {
 
   it('opens the modal prefilled with the current webhook path', async () => {
     render(Harness, { props: { webhookPath: '/webhooks/stripe' } });
-    await fireEvent.click(screen.getByRole('button', { name: 'Configure webhook path' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Configure Stripe listener' }));
     const input = screen.getByLabelText('Webhook path') as HTMLInputElement;
     expect(input.value).toBe('/webhooks/stripe');
   });
@@ -27,10 +27,21 @@ describe('StripeControl', () => {
   it('normalises a leading slash and forwards the saved path', async () => {
     const onSaveConfig = vi.fn();
     render(Harness, { props: { onSaveConfig } });
-    await fireEvent.click(screen.getByRole('button', { name: 'Configure webhook path' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Configure Stripe listener' }));
     const input = screen.getByLabelText('Webhook path') as HTMLInputElement;
     await fireEvent.input(input, { target: { value: 'nest/stripe' } });
     await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    expect(onSaveConfig).toHaveBeenCalledWith('/nest/stripe');
+    expect(onSaveConfig).toHaveBeenCalledWith('/nest/stripe', 'STRIPE_SECRET');
+  });
+
+  it('prefills the secret env key with the detected one and forwards edits', async () => {
+    const onSaveConfig = vi.fn();
+    render(Harness, { props: { secretEnvKey: 'STRIPE_SECRET_KEY', onSaveConfig } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Configure Stripe listener' }));
+    const input = screen.getByLabelText('Secret env key') as HTMLInputElement;
+    expect(input.value).toBe('STRIPE_SECRET_KEY');
+    await fireEvent.input(input, { target: { value: ' STRIPE_API_KEY ' } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSaveConfig).toHaveBeenCalledWith('/stripe/webhook', 'STRIPE_API_KEY');
   });
 });

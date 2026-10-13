@@ -3,28 +3,31 @@
   import Modal from '$components/Modal.svelte';
   import { m } from '../../paraglide/messages.js';
 
-  // Edits the per-project Stripe webhook route (persisted to .lerd.yaml). Lets
-  // non-Laravel projects whose route is not /stripe/webhook point the listener
-  // at the right path. Prefilled with the current value each time it opens.
+  // Edits the per-project Stripe webhook route and secret env key (persisted to
+  // .lerd.yaml), prefilled with the current values each time it opens.
   interface Props {
     open: boolean;
     path: string;
+    secretEnvKey: string;
     onclose: () => void;
-    onsave: (path: string) => void;
+    onsave: (path: string, secretEnvKey: string) => void;
   }
-  let { open, path, onclose, onsave }: Props = $props();
+  let { open, path, secretEnvKey, onclose, onsave }: Props = $props();
 
   let value = $state('');
+  let keyValue = $state('');
 
   // Seed only on the open transition (path read untracked), so a live sites
   // push that updates path mid-edit doesn't overwrite what the user is typing.
   $effect(() => {
-    if (open) value = untrack(() => path) || '/stripe/webhook';
+    if (!open) return;
+    value = untrack(() => path) || '/stripe/webhook';
+    keyValue = untrack(() => secretEnvKey) || 'STRIPE_SECRET';
   });
 
   function save() {
     const trimmed = value.trim();
-    if (trimmed) onsave(trimmed.startsWith('/') ? trimmed : '/' + trimmed);
+    if (trimmed) onsave(trimmed.startsWith('/') ? trimmed : '/' + trimmed, keyValue.trim());
     onclose();
   }
 </script>
@@ -45,6 +48,21 @@
     />
     <p class="text-[11px] text-gray-500 dark:text-gray-400">
       {m.sites_controls_stripePathHint()}
+    </p>
+    <label class="block text-sm text-gray-600 dark:text-gray-400" for="stripe-secret-key">
+      {m.sites_controls_stripeSecretKeyLabel()}
+    </label>
+    <input
+      id="stripe-secret-key"
+      type="text"
+      bind:value={keyValue}
+      spellcheck="false"
+      autocomplete="off"
+      onkeydown={(e) => e.key === 'Enter' && save()}
+      class="w-full text-sm font-mono px-2.5 py-1.5 rounded-sm border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-lerd-red"
+    />
+    <p class="text-[11px] text-gray-500 dark:text-gray-400">
+      {m.sites_controls_stripeSecretKeyHint()}
     </p>
   </div>
   {#snippet footer()}

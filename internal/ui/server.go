@@ -970,6 +970,7 @@ type SiteResponse struct {
 	StripeRunning      bool           `json:"stripe_running"`
 	StripeSecretSet    bool           `json:"stripe_secret_set"`
 	StripeWebhookPath  string         `json:"stripe_webhook_path,omitempty"`
+	StripeSecretEnvKey string         `json:"stripe_secret_env_key,omitempty"`
 	ScheduleRunning    bool           `json:"schedule_running"`
 	ScheduleFailing    bool           `json:"schedule_failing,omitempty"`
 	ReverbRunning      bool           `json:"reverb_running"`
@@ -1273,6 +1274,7 @@ func buildSites() ([]SiteResponse, error) {
 			StripeRunning:        e.StripeRunning,
 			StripeSecretSet:      e.StripeSecretSet,
 			StripeWebhookPath:    e.StripeWebhookPath,
+			StripeSecretEnvKey:   e.StripeSecretEnvKey,
 			ScheduleRunning:      e.ScheduleRunning,
 			ScheduleFailing:      e.ScheduleFailing,
 			ReverbRunning:        e.ReverbRunning,
@@ -4419,6 +4421,10 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 	case "stripe:config":
 		path := r.URL.Query().Get("path")
 		secretEnvKey := r.URL.Query().Get("secret_env_key")
+		if err := config.RequireStripeSecretInEnv(site.Path, secretEnvKey); err != nil {
+			writeJSON(w, SiteActionResponse{Error: err.Error()})
+			return
+		}
 		if err := config.SetProjectStripe(site.Path, path, secretEnvKey); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
