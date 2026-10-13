@@ -17,11 +17,14 @@
   let value = $state('');
   let keyValue = $state('');
   let error = $state('');
+  // Bumped on every open, so a save answered after a close and reopen is ignored.
+  let opening = 0;
 
   // Seed only on the open transition (path read untracked), so a live sites
   // push that updates path mid-edit doesn't overwrite what the user is typing.
   $effect(() => {
     if (!open) return;
+    opening++;
     error = '';
     value = untrack(() => path) || '/stripe/webhook';
     keyValue = untrack(() => secretEnvKey) || 'STRIPE_SECRET';
@@ -30,7 +33,9 @@
   async function save() {
     const trimmed = value.trim();
     if (!trimmed) return onclose();
+    const started = opening;
     const r = await onsave(trimmed.startsWith('/') ? trimmed : '/' + trimmed, keyValue.trim());
+    if (started !== opening || !open) return;
     if (!r.ok) {
       error = r.error || m.common_requestFailed();
       return;

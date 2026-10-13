@@ -54,4 +54,18 @@ describe('StripeControl', () => {
     expect(await screen.findByText(error)).toBeInTheDocument();
     expect(screen.getByLabelText('Secret env key')).toBeInTheDocument();
   });
+
+  it('ignores a save that resolves after the modal was closed and reopened', async () => {
+    let resolve: (r: { ok: boolean }) => void = () => {};
+    const onSaveConfig = vi.fn(() => new Promise<{ ok: boolean }>((r) => (resolve = r)));
+    render(Harness, { props: { onSaveConfig } });
+    const gear = screen.getByRole('button', { name: 'Configure Stripe listener' });
+    await fireEvent.click(gear);
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await fireEvent.click(gear);
+    resolve({ ok: true });
+    await new Promise((r) => setTimeout(r));
+    expect(screen.getByLabelText('Secret env key')).toBeInTheDocument();
+  });
 });
