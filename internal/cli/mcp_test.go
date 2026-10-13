@@ -692,3 +692,30 @@ func TestSkillDescription_mentionsBrowserErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestGlobalAISkills_followClaudeConfigDir(t *testing.T) {
+	home := t.TempDir()
+	profile := filepath.Join(home, ".claude-work")
+	t.Setenv("CLAUDE_CONFIG_DIR", profile)
+	skill := filepath.Join(profile, "skills", "lerd", "SKILL.md")
+
+	if err := WriteGlobalAISkills(home, false); err != nil {
+		t.Fatalf("WriteGlobalAISkills: %v", err)
+	}
+	if _, err := os.Stat(skill); err != nil {
+		t.Fatalf("skill not written under CLAUDE_CONFIG_DIR: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(home, ".claude")); !os.IsNotExist(err) {
+		t.Errorf("~/.claude was written although CLAUDE_CONFIG_DIR is set (err=%v)", err)
+	}
+	if !MCPGlobalConfigured(home) {
+		t.Error("MCPGlobalConfigured misses the skill under CLAUDE_CONFIG_DIR")
+	}
+
+	if err := RemoveGlobalAISkills(home, false); err != nil {
+		t.Fatalf("RemoveGlobalAISkills: %v", err)
+	}
+	if _, err := os.Stat(skill); !os.IsNotExist(err) {
+		t.Errorf("skill under CLAUDE_CONFIG_DIR not removed (err=%v)", err)
+	}
+}
