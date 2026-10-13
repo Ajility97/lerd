@@ -670,7 +670,9 @@ func TestLerdReference_underSizeCeiling(t *testing.T) {
 	// 37600 → 38150 for what 1.37 leaves an assistant to misread: secrets an
 	// env_provider keeps out of .env on purpose, a sleeping service that wakes
 	// on its own, and front_controller in place of a hand-written override.
-	const ceiling = 38150
+	// 38150 → 38300 for fastcgi_params, which keeps a framework-wide param in
+	// its definition rather than in a per-site location override.
+	const ceiling = 38300
 	if got := len(lerdReference); got > ceiling {
 		t.Errorf("lerd-reference.md is %d bytes, ceiling is %d — trim before raising", got, ceiling)
 	}
