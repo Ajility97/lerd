@@ -25,7 +25,7 @@ describe('StripeControl', () => {
   });
 
   it('normalises a leading slash and forwards the saved path', async () => {
-    const onSaveConfig = vi.fn();
+    const onSaveConfig = vi.fn().mockResolvedValue({ ok: true });
     render(Harness, { props: { onSaveConfig } });
     await fireEvent.click(screen.getByRole('button', { name: 'Configure Stripe listener' }));
     const input = screen.getByLabelText('Webhook path') as HTMLInputElement;
@@ -35,7 +35,7 @@ describe('StripeControl', () => {
   });
 
   it('prefills the secret env key with the detected one and forwards edits', async () => {
-    const onSaveConfig = vi.fn();
+    const onSaveConfig = vi.fn().mockResolvedValue({ ok: true });
     render(Harness, { props: { secretEnvKey: 'STRIPE_SECRET_KEY', onSaveConfig } });
     await fireEvent.click(screen.getByRole('button', { name: 'Configure Stripe listener' }));
     const input = screen.getByLabelText('Secret env key') as HTMLInputElement;
@@ -43,5 +43,15 @@ describe('StripeControl', () => {
     await fireEvent.input(input, { target: { value: ' STRIPE_API_KEY ' } });
     await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSaveConfig).toHaveBeenCalledWith('/stripe/webhook', 'STRIPE_API_KEY');
+  });
+
+  it('keeps the modal open and shows the error when the save is refused', async () => {
+    const error = 'STRIPE_SECRET has no value in .env';
+    const onSaveConfig = vi.fn().mockResolvedValue({ ok: false, error });
+    render(Harness, { props: { onSaveConfig } });
+    await fireEvent.click(screen.getByRole('button', { name: 'Configure Stripe listener' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText(error)).toBeInTheDocument();
+    expect(screen.getByLabelText('Secret env key')).toBeInTheDocument();
   });
 });

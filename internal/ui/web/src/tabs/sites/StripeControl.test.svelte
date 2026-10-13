@@ -7,7 +7,7 @@
     webhookPath?: string;
     secretEnvKey?: string;
     onToggle?: () => void;
-    onSaveConfig?: (path: string, secretEnvKey: string) => void;
+    onSaveConfig?: (path: string, secretEnvKey: string) => Promise<{ ok: boolean; error?: string }>;
   }
   let {
     running = false,
@@ -15,7 +15,7 @@
     webhookPath = '',
     secretEnvKey = '',
     onToggle = () => {},
-    onSaveConfig = () => {}
+    onSaveConfig = async () => ({ ok: true })
   }: Props = $props();
 </script>
 

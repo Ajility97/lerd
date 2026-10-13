@@ -10,24 +10,31 @@
     path: string;
     secretEnvKey: string;
     onclose: () => void;
-    onsave: (path: string, secretEnvKey: string) => void;
+    onsave: (path: string, secretEnvKey: string) => Promise<{ ok: boolean; error?: string }>;
   }
   let { open, path, secretEnvKey, onclose, onsave }: Props = $props();
 
   let value = $state('');
   let keyValue = $state('');
+  let error = $state('');
 
   // Seed only on the open transition (path read untracked), so a live sites
   // push that updates path mid-edit doesn't overwrite what the user is typing.
   $effect(() => {
     if (!open) return;
+    error = '';
     value = untrack(() => path) || '/stripe/webhook';
     keyValue = untrack(() => secretEnvKey) || 'STRIPE_SECRET';
   });
 
-  function save() {
+  async function save() {
     const trimmed = value.trim();
-    if (trimmed) onsave(trimmed.startsWith('/') ? trimmed : '/' + trimmed, keyValue.trim());
+    if (!trimmed) return onclose();
+    const r = await onsave(trimmed.startsWith('/') ? trimmed : '/' + trimmed, keyValue.trim());
+    if (!r.ok) {
+      error = r.error || m.common_requestFailed();
+      return;
+    }
     onclose();
   }
 </script>
@@ -64,6 +71,9 @@
     <p class="text-[11px] text-gray-500 dark:text-gray-400">
       {m.sites_controls_stripeSecretKeyHint()}
     </p>
+    {#if error}
+      <pre class="text-[11px] text-red-600 dark:text-red-400 whitespace-pre-wrap break-words bg-red-50 dark:bg-red-900/15 rounded-sm px-2 py-1.5 max-h-32 overflow-y-auto">{error}</pre>
+    {/if}
   </div>
   {#snippet footer()}
     <button

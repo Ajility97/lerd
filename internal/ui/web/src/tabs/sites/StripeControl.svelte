@@ -15,7 +15,7 @@
     webhookPath?: string;
     secretEnvKey?: string;
     onToggle: () => void;
-    onSaveConfig: (path: string, secretEnvKey: string) => void;
+    onSaveConfig: (path: string, secretEnvKey: string) => Promise<{ ok: boolean; error?: string }>;
     onLogs?: () => void;
   }
   let {
