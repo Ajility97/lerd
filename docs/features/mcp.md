@@ -179,6 +179,10 @@ The server also sends short instructions when a client connects, telling the ass
 
 The injected context files document each action's arguments and the key conventions in full.
 
+### Checking a browser test
+
+The context files tell an assistant that drives a site in a browser (Playwright, Pest browser, a browser MCP) to check each run against lerd before calling it done. With [debug capture](dumps.md) on, every PHP response carries an `X-Lerd-Rid` header; the assistant passes that id to `request lenses` and treats any N+1, slow query or error it reports as unfinished work. Turning on [browser logs](browser-logs.md) for the site first adds the page's JavaScript errors and failed fetches to the same request.
+
 ### Creating a worktree from an assistant
 
 `worktree add` blocks until the watcher's setup pipeline has finished and reports `provisioned: true`, because the pipeline starts the moment git writes the worktree entry, and an action that returned earlier would hand back a tree being written underneath the assistant. Two installers in one tree is how `vendor/` ends up with packages extracted but no `autoload.php`, which then presents as a Composer autoload bug rather than a race.
