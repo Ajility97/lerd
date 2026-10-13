@@ -761,6 +761,7 @@
   "services_updateAll": "Tout mettre à jour",
   "services_updateAll_body": "Télécharge la dernière image sûre pour chaque service activé ci-dessous, puis les redémarre un par un. Les sites qui les utilisent perdent la connexion quelques secondes.",
   "services_updateAll_done": "{count} mis à jour",
+  "services_updateAll_rowDone": "Mis à jour",
   "services_updateTo": "Mettre à jour vers {tag}",
   "services_upgrade": "Mise à niveau",
   "services_upgradeTo": "Mise à niveau → {tag}",

@@ -517,11 +517,16 @@ export interface ServiceUpdateResult {
 
 // updateServices applies the safe update to each service one at a time, since
 // parallel pulls fight over bandwidth. The caller has already confirmed the batch.
-export async function updateServices(names: string[]): Promise<ServiceUpdateResult[]> {
+export async function updateServices(
+  names: string[],
+  onresult?: (result: ServiceUpdateResult) => void
+): Promise<ServiceUpdateResult[]> {
   const results: ServiceUpdateResult[] = [];
   for (const name of names) {
     const { ok, error } = await streamServiceAction(name, 'update', { confirmed: true });
-    results.push(ok ? { name, ok } : { name, ok, error });
+    const result = ok ? { name, ok } : { name, ok, error };
+    results.push(result);
+    onresult?.(result);
   }
   return results;
 }

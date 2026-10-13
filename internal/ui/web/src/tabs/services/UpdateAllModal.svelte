@@ -22,6 +22,9 @@
 
   let on = $state<Record<string, boolean>>(Object.fromEntries(services.map((s) => [s.name, true])));
   let updating = $state(false);
+  // Live progress is cleared once a service's update ends, so its outcome is
+  // kept here for the row to show while the rest of the batch runs.
+  let outcome = $state<Record<string, ServiceUpdateResult>>({});
   const selected = $derived(services.filter((s) => on[s.name]).map((s) => s.name));
 
   function target(s: Service): string {
@@ -32,7 +35,7 @@
   async function run() {
     updating = true;
     try {
-      ondone(await updateServices(selected));
+      ondone(await updateServices(selected, (r) => (outcome[r.name] = r)));
     } finally {
       updating = false;
       onclose();
@@ -51,16 +54,23 @@
   {onclose}
 >
   {#snippet extra()}
-    <div class="rounded-lg border border-gray-200 dark:border-lerd-border divide-y divide-gray-100 dark:divide-lerd-border">
+    <div class="max-h-[50vh] overflow-y-auto rounded-lg border border-gray-200 dark:border-lerd-border divide-y divide-gray-100 dark:divide-lerd-border">
       {#each services as s (s.name)}
         {@const progress = $updateProgress[s.name]}
+        {@const result = outcome[s.name]}
         <div class="flex items-center gap-3 px-3 py-2.5">
           <ServiceIcon name={s.name} category={s.category} icon={s.icon} color={s.color} preset={s.preset} compact />
           <div class="flex-1 min-w-0">
             <div class="text-sm text-gray-800 dark:text-gray-100 truncate">{serviceLabel(s.name)}</div>
-            <div class="truncate text-xs {progress?.error ? 'text-red-500' : progress ? 'text-gray-500 dark:text-gray-400' : 'font-mono text-emerald-600 dark:text-emerald-400'}">
-              {progress ? progress.message : target(s)}
-            </div>
+            {#if progress}
+              <div class="truncate text-xs {progress.error ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}">{progress.message}</div>
+            {:else if result}
+              <div class="truncate text-xs {result.ok ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}">
+                {result.ok ? m.services_updateAll_rowDone() : result.error}
+              </div>
+            {:else}
+              <div class="truncate font-mono text-xs text-emerald-600 dark:text-emerald-400">{target(s)}</div>
+            {/if}
           </div>
           <Toggle on={on[s.name]} title={serviceLabel(s.name)} disabled={updating} onclick={() => (on[s.name] = !on[s.name])} />
         </div>

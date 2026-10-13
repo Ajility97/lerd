@@ -761,6 +761,7 @@
   "services_updateAll": "Alle aktualisieren",
   "services_updateAll_body": "Lädt das neueste sichere Image für jeden unten eingeschalteten Dienst und startet sie nacheinander neu. Sites, die sie nutzen, verlieren für einige Sekunden die Verbindung.",
   "services_updateAll_done": "{count} aktualisiert",
+  "services_updateAll_rowDone": "Aktualisiert",
   "services_updateTo": "Aktualisieren auf {tag}",
   "services_upgrade": "Upgrade",
   "services_upgradeTo": "Upgrade → {tag}",

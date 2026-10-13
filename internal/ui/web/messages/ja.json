@@ -761,6 +761,7 @@
   "services_updateAll": "すべて更新",
   "services_updateAll_body": "下でオンにした各サービスの最新の安全なイメージを取得し、1つずつ再起動します。利用中のサイトは数秒間接続が切れます。",
   "services_updateAll_done": "{count} 件更新済み",
+  "services_updateAll_rowDone": "更新済み",
   "services_updateTo": "{tag} に更新",
   "services_upgrade": "アップグレード",
   "services_upgradeTo": "アップグレード → {tag}",

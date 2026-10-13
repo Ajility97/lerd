@@ -50,12 +50,14 @@ describe('services store', () => {
     }) as unknown as typeof fetch;
     const { updateServices } = await import('./services');
 
-    const results = await updateServices(['mysql', 'mailpit']);
+    const seen: string[] = [];
+    const results = await updateServices(['mysql', 'mailpit'], (r) => seen.push(r.name));
 
     expect(results).toEqual([
       { name: 'mysql', ok: false, error: 'pull failed' },
       { name: 'mailpit', ok: true }
     ]);
+    expect(seen).toEqual(['mysql', 'mailpit']);
     expect(urls.some((u) => u.includes('/api/image-estimate'))).toBe(false);
     const updates = urls.filter((u) => u.endsWith('/update'));
     expect(updates).toEqual(['/api/services/mysql/update', '/api/services/mailpit/update']);

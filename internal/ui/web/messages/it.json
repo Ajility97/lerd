@@ -761,6 +761,7 @@
   "services_updateAll": "Aggiorna tutto",
   "services_updateAll_body": "Scarica l'immagine sicura più recente per ogni servizio attivato qui sotto, poi li riavvia uno alla volta. I siti che li usano perdono la connessione per qualche secondo.",
   "services_updateAll_done": "{count} aggiornati",
+  "services_updateAll_rowDone": "Aggiornato",
   "services_updateTo": "Aggiorna a {tag}",
   "services_upgrade": "Esegui upgrade",
   "services_upgradeTo": "Upgrade → {tag}",

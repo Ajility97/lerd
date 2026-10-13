@@ -761,6 +761,7 @@
   "services_updateAll": "Perbarui semua",
   "services_updateAll_body": "Mengunduh image aman terbaru untuk setiap layanan yang diaktifkan di bawah, lalu memulai ulang satu per satu. Situs yang memakainya kehilangan koneksi selama beberapa detik.",
   "services_updateAll_done": "{count} diperbarui",
+  "services_updateAll_rowDone": "Diperbarui",
   "services_updateTo": "Perbarui ke {tag}",
   "services_upgrade": "Tingkatkan",
   "services_upgradeTo": "Tingkatkan → {tag}",

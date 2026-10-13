@@ -761,6 +761,7 @@
   "services_updateAll": "Tümünü güncelle",
   "services_updateAll_body": "Aşağıda açık olan her servis için en yeni güvenli imajı çeker, ardından bunları tek tek yeniden başlatır. Bunları kullanan siteler birkaç saniye bağlantıyı kaybeder.",
   "services_updateAll_done": "{count} güncellendi",
+  "services_updateAll_rowDone": "Güncellendi",
   "services_updateTo": "{tag} sürümüne güncelle",
   "services_upgrade": "Yükselt",
   "services_upgradeTo": "Yükselt → {tag}",

@@ -1,4 +1,4 @@
-import { render, fireEvent } from '@testing-library/svelte';
+import { render, fireEvent, within } from '@testing-library/svelte';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import ServicesDashboard from './ServicesDashboard.svelte';
 import { services, type Service } from '$stores/services';
@@ -7,7 +7,7 @@ import { accessMode } from '$stores/accessMode';
 const updateServices = vi.fn();
 vi.mock('$stores/services', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$stores/services')>();
-  return { ...actual, updateServices: (names: string[]) => updateServices(names) };
+  return { ...actual, updateServices: (...args: unknown[]) => updateServices(...args) };
 });
 vi.mock('$stores/presets', async (importOriginal) => {
   const actual = await importOriginal<typeof import('$stores/presets')>();
@@ -71,7 +71,7 @@ describe('ServicesDashboard', () => {
     expect(updateServices).not.toHaveBeenCalled();
 
     await fireEvent.click(getByRole('button', { name: 'Update' }));
-    expect(updateServices).toHaveBeenCalledWith(['mailpit', 'redis', 'rustfs']);
+    expect(updateServices).toHaveBeenCalledWith(['mailpit', 'redis', 'rustfs'], expect.any(Function));
     expect(await findByText('2 updated')).toBeTruthy();
     expect(getByText('Redis: pull failed')).toBeTruthy();
   });
@@ -89,7 +89,7 @@ describe('ServicesDashboard', () => {
 
     await fireEvent.click(getByRole('switch', { name: 'Redis' }));
     await fireEvent.click(getByRole('button', { name: 'Update' }));
-    expect(updateServices).toHaveBeenCalledWith(['mailpit', 'rustfs']);
+    expect(updateServices).toHaveBeenCalledWith(['mailpit', 'rustfs'], expect.any(Function));
   });
 
   it('holds the update back while every service is switched off', async () => {
@@ -100,5 +100,22 @@ describe('ServicesDashboard', () => {
     expect(getByRole('switch', { name: 'Mailpit' }).getAttribute('aria-checked')).toBe('true');
     await fireEvent.click(getByRole('switch', { name: 'Mailpit' }));
     expect((getByRole('button', { name: 'Update' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  // A row's live progress is cleared once its update ends, so while the rest
+  // of the batch is still pulling the row has to keep its own outcome.
+  it('keeps each finished row on its outcome while the batch runs on', async () => {
+    updateServices.mockImplementation((_names: string[], onresult: (r: unknown) => void) => {
+      onresult({ name: 'mailpit', ok: true });
+      onresult({ name: 'redis', ok: false, error: 'pull failed' });
+      return new Promise(() => {});
+    });
+    const { getByText, getByRole, findByText } = render(ServicesDashboard);
+
+    await fireEvent.click(getByText('Update all'));
+    await fireEvent.click(getByRole('button', { name: 'Update' }));
+    expect(await findByText('Updated')).toBeTruthy();
+    expect(getByText('pull failed')).toBeTruthy();
+    expect(within(getByRole('dialog')).getByText('latest')).toBeTruthy();
   });
 });

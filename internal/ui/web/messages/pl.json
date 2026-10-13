@@ -761,6 +761,7 @@
   "services_updateAll": "Aktualizuj wszystko",
   "services_updateAll_body": "Pobiera najnowszy bezpieczny obraz dla każdej włączonej poniżej usługi, a następnie uruchamia je ponownie po kolei. Strony, które z nich korzystają, tracą połączenie na kilka sekund.",
   "services_updateAll_done": "Zaktualizowano: {count}",
+  "services_updateAll_rowDone": "Zaktualizowano",
   "services_updateTo": "Aktualizuj do {tag}",
   "services_upgrade": "Uaktualnij",
   "services_upgradeTo": "Uaktualnij → {tag}",
