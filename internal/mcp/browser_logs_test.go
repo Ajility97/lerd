@@ -92,3 +92,24 @@ func TestBrowserEvents_FilteredEmptyCountsThePageViews(t *testing.T) {
 		t.Fatalf("hint = %q, want it to count the 2 page views recorded", hint)
 	}
 }
+
+// limit cuts events before types narrow them, so a page's error may be the part
+// that was cut; the hint must not call the pages clean then.
+func TestBrowserEvents_FilteredEmptyUnderALimitIsNotClean(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	data, _ := json.Marshal(map[string]any{"type": "console", "level": "warn", "message": "late warning"})
+	events, _ := json.Marshal([]dumps.Event{{ID: "1", Kind: dumps.KindBrowser, Data: data, Ctx: dumps.Context{RID: "p1", Request: "https://shop.test/"}}})
+	stubRoundTrip(t, string(events))
+	cfg, _ := config.LoadGlobal()
+	cfg.SetDumpsEnabled(true)
+	if err := config.SaveGlobal(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	out := browserEventsText(t, map[string]any{"types": []any{"error"}, "limit": float64(1)})
+	hint, _ := out["hint"].(string)
+	if strings.Contains(hint, "reported none") || !strings.Contains(hint, "limit") {
+		t.Fatalf("hint = %q, want it to blame the limit rather than call the page clean", hint)
+	}
+}

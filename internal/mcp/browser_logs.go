@@ -67,7 +67,7 @@ func execBrowserEvents(args map[string]any) (any, *rpcError) {
 	if len(types) > 0 {
 		recorded = len(browserlogs.Summarize(events, nil).PageViews)
 	}
-	if hint := browserEventsHint(out["debug_enabled"].(bool), site, len(summary.PageViews), recorded, len(types) > 0); hint != "" {
+	if hint := browserEventsHint(out["debug_enabled"].(bool), site, len(summary.PageViews), recorded, len(types) > 0, limit != ""); hint != "" {
 		out["hint"] = hint
 	}
 	b, _ := json.Marshal(out)
@@ -76,8 +76,9 @@ func execBrowserEvents(args map[string]any) (any, *rpcError) {
 
 // browserEventsHint explains an empty answer, so no events is never read as a
 // page that threw nothing while capture was not even running.
-// recorded counts the page views before types narrowed them.
-func browserEventsHint(debug bool, site *config.Site, views, recorded int, filtered bool) string {
+// recorded counts the page views before types narrowed them; limited means a
+// limit cut the events first, so a page's matching ones may be what was cut.
+func browserEventsHint(debug bool, site *config.Site, views, recorded int, filtered, limited bool) string {
 	switch {
 	case site != nil && !browserlogs.Capturable(*site):
 		return "This site's pages are not covered by browser logs (FrankenPHP, paused or a sleeping host-proxy site)."
@@ -85,6 +86,8 @@ func browserEventsHint(debug bool, site *config.Site, views, recorded int, filte
 		return "Browser logs are off for this site. Turn them on with browser_toggle (site, enable: true), then load a page of the site."
 	case !debug:
 		return "Debug capture is off, so nothing is recorded. Turn it on with dumps_toggle (enable: true), then load a page of the site."
+	case views == 0 && filtered && recorded > 0 && limited:
+		return "Nothing of the requested types in the events the limit returned, which may have cut the ones asked for. Drop limit before reading these page views as clean."
 	case views == 0 && filtered && recorded == 1:
 		return "Nothing of the requested types on the 1 page view recorded, so that page reported none of them. Drop types to see it."
 	case views == 0 && filtered && recorded > 1:
