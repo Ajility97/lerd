@@ -980,7 +980,7 @@ type SiteResponse struct {
 	HorizonFailing     bool           `json:"horizon_failing,omitempty"`
 	HorizonReload      bool           `json:"horizon_reload,omitempty"`       // horizon runs via horizon:listen (auto-reload)
 	HorizonReloadReady bool           `json:"horizon_reload_ready,omitempty"` // chokidar present, so auto-reload can be enabled without installing it
-	OctaneReload       bool           `json:"octane_reload,omitempty"`        // FrankenPHP worker serves via octane:start --watch (auto-reload)
+	OctaneReload       bool           `json:"octane_reload,omitempty"`        // FrankenPHP worker serves via octane:frankenphp --watch (auto-reload)
 	OctaneReloadReady  bool           `json:"octane_reload_ready,omitempty"`  // FrankenPHP worker mode + chokidar present, so auto-reload can be enabled
 	HasQueueWorker     bool           `json:"has_queue_worker"`
 	HasScheduleWorker  bool           `json:"has_schedule_worker"`

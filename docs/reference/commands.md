@@ -220,7 +220,7 @@ Switch the PHP runtime for the current site between shared PHP-FPM and per-site 
 | `lerd runtime frankenphp --worker` | Enable FrankenPHP with worker mode (Laravel Octane or Symfony's FrankenPHP adapter with `--watch`) |
 | `lerd runtime frankenphp --no-worker` | Switch to FrankenPHP and explicitly disable worker mode |
 | `lerd runtime fpm` | Back to shared PHP-FPM; clears the runtime field from `.lerd.yaml` |
-| `lerd octane:reload [on\|off]` | Toggle Octane auto-reload on file changes (`octane:start --watch`) for the current FrankenPHP worker-mode site; with no argument prints the current state. Needs the `chokidar` npm package |
+| `lerd octane:reload [on\|off]` | Toggle Octane auto-reload on file changes (`octane:frankenphp --watch`) for the current FrankenPHP worker-mode site; with no argument prints the current state. Needs the `chokidar` npm package |
 
 ## Node
 

@@ -239,7 +239,7 @@ type FrameworkFrankenPHP struct {
 	// than rewriting WorkerEntrypoint in Go means the store stays the single
 	// source of truth for what runs; core only appends the platform polling
 	// flag on hosts where the container can't observe filesystem events (see
-	// ResolveFrankenPHPWorkerEntrypoint). Laravel sets it to the octane:start
+	// ResolveFrankenPHPWorkerEntrypoint). Laravel sets it to the octane:frankenphp
 	// command with --watch.
 	WorkerReloadEntrypoint []string `yaml:"worker_reload_entrypoint,omitempty"`
 	// SupportsWorker declares whether the framework ships a FrankenPHP worker
@@ -954,6 +954,11 @@ func (e FrameworkEnvConf) appFormat() string {
 	return e.AppFormat
 }
 
+// octaneAdminHostArg binds FrankenPHP's admin API to the container address so octane:reload run
+// from the FPM container reaches it. octane:start does not forward --admin-host, older Octane
+// lacks it (hence the grep), and $ is avoided because systemd and launchd expand it in Exec=.
+const octaneAdminHostArg = "`grep -qs admin-host vendor/laravel/octane/src/Commands/StartFrankenPhpCommand.php && hostname -i | sed 's/ .*//; s/^/--admin-host=/'`"
+
 // laravelFramework is the built-in Laravel adapter, the default shipped stack.
 var laravelFramework = &Framework{
 	Name:      "laravel",
@@ -1118,13 +1123,13 @@ var laravelFramework = &Framework{
 		// `lerd restart`; opting the octane worker into reload (lerd octane:reload
 		// on) selects the watch variant below so the server restarts on changes.
 		WorkerEntrypoint: []string{"sh", "-c",
-			`exec php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto`},
+			`exec php artisan octane:frankenphp --host=0.0.0.0 --port=8000 --workers=auto ` + octaneAdminHostArg},
 		// Watch variant: same command plus --watch. Octane's watcher runs
 		// vendor/laravel/octane/bin/file-watcher.cjs under node (baked into the
 		// image) and resolves the chokidar npm package from the project. Core
 		// appends --poll on hosts where the container can't see host fs events.
 		WorkerReloadEntrypoint: []string{"sh", "-c",
-			`exec php artisan octane:start --server=frankenphp --host=0.0.0.0 --port=8000 --workers=auto --watch`},
+			`exec php artisan octane:frankenphp --host=0.0.0.0 --port=8000 --workers=auto --watch ` + octaneAdminHostArg},
 		SupportsWorker: true,
 	},
 	Commands: []FrameworkCommand{
