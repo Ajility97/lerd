@@ -16,7 +16,7 @@ const (
 // StripeCLIImage is the image a site's stripe listener worker runs. Pinned,
 // because an older image cached as :latest rejects the --all-snapshot flag
 // that stripe-cli 1.51 made mandatory.
-const StripeCLIImage = "docker.io/stripe/stripe-cli:v1.52.1"
+const StripeCLIImage = "docker.io/stripe/stripe-cli:v1.53.1"
 
 // StripeListenExecStart is the ExecStart of a site's stripe listener unit.
 // --all-snapshot forwards every classic webhook event, which is what listen
