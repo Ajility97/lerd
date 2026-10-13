@@ -30,3 +30,24 @@ func StripeListenExecStart(containerName, apiKey, forwardTo string) string {
 func ToolImages() []string {
 	return []string{ProbeImage}
 }
+
+// StripeListenUnit is a site's stripe listener service unit. ExecStopPost
+// removes the container, because a stop that lands before it starts leaves it
+// in Created, where --rm never fires.
+func StripeListenUnit(siteName, apiKey, forwardTo string) string {
+	containerName := "lerd-stripe-" + siteName
+	return fmt.Sprintf(`[Unit]
+Description=Lerd Stripe Listener (%s)
+After=network.target
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=5
+ExecStart=%s
+ExecStopPost=-%s rm -f --ignore %s
+
+[Install]
+WantedBy=default.target
+`, siteName, StripeListenExecStart(containerName, apiKey, forwardTo), PodmanBin(), containerName)
+}
