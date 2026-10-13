@@ -1470,7 +1470,7 @@ func mergeBuiltinDoctor(fw *Framework) *Framework {
 }
 
 // mergeUserOverlay checks for a user-defined overlay file in FrameworksDir()
-// and merges its workers and setup commands on top of base.
+// and merges its workers, setup, logs, nginx block and requires on top of base.
 // User additions/overrides win. If no overlay exists, base is returned as-is.
 func mergeUserOverlay(base *Framework) *Framework {
 	path := filepath.Join(FrameworksDir(), base.Name+".yaml")
@@ -1499,6 +1499,17 @@ func mergeUserOverlay(base *Framework) *Framework {
 	// Merge logs (overlay replaces the full list if provided).
 	if overlay.Logs != nil {
 		base.Logs = overlay.Logs
+	}
+
+	// The overlay is the user's own file, so unlike a project's .lerd.yaml its
+	// nginx block and required services are trusted; each replaces the base's.
+	if overlay.Nginx != nil {
+		base.Nginx = overlay.Nginx
+	}
+	// An empty list counts as unset: SaveFramework's omitempty drops it, so
+	// honouring it here would make the overlay mean something else once resaved.
+	if len(overlay.Requires) > 0 {
+		base.Requires = overlay.Requires
 	}
 
 	return base
@@ -2263,8 +2274,8 @@ func SaveFramework(fw *Framework) error {
 	}
 	toSave := fw
 	if fw.Name == "laravel" {
-		// Only persist workers, setup, and logs — built-in handles everything else
-		toSave = &Framework{Name: fw.Name, Workers: fw.Workers, Setup: fw.Setup, Logs: fw.Logs}
+		// Only persist what mergeUserOverlay reads; the base handles everything else.
+		toSave = &Framework{Name: fw.Name, Workers: fw.Workers, Setup: fw.Setup, Logs: fw.Logs, Nginx: fw.Nginx, Requires: fw.Requires}
 	}
 	data, err := yaml.Marshal(toSave)
 	if err != nil {
