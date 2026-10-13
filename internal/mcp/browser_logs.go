@@ -63,7 +63,11 @@ func execBrowserEvents(args map[string]any) (any, *rpcError) {
 			out["site_settings"] = settings
 		}
 	}
-	if hint := browserEventsHint(out["debug_enabled"].(bool), site, len(summary.PageViews), len(types) > 0); hint != "" {
+	recorded := len(summary.PageViews)
+	if len(types) > 0 {
+		recorded = len(browserlogs.Summarize(events, nil).PageViews)
+	}
+	if hint := browserEventsHint(out["debug_enabled"].(bool), site, len(summary.PageViews), recorded, len(types) > 0); hint != "" {
 		out["hint"] = hint
 	}
 	b, _ := json.Marshal(out)
@@ -72,7 +76,8 @@ func execBrowserEvents(args map[string]any) (any, *rpcError) {
 
 // browserEventsHint explains an empty answer, so no events is never read as a
 // page that threw nothing while capture was not even running.
-func browserEventsHint(debug bool, site *config.Site, views int, filtered bool) string {
+// recorded counts the page views before types narrowed them.
+func browserEventsHint(debug bool, site *config.Site, views, recorded int, filtered bool) string {
 	switch {
 	case site != nil && !browserlogs.Capturable(*site):
 		return "This site's pages are not covered by browser logs (FrankenPHP, paused or a sleeping host-proxy site)."
@@ -80,8 +85,10 @@ func browserEventsHint(debug bool, site *config.Site, views int, filtered bool) 
 		return "Browser logs are off for this site. Turn them on with browser_toggle (site, enable: true), then load a page of the site."
 	case !debug:
 		return "Debug capture is off, so nothing is recorded. Turn it on with dumps_toggle (enable: true), then load a page of the site."
-	case views == 0 && filtered:
-		return "Nothing of the requested types. Drop types to see every page view and what happened on it."
+	case views == 0 && filtered && recorded == 1:
+		return "Nothing of the requested types on the 1 page view recorded, so that page reported none of them. Drop types to see it."
+	case views == 0 && filtered && recorded > 1:
+		return fmt.Sprintf("Nothing of the requested types on the %d page views recorded, so those pages reported none of them. Drop types to see them.", recorded)
 	case views == 0:
 		return "No events yet. Load or reload a page of the site in a browser; every page view is recorded, and errors on it are listed under it."
 	}
