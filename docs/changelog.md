@@ -7,7 +7,7 @@ Lerd uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [1.37.0-beta.1] - 2026-10-10
+## [1.37.0-beta.2] - 2026-10-13
 
 The release is about one request, followed all the way through. A request lerd serves while debug capture is on now carries an id from nginx to PHP to the browser, so a recent request opens on a timeline of everything it ran, its queries, views, cache calls, outgoing HTTP, jobs, logs, dumps and exceptions, laid out on the time nginx measured and summed up above it with its peak memory, the split between app and database, and how long it waited for a free FPM worker. Its page reports back too: browser logs inject a small script into a site's pages and catch uncaught errors, unhandled rejections, console messages and failed fetches, each tied to the request that served the page. An assistant reads the same request over MCP through a new `request` tool, which leads with what went wrong in it, N+1 and slow queries first, so it no longer has to page every lens to spot the pattern, and three places in the dashboard copy a short prompt that points the assistant straight at a request, a failing doctor check or a log entry.
 
@@ -36,6 +36,7 @@ Around those, the TUI is rebuilt around a sidebar and a ctrl+p palette that reac
 - **A FrankenPHP badge in the site header** (#2112), reading FrankenPHP · worker in worker mode, so a site's page says how it is served.
 - **Doctor findings appear as each check finishes** (#2157). The site doctor panel draws rows as they land rather than waiting on a slow `migrate:status` or `composer validate`, and the site's root request starts alongside the container commands.
 - **A guide for moving from MAMP** (#2159), next to the Herd and Laragon pages, covering databases and what happens to `.htaccess` now that nginx serves the site.
+- **A framework definition can pass server variables to PHP** (#2194). `nginx.fastcgi_params` adds `fastcgi_param` lines to the site's own PHP location, after the ones lerd sets, so profiling, `LERD_SITE` and the forwarded headers all stay in place. Values take `{{root}}` and `{{public}}`, and the Testbench definition uses it to tell its skeleton where the package lives.
 
 ### Changed
 
@@ -69,6 +70,11 @@ Around those, the TUI is rebuilt around a sidebar and a ctrl+p palette that reac
 - **The sites and services dashboards and the settings page lost their header on scroll** (#2141), which now stays put the way a site's own page does.
 - **The git marker on a worktree tab blinked on every refresh** (#2156), and a branch name too long for its tab now scrolls into view on hover.
 - **A handful of older bugs found running the release plan** (#2086). An offline install no longer pulls and rebuilds PHP images, cleanup keeps the images other images are built on, `lerd composer` can verify SSH hosts against your `known_hosts`, `lerd quit` stops the ssh agent, a first link leaves the project's git status clean, `lerd tools:update` brings a lerd-installed mise back to its pin, a stopped service that `lerd env` starts again is no longer left marked stopped, the setup wizards name the package behind each suggested service, and the DNS panel stays reachable while DNS is off.
+- **A FrankenPHP site answered 502 once a worker started** (#2191). Starting a worker re-rendered the site's vhost from the PHP-FPM template, which sent every request to an upstream the site does not use. A FrankenPHP vhost is left alone now, contributed by @prabowosd.
+- **`lerd rebuild` took a custom container site down** (#2195). It removed the running image before building the new one, which killed the container, and systemd kept restarting it against the missing image until it gave up, while the rebuild reported success. It now builds first, restarts on the new image and only then removes the old one.
+- **Stopping the Stripe listener could leave its container behind** (#2195). A stop that landed before the container had started left it in Created, where it outlived the unit and even `lerd uninstall`. The unit removes its container when it stops now.
+- **Meilisearch showed as failed after every stop** (#2195). It exits 143 on SIGTERM, which systemd counted as a failure, so after a stop by hand or by idle-suspend `lerd service list` and the dashboard said failed. Service units count that exit as a clean stop now.
+- **A user framework overlay's `nginx` and `requires` were ignored** (#2196). `lerd framework add` saved a Laravel overlay without them, and the merge onto the store or built-in definition never read them. Both reach the site now, replacing the base definition's when the overlay sets them.
 - **Dependencies with security advisories** (#2142). Go moves to 1.26.9 with `golang.org/x/net` v0.60.0 and `golang.org/x/crypto` v0.56.0, and the web UI's dompurify and source-map-js to their patched releases.
 
 ---
