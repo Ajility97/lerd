@@ -166,6 +166,25 @@ func BuildCustomImageTo(siteName, projectPath string, cfg *config.ContainerConfi
 	return nil
 }
 
+// RebuildCustomImage builds a site's custom image over the current one, runs
+// restart, and only then removes the old image. Removing it first (rmi -f)
+// killed the running container, and systemd spent its restart limit on the
+// missing image, leaving the site down.
+func RebuildCustomImage(siteName, projectPath string, cfg *config.ContainerConfig, restart func() error) error {
+	oldID := customImageID(CustomImageName(siteName))
+	ForgetCustomImageTools(siteName)
+	if err := BuildCustomImage(siteName, projectPath, cfg); err != nil {
+		return err
+	}
+	if err := restart(); err != nil {
+		return err
+	}
+	if oldID != "" && oldID != customImageID(CustomImageName(siteName)) {
+		_ = execCommand(PodmanBin(), "rmi", oldID).Run()
+	}
+	return nil
+}
+
 // RemoveCustomImage removes the local image for a site's custom container.
 func RemoveCustomImage(siteName string) error {
 	ForgetCustomImageTools(siteName)
