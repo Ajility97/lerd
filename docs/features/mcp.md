@@ -179,6 +179,10 @@ The server also sends short instructions when a client connects, telling the ass
 
 The injected context files document each action's arguments and the key conventions in full.
 
+### Switching branches from an assistant
+
+A plain `git switch` or `git pull` moves the code but leaves the database on the old branch's schema. The server instructions tell an assistant to keep the two in step with the tools it already has: a `db snapshot` before the switch, `worktree db_isolate` for worktrees sharing the database when the new branch brings migrations, then either a `db restore` of the snapshot taken on the new branch or its migrations and a composer install through `exec`. Snapshots taken through MCP record the site and the branch checked out, so `db snapshots` shows which branch's schema each one holds. When only the old branch had some migrations, the database is ahead of the code; the assistant says so and offers the snapshot rather than rolling anything back on its own.
+
 ### Checking a browser test
 
 The context files tell an assistant that drives a site in a browser (Playwright, Pest browser, a browser MCP) to check each run against lerd before calling it done. With [debug capture](dumps.md) on, every PHP response carries an `X-Lerd-Rid` header; the assistant passes that id to `request lenses` and treats any N+1, slow query or error it reports as unfinished work. Turning on [browser logs](browser-logs.md) for the site first adds the page's JavaScript errors and failed fetches to the same request.

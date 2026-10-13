@@ -622,6 +622,16 @@ func TestInitialize_instructionsPickTheWorktreeDatabase(t *testing.T) {
 	}
 }
 
+// A plain git switch or pull leaves the database on the old branch's schema,
+// so the instructions walk the switch through the db and exec tools.
+func TestInitialize_instructionsCoverABranchSwitch(t *testing.T) {
+	for _, want := range []string{"git switch", "`db` `snapshot`", "git_branch", "`restore`", "`db_isolate` with `source` main", "`exec`"} {
+		if !strings.Contains(serverInstructions, want) {
+			t.Errorf("instructions do not mention %q", want)
+		}
+	}
+}
+
 // The skill loads only when its description matches the task, which a browser
 // test does not, so the always-loaded instructions carry the request check.
 func TestInitialize_instructionsCheckABrowserTest(t *testing.T) {
