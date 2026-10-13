@@ -821,21 +821,7 @@ func execStripeListen(args map[string]any) (any, *rpcError) {
 	}
 	forwardTo := scheme + "://" + site.PrimaryDomain() + webhookPath
 	unitName := "lerd-stripe-" + siteName
-	containerName := unitName
-
-	unit := fmt.Sprintf(`[Unit]
-Description=Lerd Stripe Listener (%s)
-After=network.target
-
-[Service]
-Type=simple
-Restart=on-failure
-RestartSec=5
-ExecStart=%s
-
-[Install]
-WantedBy=default.target
-`, siteName, podman.StripeListenExecStart(containerName, apiKey, forwardTo))
+	unit := podman.StripeListenUnit(siteName, apiKey, forwardTo)
 
 	if err := lerdSystemd.WriteService(unitName, unit); err != nil {
 		return toolErr("writing service unit: " + err.Error()), nil

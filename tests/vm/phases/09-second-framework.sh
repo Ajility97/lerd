@@ -48,6 +48,8 @@ check_out "9.9 both serve at once" '^(200|404)$' code "$(site_url "$SHOP_DIR")"
 # CodeIgniter 3 runs on PHP 7.2-7.4, which a fresh install does not carry.
 lerd php:list 2>/dev/null | grep -q '7\.4' || check "add PHP 7.4 for CodeIgniter 3" lerd php:rebuild 7.4
 scaffold ci3 codeigniter 3
+# CodeIgniter 4 runs on PHP 8.2-8.4; phase 4 adds 8.4, a phase run alone does not.
+lerd php:list 2>/dev/null | grep -q '8\.4' || check "add PHP 8.4 for CodeIgniter 4" lerd php:rebuild 8.4
 scaffold ci4 codeigniter 4 >/dev/null 2>&1
 check_out "CodeIgniter 3 links on its own definition, PHP 7.2-7.4" '^ci3 .* 7\.[234] .*codeigniter 3' lerd sites
 check_out "9.2 CodeIgniter 4 links on its own definition, PHP 8.2-8.4" '^ci4 .* 8\.[234] .*codeigniter 4' lerd sites
