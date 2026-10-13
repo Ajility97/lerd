@@ -185,7 +185,7 @@ A plain `git switch` or `git pull` moves the code but leaves the database on the
 
 ### Checking a browser test
 
-The context files tell an assistant that drives a site in a browser (Playwright, Pest browser, a browser MCP) to check each run against lerd before calling it done. With [debug capture](dumps.md) on, every PHP response carries an `X-Lerd-Rid` header; the assistant passes that id to `request lenses` and treats any N+1, slow query or error it reports as unfinished work. The instructions also have the assistant turn on [browser logs](browser-logs.md) for the site before the run, which adds the page's JavaScript errors and failed fetches to the same request.
+The context files tell an assistant that drives a site in a browser (Playwright, Pest browser, a browser MCP) to check each run against lerd before calling it done. With [debug capture](dumps.md) on, every PHP response carries an `X-Lerd-Rid` header; the assistant passes that id to `request lenses` and treats any N+1, slow query or error it reports as unfinished work. The instructions also have the assistant turn on [browser logs](browser-logs.md) for the site before the run, which adds the page's JavaScript errors and failed fetches to the same request, and to read `browser_events` afterwards, since errors after a single-page navigation belong to a page view with no request id.
 
 ### Creating a worktree from an assistant
 

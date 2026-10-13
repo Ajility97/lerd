@@ -639,7 +639,7 @@ func TestInitialize_instructionsCoverABranchSwitch(t *testing.T) {
 // The skill loads only when its description matches the task, which a browser
 // test does not, so the always-loaded instructions carry the request check.
 func TestInitialize_instructionsCheckABrowserTest(t *testing.T) {
-	for _, want := range []string{"browser", "X-Lerd-Rid", "`request` `lenses`", "`browser_toggle`"} {
+	for _, want := range []string{"browser", "X-Lerd-Rid", "`request` `lenses`", "`browser_toggle`", "`diag` `browser_events`"} {
 		if !strings.Contains(serverInstructions, want) {
 			t.Errorf("instructions do not mention %q", want)
 		}
