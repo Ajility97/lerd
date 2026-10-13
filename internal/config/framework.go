@@ -1506,7 +1506,9 @@ func mergeUserOverlay(base *Framework) *Framework {
 	if overlay.Nginx != nil {
 		base.Nginx = overlay.Nginx
 	}
-	if overlay.Requires != nil {
+	// An empty list counts as unset: SaveFramework's omitempty drops it, so
+	// honouring it here would make the overlay mean something else once resaved.
+	if len(overlay.Requires) > 0 {
 		base.Requires = overlay.Requires
 	}
 
