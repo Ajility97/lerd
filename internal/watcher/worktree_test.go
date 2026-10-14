@@ -243,13 +243,14 @@ func TestWatchWorktrees_reportsWorktreesOfARecloneAtTheSamePath(t *testing.T) {
 	head := filepath.Join(site, ".git", "worktrees", "first", "HEAD")
 	ready := time.NewTicker(50 * time.Millisecond)
 	defer ready.Stop()
+	startup := time.After(5 * time.Second)
 	for waiting := true; waiting; {
 		select {
 		case <-changed:
 			waiting = false
 		case <-ready.C:
 			_ = os.WriteFile(head, []byte("ref: refs/heads/first\n"), 0o644)
-		case <-time.After(5 * time.Second):
+		case <-startup:
 			t.Fatal("watcher never came up")
 		}
 	}
