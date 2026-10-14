@@ -618,3 +618,51 @@ func TestRing_TrimDropsEventsOnceTheGraceHasPassed(t *testing.T) {
 		t.Fatalf("filter r1 = %v, want it trimmed once older than the grace", ids(got))
 	}
 }
+
+// A request still running past the grace keeps its early events while it goes
+// on sending, since the keep refresh only learns of it once it has finished.
+func TestRing_TrimSparesARequestStillSendingEvents(t *testing.T) {
+	clock := time.Now()
+	ringNow = func() time.Time { return clock }
+	t.Cleanup(func() { ringNow = time.Now })
+
+	r := NewRing(2)
+	r.Append(ridEvent("early", "r1"))
+	for i := 0; i < trimEvery; i++ {
+		r.Append(mkEvent(fmt.Sprint(i)))
+	}
+	clock = clock.Add(trimGrace)
+	r.Append(ridEvent("late", "r1"))
+	for i := 0; i < trimEvery; i++ {
+		r.Append(mkEvent(fmt.Sprint("after", i)))
+	}
+	r.SetKeep(map[string]bool{"r1": true})
+	if got := ids(r.Filter(FilterOpts{RID: "r1"})); fmt.Sprint(got) != "[early late]" {
+		t.Fatalf("filter r1 = %v, want both events of the long request", got)
+	}
+}
+
+// Emptying the buffer lets SQLite hand out low seqs again, which the ages
+// marked before must not cover.
+func TestRing_TrimGraceStartsOverAfterARemove(t *testing.T) {
+	clock := time.Now()
+	ringNow = func() time.Time { return clock }
+	t.Cleanup(func() { ringNow = time.Now })
+
+	r := NewRing(2)
+	for i := 0; i < 4*trimEvery; i++ {
+		r.Append(mkEvent(fmt.Sprint(i)))
+		if i == trimEvery {
+			clock = clock.Add(trimGrace)
+		}
+	}
+	r.Remove(func(Event) bool { return true })
+	r.Append(ridEvent("slow", "r1"))
+	for i := 0; i < 2*trimEvery; i++ {
+		r.Append(mkEvent(fmt.Sprint("new", i)))
+	}
+	r.SetKeep(map[string]bool{"r1": true})
+	if got := ids(r.Filter(FilterOpts{RID: "r1"})); fmt.Sprint(got) != "[slow]" {
+		t.Fatalf("filter r1 = %v, want the request kept by a refresh after the burst", got)
+	}
+}

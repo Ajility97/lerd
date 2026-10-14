@@ -238,9 +238,19 @@ func (r *Ring) SetKeep(keep map[string]bool) {
 }
 
 // trim deletes what fell out of the newest cap events and no kept request ran,
-// once it is older than trimGrace.
+// once it is older than trimGrace and its request has gone quiet that long.
 func (r *Ring) trim() {
-	r.dropBefore(min(r.floor(), r.settle()+1))
+	r.untrimmed = 0
+	settled := r.settle()
+	_, err := r.db.Exec(`DELETE FROM events WHERE kept = 0 AND seq < ? AND seq <= ?
+		AND rid NOT IN (SELECT rid FROM events WHERE seq > ? AND rid != '')`, r.floor(), settled, settled)
+	warnRing("dropping old events", err)
+}
+
+// forgetAges drops the trim marks after a delete, since SQLite reuses the
+// seqs of deleted newest rows and the old marks would cover the new events.
+func (r *Ring) forgetAges() {
+	r.marks, r.settled = nil, 0
 }
 
 // dropBefore deletes the events before seq that no kept request ran.
@@ -303,8 +313,7 @@ func (r *Ring) Clear() {
 	defer r.mu.Unlock()
 	_, err := r.db.Exec(`DELETE FROM events`)
 	warnRing("clearing events", err)
-	// seq starts over on an empty table, so the old marks would cover new events.
-	r.marks, r.settled = nil, 0
+	r.forgetAges()
 }
 
 // Remove drops every event drop matches, kept requests included.
@@ -342,6 +351,7 @@ func (r *Ring) Remove(drop func(Event) bool) {
 		}
 	}
 	warnRing("removing events", tx.Commit())
+	r.forgetAges()
 }
 
 // Import appends the events an older lerd-ui saved to a JSON file at path,
