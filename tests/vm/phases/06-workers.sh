@@ -132,6 +132,9 @@ only_core() { ! podman ps --format '{{.Names}}' | grep -Ev '^lerd-(nginx|dns|php
 check "mysql goes to sleep" wait_for 240 asleep mysql
 check "6.11 [partial] only nginx, dns and php-fpm keep running" wait_for 60 only_core
 svc_json() { api GET /api/services | python3 -c 'import json,sys; print([s.get(sys.argv[2]) for s in json.load(sys.stdin) if s["name"]==sys.argv[1]])' "$1" "$2"; }
+# The dashboard's snapshot can trail the flag file by a few seconds.
+svc_asleep() { svc_json "$1" idle_suspended | grep -q True; }
+wait_for 10 svc_asleep mysql
 check_out "6.11 [partial] the dashboard API marks mysql idle_suspended" '\[True\]' svc_json mysql idle_suspended
 check_out "6.11 [partial] the vhost is switched to the waking one" '_lerd/wake' cat "$vhost"
 r=$(cold "$url")
