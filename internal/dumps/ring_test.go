@@ -666,3 +666,31 @@ func TestRing_TrimGraceStartsOverAfterARemove(t *testing.T) {
 		t.Fatalf("filter r1 = %v, want the request kept by a refresh after the burst", got)
 	}
 }
+
+// A CLI worker keeps one rid for its whole life, and no slowest route can name
+// it, so its steady stream must not hold its old events forever.
+func TestRing_TrimDropsAWorkersOldEventsWhileItRuns(t *testing.T) {
+	clock := time.Now()
+	ringNow = func() time.Time { return clock }
+	t.Cleanup(func() { ringNow = time.Now })
+
+	worker := func(id string) Event {
+		e := ridEvent(id, "w1")
+		e.Ctx.Type = "cli"
+		return e
+	}
+	r := NewRing(2)
+	r.Append(worker("early"))
+	for i := 0; i < trimEvery; i++ {
+		r.Append(mkEvent(fmt.Sprint(i)))
+	}
+	clock = clock.Add(trimGrace)
+	r.Append(worker("late"))
+	for i := 0; i < trimEvery; i++ {
+		r.Append(mkEvent(fmt.Sprint("after", i)))
+	}
+	r.SetKeep(map[string]bool{"w1": true})
+	if got := ids(r.Filter(FilterOpts{RID: "w1"})); fmt.Sprint(got) != "[late]" {
+		t.Fatalf("filter w1 = %v, want only the worker's event inside the grace", got)
+	}
+}

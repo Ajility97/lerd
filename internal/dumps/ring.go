@@ -238,12 +238,12 @@ func (r *Ring) SetKeep(keep map[string]bool) {
 }
 
 // trim deletes what fell out of the newest cap events and no kept request ran,
-// once it is older than trimGrace and its request has gone quiet that long.
+// once it is older than trimGrace and its web request has gone quiet that long.
 func (r *Ring) trim() {
 	r.untrimmed = 0
 	settled := r.settle()
 	_, err := r.db.Exec(`DELETE FROM events WHERE kept = 0 AND seq < ? AND seq <= ?
-		AND rid NOT IN (SELECT rid FROM events WHERE seq > ? AND rid != '')`, r.floor(), settled, settled)
+		AND rid NOT IN (SELECT rid FROM events WHERE seq > ? AND rid != '' AND ctx = 'fpm')`, r.floor(), settled, settled)
 	warnRing("dropping old events", err)
 }
 
