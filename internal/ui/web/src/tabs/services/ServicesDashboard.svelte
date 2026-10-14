@@ -49,7 +49,7 @@
 </script>
 
 <div class="flex-1 flex flex-col min-h-0">
-  <DashboardHeader title={m.services_dash_overview()} stats={$servicesLoaded && total > 0 ? summary : undefined} />
+  <DashboardHeader title={m.nav_services()} stats={$servicesLoaded && total > 0 ? summary : undefined} />
 
   <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
     <section class="space-y-2.5">
