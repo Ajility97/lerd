@@ -84,11 +84,9 @@ button {
   }
 }
 
-/* With the list panel hidden the page meets the rail. The header strip makes
-   room for the button that brings the list back; below it the body takes the
-   list frame's left border and curved corner. The border is a line over the
-   page body, since some pages paint their own backgrounds; the header stacks
-   above it, and its corner piece sits just under it, wherever that ends. */
+/* List hidden: the header makes room for the restore button, and the body takes
+   the list frame's border, drawn over it since some pages paint their own
+   background, with the curved corner placed under the header. */
 .list-hidden::before {
   content: '';
   position: absolute;
