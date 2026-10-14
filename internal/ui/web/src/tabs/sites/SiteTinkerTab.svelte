@@ -509,7 +509,7 @@
               {:else if block.kind === 'query'}
                 <div class="flex items-start gap-2 rounded-md border-l-2 border-sky-400 dark:border-sky-500 border-y border-r border-y-sky-200/60 border-r-sky-200/60 dark:border-y-sky-800/40 dark:border-r-sky-800/40 bg-sky-50/80 dark:bg-sky-950/30 px-2 py-1">
                   <Icon name="database" class="w-4 h-4 mt-0.5 text-sky-500 dark:text-sky-400 shrink-0" />
-                  <pre class="whitespace-pre-wrap text-[11px] leading-relaxed text-sky-800 dark:text-sky-300">{block.sql}</pre>
+                  <pre class="whitespace-pre-wrap text-[0.92em] leading-relaxed text-sky-800 dark:text-sky-300">{block.sql}</pre>
                 </div>
               {:else}
                 <pre class="whitespace-pre-wrap">{block.text}</pre>

@@ -50,13 +50,31 @@ func Command(ctx context.Context, dir string) (*exec.Cmd, error) {
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
 		return nil, err
 	}
-	if err := os.WriteFile(filepath.Join(cfgDir, ".phpantom.toml"), []byte(fullTokensConfig), 0o644); err != nil {
+	if err := writeConfig(cfgDir); err != nil {
 		return nil, err
 	}
 	cmd := exec.CommandContext(ctx, BinPath())
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "XDG_CONFIG_HOME="+home)
 	return cmd, nil
+}
+
+// writeConfig replaces the config through a rename, so a phpantom started by
+// another tinker tab never reads a half-written file.
+func writeConfig(dir string) error {
+	tmp, err := os.CreateTemp(dir, ".phpantom-*.toml")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.WriteString(fullTokensConfig); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), filepath.Join(dir, ".phpantom.toml"))
 }
 
 // stampPath is the sidecar that records which Version the on-disk binary is, so
