@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -33,6 +34,29 @@ const binName = "phpantom_lsp"
 // BinPath is the managed location of the phpantom_lsp executable.
 func BinPath() string {
 	return filepath.Join(config.BinDir(), binName)
+}
+
+// fullTokensConfig is the global config lerd hands phpantom. Its default
+// "contextual" mode assumes an editor grammar colours classes and calls, which
+// Monaco's PHP grammar cannot, so tinker asks for the full token stream.
+const fullTokensConfig = "[semantic_tokens]\nmode = \"full\"\n"
+
+// Command returns a phpantom_lsp process rooted at dir. XDG_CONFIG_HOME points
+// at a lerd-owned folder because a .phpantom.toml is the only way to pick the
+// token mode; a project's own .phpantom.toml still overrides it.
+func Command(ctx context.Context, dir string) (*exec.Cmd, error) {
+	home := filepath.Join(config.DataDir(), "phpantom")
+	cfgDir := filepath.Join(home, "phpantom_lsp")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		return nil, err
+	}
+	if err := os.WriteFile(filepath.Join(cfgDir, ".phpantom.toml"), []byte(fullTokensConfig), 0o644); err != nil {
+		return nil, err
+	}
+	cmd := exec.CommandContext(ctx, BinPath())
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "XDG_CONFIG_HOME="+home)
+	return cmd, nil
 }
 
 // stampPath is the sidecar that records which Version the on-disk binary is, so
