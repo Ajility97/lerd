@@ -28,7 +28,7 @@
   // prerelease build ("8.6.0beta2") is too wide to sit next to the stage mark,
   // so the card keeps the minor and the tooltip carries the full string.
   const display = $derived(patch || version);
-  const stage = $derived(prereleaseStage(patch));
+  const stage = $derived(prereleaseStage(patch ?? ''));
   const minor = $derived(display.split('.').slice(0, 2).join('.'));
   const tail = $derived(
     prerelease || display.split('.').length < 3 ? '' : '.' + display.split('.').slice(2).join('.')
