@@ -336,6 +336,14 @@ function repaintDeclaration(doc: Document, style: CSSStyleDeclaration, dark: boo
     style.setProperty(prop, painted, style.getPropertyPriority(prop));
     touched = true;
   }
+  // The background shorthand comes back as longhands, so a gradient-only panel
+  // loses its image with no colour beside it and goes see-through.
+  const image = kept['background-image'];
+  const fill = kept['background-color'] ?? style.getPropertyValue('background-color');
+  if (image && GRADIENT.test(image) && ['', 'initial', 'transparent'].includes(fill)) {
+    const flat = flattenGradient(doc, image, dark);
+    if (flat) setPainted(style, kept, 'background-color', flat);
+  }
   if (ownText) guardFill(doc, style, kept);
   else guardPair(doc, style, kept, dark);
   if (!touched && !Object.keys(kept).length) return;
