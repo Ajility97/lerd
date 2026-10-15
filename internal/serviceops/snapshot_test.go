@@ -105,6 +105,7 @@ func TestWriteReadSnapshotMeta(t *testing.T) {
 		GitBranch:    "feature/orders",
 		Auto:         true,
 		Kept:         true,
+		Switch:       true,
 	}
 	if err := writeSnapshotMeta(dir, want); err != nil {
 		t.Fatalf("writeSnapshotMeta: %v", err)
