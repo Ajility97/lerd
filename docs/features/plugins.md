@@ -168,6 +168,12 @@ Per surface:
 - **API endpoints** get the request body on stdin and `LERD_METHOD` and `LERD_QUERY`; a `site` query parameter hands over the site. A zero exit answers 200 with stdout, served as JSON when it parses as JSON, and any other exit answers 500 with stderr.
 - **Hooks** get `LERD_EVENT` and the event's payload, both as JSON on stdin and as `LERD_<KEY>` variables.
 
+### Which language
+
+Lerd runs the file itself, so its first line picks the interpreter: `#!/bin/sh`, `#!/usr/bin/env python3`, `#!/usr/bin/env node` or `#!/usr/bin/env php`. On a lerd machine `node` and `php` on the path are lerd's own, so a plugin needs nothing installed beyond what lerd already brought.
+
+PHP is the one that runs elsewhere: lerd keeps PHP in its containers, so a PHP script runs inside one through lerd's `php` shim. It still gets every `LERD_*` variable, with `LERD_API_URL` pointed at the host as the container reaches it, but no `LERD_BIN`, since there is no lerd inside the container. A PHP plugin talks to lerd through its API instead. Its own folder and `LERD_PLUGIN_DATA` are under your home folder, which the container sees, but paths outside it such as `/tmp` are not.
+
 ---
 
 ## Events

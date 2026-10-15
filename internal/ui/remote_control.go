@@ -739,6 +739,11 @@ func isLocalControlRequest(r *http.Request) bool {
 	if hasValidTrustToken(r) {
 		return true
 	}
+	// A plugin script lerd runs inside a container reaches the API from one of
+	// the host's own addresses; its token from anywhere else is not enough.
+	if hasValidPluginToken(r) && fromHost(r) {
+		return true
+	}
 	if forwardedByProxy(r) {
 		return false
 	}
