@@ -520,6 +520,104 @@ func TestParseBunAudit(t *testing.T) {
 	}
 }
 
+// pnpm lists advisories, several per package; it is the packages that count.
+// Without its metadata block the audit never ran, as with no lockfile.
+func TestParsePnpmAudit(t *testing.T) {
+	two := `{"actions":[],"advisories":{"1":{"module_name":"minimist"},"2":{"module_name":"lodash"},"3":{"module_name":"lodash"}},"muted":[],"metadata":{"vulnerabilities":{"moderate":2,"critical":1}}}`
+	if n := parsePnpmAudit(two, 1); n != 2 {
+		t.Errorf("two vulnerable packages: got %d, want 2", n)
+	}
+	if n := parsePnpmAudit(`{"actions":[],"advisories":{},"muted":[],"metadata":{"vulnerabilities":{"info":0}}}`, 0); n != 0 {
+		t.Errorf("clean: got %d, want 0", n)
+	}
+	if n := parsePnpmAudit(`{"error":{"code":"ERR_PNPM_AUDIT_NO_LOCKFILE"}}`, 1); n != -1 {
+		t.Errorf("no lockfile: got %d, want -1", n)
+	}
+}
+
+// Yarn 1 prints a line per advisory and closes with a summary; no summary means
+// the audit did not finish.
+func TestParseYarnClassicAudit(t *testing.T) {
+	two := `{"type":"auditAdvisory","data":{"advisory":{"module_name":"minimist"}}}
+{"type":"auditAdvisory","data":{"advisory":{"module_name":"lodash"}}}
+{"type":"auditAdvisory","data":{"advisory":{"module_name":"lodash"}}}
+{"type":"auditSummary","data":{"vulnerabilities":{"critical":1}}}`
+	if n := parseYarnClassicAudit(two, 28); n != 2 {
+		t.Errorf("two vulnerable packages: got %d, want 2", n)
+	}
+	if n := parseYarnClassicAudit(`{"type":"auditSummary","data":{"vulnerabilities":{"info":0}}}`, 0); n != 0 {
+		t.Errorf("clean: got %d, want 0", n)
+	}
+	if n := parseYarnClassicAudit(`{"type":"error","data":"Couldn't reach the registry"}`, 1); n != -1 {
+		t.Errorf("no summary: got %d, want -1", n)
+	}
+}
+
+// Yarn 2 and later print a line per advisory and nothing at all when clean, so
+// only a successful exit makes an empty answer a clean one.
+func TestParseYarnBerryAudit(t *testing.T) {
+	two := `{"value":"lodash","children":{"ID":1,"Severity":"high"}}
+{"value":"lodash","children":{"ID":2,"Severity":"moderate"}}
+{"value":"minimist","children":{"ID":3,"Severity":"critical"}}`
+	if n := parseYarnBerryAudit(two, 1); n != 2 {
+		t.Errorf("two vulnerable packages: got %d, want 2", n)
+	}
+	if n := parseYarnBerryAudit("", 0); n != 0 {
+		t.Errorf("clean: got %d, want 0", n)
+	}
+	if n := parseYarnBerryAudit("➤ YN0035: The remote server failed to provide the requested resource", 1); n != -1 {
+		t.Errorf("failed run: got %d, want -1", n)
+	}
+}
+
+// Each project is audited by the manager its lockfile belongs to, the same one
+// lerd installs it with.
+func TestNodeAuditorFor(t *testing.T) {
+	cases := []struct {
+		files      map[string]string
+		tool, args string
+	}{
+		{map[string]string{"pnpm-lock.yaml": "lockfileVersion: '9.0'"}, "pnpm", "audit --json"},
+		{map[string]string{"yarn.lock": "# yarn lockfile v1\n"}, "yarn", "audit --json"},
+		{map[string]string{"yarn.lock": "__metadata:\n  version: 8\n"}, "yarn", "npm audit --all --recursive --json"},
+		{map[string]string{"package-lock.json": "{}"}, "", ""},
+	}
+	for _, c := range cases {
+		dir := t.TempDir()
+		c.files["package.json"] = "{}"
+		for name, body := range c.files {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		a := nodeAuditorFor(dir)
+		if a.tool != c.tool || a.args != c.args {
+			t.Errorf("%v: got %q %q, want %q %q", c.files, a.tool, a.args, c.tool, c.args)
+		}
+	}
+}
+
+// A pnpm project whose manager is installed gets a real answer from it.
+func TestCheckNodeAudit_pnpmProjectIsAuditedByPnpm(t *testing.T) {
+	bin := t.TempDir()
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	script := "#!/bin/sh\n[ \"$1 $2\" = \"audit --json\" ] || exit 9\n" +
+		`echo '{"advisories":{"1":{"module_name":"lodash"}},"metadata":{"vulnerabilities":{"high":1}}}'` + "\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(bin, "pnpm"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	site := t.TempDir()
+	for _, f := range []string{"package.json", "pnpm-lock.yaml"} {
+		if err := os.WriteFile(filepath.Join(site, f), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	c := checkNodeAudit(context.Background(), site)
+	if c.Status != StatusWarn || !strings.Contains(c.Detail, "1 node package with") || !strings.Contains(c.Detail, "pnpm update") {
+		t.Fatalf("got %+v, want a warning for one package that names pnpm update", c)
+	}
+}
+
 // A bun project has no package-lock.json for npm audit to read, so its audit
 // goes to bun, found in ~/.bun/bin the way the installer puts it there.
 func TestCheckNodeAudit_bunProjectIsAuditedByBun(t *testing.T) {
