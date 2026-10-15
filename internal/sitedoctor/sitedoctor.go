@@ -21,6 +21,8 @@ import (
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/envfile"
+	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/geodro/lerd/internal/node"
 	phpkg "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/serviceops"
@@ -1273,9 +1275,13 @@ func checkNodeDeps(path string) Check {
 	return Check{Name: "node_deps", Status: StatusWarn, Detail: "No lockfile is committed, installs won't be reproducible."}
 }
 
-// checkNodeAudit warns when `npm audit` reports vulnerabilities. Network- and
-// lock-dependent, so it degrades to "unknown" when it can't run.
+// checkNodeAudit warns when `npm audit`, or bun's on a bun project, reports
+// vulnerabilities. Network- and lock-dependent, so it degrades to "unknown"
+// when it can't run.
 func checkNodeAudit(ctx context.Context, path string) Check {
+	if a := nodeAuditorFor(path); a.tool != "" {
+		return checkManagerAudit(ctx, path, a)
+	}
 	cctx, cancel := context.WithTimeout(ctx, commandTimeout)
 	defer cancel()
 	out, exit, err := runCapture(cctx, path, "npm audit --json")
@@ -1290,6 +1296,175 @@ func checkNodeAudit(ctx context.Context, path string) Check {
 		return Check{Name: "node_audit", Status: StatusWarn, Detail: fmt.Sprintf("%d known vulnerabilit%s in node packages, run npm audit fix.", n, Plural(n, "y", "ies")), Fix: FixNpmAuditFix}
 	}
 	return Check{Name: "node_audit", Status: StatusOK}
+}
+
+// nodeAuditor is how a package manager other than npm audits a project: npm
+// audit needs a package-lock.json the others never write. None of them has an
+// audit fix lerd can run, so a finding names the update command instead.
+type nodeAuditor struct {
+	tool, args, update string
+	parse              func(output string, exit int) int
+}
+
+// nodeAuditorFor picks the manager lerd installs the project with, or a zero
+// auditor for npm. bun also honours js_runtime and a packageManager field.
+func nodeAuditorFor(path string) nodeAuditor {
+	if node.UsesBun(path) {
+		return nodeAuditor{"bun", "audit --json", "bun update", func(o string, _ int) int { return parseBunAudit(o) }}
+	}
+	switch node.PackageManager(path) {
+	case "pnpm":
+		return nodeAuditor{"pnpm", "audit --json", "pnpm update", parsePnpmAudit}
+	case "yarn":
+		if yarnBerry(path) {
+			return nodeAuditor{"yarn", "npm audit --all --recursive --json", "yarn up", parseYarnBerryAudit}
+		}
+		return nodeAuditor{"yarn", "audit --json", "yarn upgrade", parseYarnClassicAudit}
+	}
+	return nodeAuditor{}
+}
+
+// yarnBerry reports whether yarn.lock was written by yarn 2 or later, which
+// audits through `yarn npm audit` instead of yarn 1's `yarn audit`.
+func yarnBerry(path string) bool {
+	data, err := os.ReadFile(filepath.Join(path, "yarn.lock"))
+	return err == nil && strings.Contains(string(data), "__metadata:")
+}
+
+// lookJSBin and activeNode are indirected so tests can take the corepack route.
+var (
+	lookJSBin  = gitpkg.LookJSBin
+	activeNode = node.Active
+)
+
+// managerAuditCommand runs the manager's own binary when there is one, else
+// pnpm or yarn through corepack under the project's Node, the way lerd installs
+// those projects. bun is never served by corepack.
+func managerAuditCommand(a nodeAuditor, path string) (string, bool) {
+	if bin, ok := lookJSBin(a.tool); ok {
+		return "'" + strings.ReplaceAll(bin, "'", `'\''`) + "' " + a.args, true
+	}
+	mgr := activeNode()
+	if a.tool == "bun" || !mgr.Available() {
+		return "", false
+	}
+	version, _ := node.DetectVersion(path)
+	if version == "" {
+		version = "default"
+	}
+	return "COREPACK_ENABLE_DOWNLOAD_PROMPT=0 " + mgr.ExecPrefix(version) + " corepack " + a.tool + " " + a.args, true
+}
+
+func checkManagerAudit(ctx context.Context, path string, a nodeAuditor) Check {
+	command, ok := managerAuditCommand(a, path)
+	if !ok {
+		return Check{Name: "node_audit", Status: StatusUnknown, Detail: fmt.Sprintf("This project uses %s, which isn't installed, so its packages couldn't be audited.", a.tool)}
+	}
+	cctx, cancel := context.WithTimeout(ctx, commandTimeout)
+	defer cancel()
+	out, exit, err := runCapture(cctx, path, command)
+	if err != nil || exit < 0 {
+		return Check{Name: "node_audit", Status: StatusUnknown, Detail: fmt.Sprintf("Couldn't run %s audit, dependencies may not be installed or the network is unreachable.", a.tool)}
+	}
+	n := a.parse(out, exit)
+	if n < 0 {
+		return Check{Name: "node_audit", Status: StatusUnknown, Detail: fmt.Sprintf("Couldn't read %s audit output.", a.tool)}
+	}
+	if n > 0 {
+		return Check{Name: "node_audit", Status: StatusWarn, Detail: fmt.Sprintf("%d node package%s with known vulnerabilities, run %s.", n, Plural(n, "", "s"), a.update)}
+	}
+	return Check{Name: "node_audit", Status: StatusOK}
+}
+
+// parseBunAudit returns how many packages `bun audit --json` lists advisories
+// for, or -1 when there is no JSON, as when bun finds no lockfile.
+func parseBunAudit(output string) int {
+	start := strings.IndexByte(output, '{')
+	if start < 0 {
+		return -1
+	}
+	var parsed map[string][]json.RawMessage
+	if err := json.NewDecoder(strings.NewReader(output[start:])).Decode(&parsed); err != nil {
+		return -1
+	}
+	n := 0
+	for _, advisories := range parsed {
+		if len(advisories) > 0 {
+			n++
+		}
+	}
+	return n
+}
+
+// parsePnpmAudit counts the packages pnpm's advisories name, or -1 when its
+// answer has no metadata block, which is how it reports an audit that never ran.
+func parsePnpmAudit(output string, _ int) int {
+	start := strings.IndexByte(output, '{')
+	if start < 0 {
+		return -1
+	}
+	var parsed struct {
+		Advisories map[string]struct {
+			Module string `json:"module_name"`
+		} `json:"advisories"`
+		Metadata json.RawMessage `json:"metadata"`
+	}
+	if err := json.NewDecoder(strings.NewReader(output[start:])).Decode(&parsed); err != nil || len(parsed.Metadata) == 0 {
+		return -1
+	}
+	pkgs := map[string]bool{}
+	for _, a := range parsed.Advisories {
+		pkgs[a.Module] = true
+	}
+	return len(pkgs)
+}
+
+// parseYarnClassicAudit counts the packages yarn 1's advisory lines name, or -1
+// when its closing summary line is missing and the audit did not finish.
+func parseYarnClassicAudit(output string, _ int) int {
+	pkgs := map[string]bool{}
+	summary := false
+	for _, line := range strings.Split(output, "\n") {
+		var ev struct {
+			Type string `json:"type"`
+			Data struct {
+				Advisory struct {
+					Module string `json:"module_name"`
+				} `json:"advisory"`
+			} `json:"data"`
+		}
+		if json.Unmarshal([]byte(strings.TrimSpace(line)), &ev) != nil {
+			continue
+		}
+		switch ev.Type {
+		case "auditAdvisory":
+			pkgs[ev.Data.Advisory.Module] = true
+		case "auditSummary":
+			summary = true
+		}
+	}
+	if !summary {
+		return -1
+	}
+	return len(pkgs)
+}
+
+// parseYarnBerryAudit counts the packages yarn 2+'s advisory lines name. It
+// prints nothing when clean, so an empty answer only counts after a clean exit.
+func parseYarnBerryAudit(output string, exit int) int {
+	pkgs := map[string]bool{}
+	for _, line := range strings.Split(output, "\n") {
+		var ev struct {
+			Value string `json:"value"`
+		}
+		if json.Unmarshal([]byte(strings.TrimSpace(line)), &ev) == nil && ev.Value != "" {
+			pkgs[ev.Value] = true
+		}
+	}
+	if len(pkgs) == 0 && exit != 0 {
+		return -1
+	}
+	return len(pkgs)
 }
 
 // parseNpmAudit returns the total vulnerability count in `npm audit --json`
