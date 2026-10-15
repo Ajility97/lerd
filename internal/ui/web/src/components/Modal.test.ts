@@ -50,12 +50,18 @@ describe('Modal', () => {
   // the rest. The panel stops at the viewport and its body scrolls instead.
   it('caps the panel at the viewport and scrolls the body', () => {
     render(Harness, { props: { open: true, title: 'X', onclose: () => {}, withFooter: true } });
+    // jsdom lays nothing out, so the classes that do the work are pinned: the
+    // column lets the body shrink below its content, and the ends never do.
     const dialog = screen.getByRole('dialog');
-    expect(dialog.className).toContain('max-h-[calc(100dvh-2rem)]');
+    expect(dialog).toHaveClass('flex', 'flex-col', 'max-h-[calc(100dvh-2rem)]');
     const scroller = screen.getByTestId('body').parentElement!;
-    expect(scroller.className).toContain('overflow-y-auto');
-    expect(scroller.contains(screen.getByText('X'))).toBe(false);
-    expect(scroller.contains(screen.getByTestId('footer'))).toBe(false);
+    expect(scroller).toHaveClass('min-h-0', 'overflow-y-auto');
+    const header = screen.getByText('X').parentElement!;
+    const footer = screen.getByTestId('footer').parentElement!;
+    expect(header).toHaveClass('shrink-0');
+    expect(footer).toHaveClass('shrink-0');
+    expect(scroller.contains(header)).toBe(false);
+    expect(scroller.contains(footer)).toBe(false);
   });
 
   it('defaults to the md width class', () => {
