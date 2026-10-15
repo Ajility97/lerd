@@ -25,6 +25,11 @@ func TestCompatible(t *testing.T) {
 		{"2.0.0", ">=1.37", true},
 		{"1.36.4", ">=1.37", false},
 		{"1.37.0-beta.3-5-gabc1234", ">=1.37", true},
+		{"1.37.0", ">= 1.37.2", true},
+		{"1.10.0", ">=1.9", true},
+		// Only a lower bound is a promise lerd can keep, anything else is refused.
+		{"1.37.0", "^1.37", false},
+		{"1.37.0", "<2.0", false},
 		// A build from a commit with no tag behind it has no version to judge.
 		{"d26efaf9", ">=9.0", true},
 	}
