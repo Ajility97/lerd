@@ -322,6 +322,8 @@ lerd service preset pgadmin             # install a store-only preset
 
 Lerd is free and open source, kept going by the people and companies who sponsor it. [Become a sponsor](https://github.com/sponsors/geodro).
 
+Using Lerd across a team? Commercial support is available, covering onboarding, priority fixes and help with your stack. Get in touch at [george@dumitres.co](mailto:george@dumitres.co).
+
 ### Companies
 
 <a href="https://www.motional.io"><img src="https://avatars.githubusercontent.com/u/34476080?s=120&v=4" width="60" alt="Motional"></a>
