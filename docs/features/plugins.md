@@ -81,6 +81,9 @@ api:                        # served at /api/plugins/hello/greet
     run: bin/greet
     loopback_only: false    # true keeps it to the lerd host, like lerd's own host actions
 
+provides:                   # jobs the plugin takes over from lerd, see below
+  worktree_database: bin/db
+
 ui:                         # files live under ui/, the only folder the dashboard serves
   page:     {title: Hello, icon: ui/icon.svg, entry: ui/index.html}
   site_tab: {title: Hello, entry: ui/site.html}
@@ -113,6 +116,31 @@ A service shows up in the service picker beside lerd's own and is installed from
 A plugin that ships a service must say in its README where each one comes from: the image it runs and the project that publishes it, so whoever installs the plugin knows what they are pulling before they pull it. The catalog only approves plugins that do.
 
 A plugin only adds names. One that ships a service or framework lerd already has, from itself, the store, your own definitions or another plugin, is refused at install with the names it clashes on. Should the store publish the same name later, the store's definition wins. Removing the plugin takes its definitions away, while a service you installed from it stays installed until you remove it.
+
+---
+
+## Taking over a job from lerd
+
+A plugin can declare itself in charge of a job lerd normally does, under `provides`. Lerd then hands that job to the plugin instead of doing it, and only one installed plugin can be in charge of a job: installing a second one is refused with the name of the first. A lerd that doesn't know a job refuses the plugin and names the job.
+
+### worktree_database
+
+Whenever a worktree gets a database of its own, from `lerd worktree add`, `lerd db:isolate`, the dashboard or an assistant, lerd runs the plugin's executable instead of creating and copying the database itself. It is meant for tools that branch a database copy-on-write, where lerd's own copy is a full dump and import.
+
+The executable runs as `bin/db create` or `bin/db drop`, with the request as JSON on stdin and each field also as `LERD_<FIELD>`:
+
+| Field | create | drop |
+|---|---|---|
+| `site`, `branch` | the site and the worktree's branch | same |
+| `service` | the lerd service holding the parent's database, like `mysql` | same |
+| `database` | the name lerd would have used | the database to drop |
+| `parent_database` | the parent site's database | |
+| `source` | `empty`, `main`, or the branch whose isolated database to copy | |
+| `site_path`, `worktree_path` | the two checkouts | |
+
+`create` prints a JSON object with the `database` it made and, when it serves that database somewhere other than the parent's service, the `host` to reach it on. Lerd writes both into the worktree's env file under the keys the framework declares, so env stays with the site, and records the plugin as the database's owner. Any other field in the answer is refused by name. Sharing the parent's database again, or removing the worktree, runs `drop` with the database `create` answered.
+
+When `create` fails, the worktree keeps sharing the parent's database and the error carries what the plugin wrote to stderr. Lerd never falls back to a full copy on its own. Lerd's database tools, such as snapshots and the database shell, still work only on databases a lerd service holds.
 
 ---
 

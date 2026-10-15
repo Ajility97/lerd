@@ -69,6 +69,9 @@ func place(stage, staged, want string, replace bool, src *Source) (*Plugin, erro
 	if _, err := ReadPlugin(named); err != nil {
 		return nil, err
 	}
+	if err := checkJobs(named, name); err != nil {
+		return nil, err
+	}
 	if clashes := config.PluginDefinitionClashes(named, installedDir(name)); len(clashes) > 0 {
 		return nil, fmt.Errorf("plugin %s ships what lerd already has: %s", name, strings.Join(clashes, ", "))
 	}

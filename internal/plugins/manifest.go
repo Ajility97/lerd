@@ -35,6 +35,9 @@ type Manifest struct {
 	MCP          *MCP              `yaml:"mcp,omitempty" json:"mcp,omitempty"`
 	API          []Endpoint        `yaml:"api,omitempty" json:"api,omitempty"`
 	UI           *UI               `yaml:"ui,omitempty" json:"ui,omitempty"`
+	// Provides maps each job the plugin takes over from lerd to the executable
+	// lerd runs for it.
+	Provides map[string]string `yaml:"provides,omitempty" json:"provides,omitempty"`
 }
 
 // Command is a CLI command, invoked as `lerd <plugin>:<name>`.
@@ -165,6 +168,14 @@ func (p *Plugin) validate() error {
 	if err := p.validateAPI(); err != nil {
 		return err
 	}
+	for job, run := range p.Provides {
+		if !jobs[job] {
+			return fmt.Errorf("provides unknown job %q", job)
+		}
+		if err := p.checkExecutable(run); err != nil {
+			return err
+		}
+	}
 	if err := config.CheckPluginDefinitions(p.Dir); err != nil {
 		return err
 	}
@@ -276,6 +287,7 @@ func (p *Plugin) Surfaces() []string {
 	add("page", p.UI != nil && p.UI.Page != nil)
 	add("site_tab", p.UI != nil && p.UI.SiteTab != nil)
 	add("page_script", p.UI != nil && p.UI.PageScript != "")
+	add("provides", len(p.Provides) > 0)
 	add("services", p.ships(config.PluginServices))
 	add("frameworks", p.ships(config.PluginFrameworks))
 	return out
