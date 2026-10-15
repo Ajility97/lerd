@@ -30,6 +30,9 @@ type Snapshot struct {
 	Auto bool `json:"auto,omitempty"`
 	// Kept pins an automatic snapshot so retention leaves it alone.
 	Kept bool `json:"kept,omitempty"`
+	// Switch marks the copy a branch switch or pull took, which the next one
+	// from the same branch replaces. One taken by hand never carries it.
+	Switch bool `json:"switch,omitempty"`
 }
 
 // SnapshotTarget identifies the live database a snapshot is taken from or
@@ -49,6 +52,8 @@ type SnapshotMeta struct {
 	// Auto stamps the snapshot as one the scheduler took, which is what puts it
 	// under retention.
 	Auto bool
+	// Switch stamps the copy a branch switch or pull takes.
+	Switch bool
 }
 
 const (
@@ -382,6 +387,7 @@ func CreateSnapshot(t SnapshotTarget, name string, ctx SnapshotMeta, emit func(P
 		Site:         ctx.Site,
 		GitBranch:    ctx.GitBranch,
 		Auto:         ctx.Auto,
+		Switch:       ctx.Switch,
 	}
 	if err := writeSnapshotMeta(dir, snap); err != nil {
 		_ = os.RemoveAll(dir)
