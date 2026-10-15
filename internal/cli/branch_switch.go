@@ -160,7 +160,7 @@ func siteBranchDB(site *config.Site, path string, t serviceops.SnapshotTarget, o
 			if err := ensureServiceRunning(t.Service); err != nil {
 				return "", err
 			}
-			meta := serviceops.SnapshotMeta{Site: site.Name, GitBranch: snapshotGitBranch(path)}
+			meta := serviceops.SnapshotMeta{Site: site.Name, GitBranch: snapshotGitBranch(path), Switch: true}
 			s, err := serviceops.CreateSnapshot(t, branchSnapshotName(meta.GitBranch), meta, emit)
 			if err != nil {
 				return "", err
@@ -220,9 +220,10 @@ func snapshotTargetFor(path string) (serviceops.SnapshotTarget, bool) {
 	return t, t.Database != "" && serviceops.SnapshotSupported(t.Service, false)
 }
 
-// branchSnapshotPrefix names the snapshots the switcher takes, which is how it
-// tells its own copies from ones taken by hand. The 1.37 betas saved them
-// as before-switch, which read as the branch being switched to.
+// branchSnapshotPrefix names the snapshots the switcher takes. They are told
+// apart from ones taken by hand by their Switch flag, except the copies the 1.37
+// betas saved before it existed, under a name that read as the branch being
+// switched to.
 const (
 	branchSnapshotPrefix       = "branch"
 	legacyBranchSnapshotPrefix = "before-switch"
@@ -238,7 +239,7 @@ func branchSnapshotName(branch string) string {
 func staleBranchSnapshots(snaps []serviceops.Snapshot, branch, keep string) []string {
 	var stale []string
 	for _, s := range snaps {
-		own := strings.HasPrefix(s.Name, branchSnapshotPrefix+"-") || strings.HasPrefix(s.Name, legacyBranchSnapshotPrefix+"-")
+		own := s.Switch || strings.HasPrefix(s.Name, legacyBranchSnapshotPrefix+"-")
 		if s.GitBranch == branch && s.Name != keep && own {
 			stale = append(stale, s.Name)
 		}

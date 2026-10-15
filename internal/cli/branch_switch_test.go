@@ -237,19 +237,21 @@ func TestSwitchBranch_failedMigrationKeepsTheSnapshotName(t *testing.T) {
 }
 
 // Only the switcher's own copies of the same branch are replaced: a snapshot
-// taken by hand, or another branch's copy, is never touched. Copies saved under
-// the old before-switch name are still the switcher's own.
+// taken by hand, even one named like the switcher's, or another branch's copy,
+// is never touched. Copies the 1.37 betas saved as before-switch predate the
+// flag and are still the switcher's own.
 func TestStaleBranchSnapshots(t *testing.T) {
 	snaps := []serviceops.Snapshot{
 		{Name: "before-switch-main-1", GitBranch: "main"},
-		{Name: "branch-main-1", GitBranch: "main"},
-		{Name: "branch-main-2", GitBranch: "main"},
-		{Name: "branch-dev-3", GitBranch: "dev"},
+		{Name: "branch-main-1", GitBranch: "main", Switch: true},
+		{Name: "branch-main-2", GitBranch: "main", Switch: true},
+		{Name: "branch-dev-3", GitBranch: "dev", Switch: true},
+		{Name: "branch-backup-4", GitBranch: "main"},
 		{Name: "pre-migration-1", GitBranch: "main"},
 	}
 	got := staleBranchSnapshots(snaps, "main", "branch-main-2")
 	if strings.Join(got, ",") != "before-switch-main-1,branch-main-1" {
-		t.Fatalf("got %v, want both older main copies", got)
+		t.Fatalf("got %v, want both older main copies and no hand-made one", got)
 	}
 }
 
