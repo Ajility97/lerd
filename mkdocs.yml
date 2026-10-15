@@ -115,6 +115,7 @@ nav:
       - Architecture: reference/architecture.md
   - Contributing:
       - Building from Source: contributing/building.md
+      - Extending the Plugin System: contributing/plugins.md
   - Troubleshooting: troubleshooting.md
   - Changelog: changelog.md
 

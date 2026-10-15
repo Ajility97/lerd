@@ -231,3 +231,9 @@ Those calls hand the endpoint the site, and the worktree when the page is a work
 ## Access and security
 
 A plugin runs as you, with everything you can do, so install only plugins you trust. Its API endpoints sit behind the same rules as lerd's own: open on the lerd host, closed to the LAN unless [remote control](../reference/commands.md#full-lan-exposure-dns-based) is on and the browser has signed in, and an endpoint marked `loopback_only` stays closed to remote dashboards until `lerd remote-control full-access on`. Only the plugin's `ui/` folder is served over HTTP.
+
+---
+
+## When lerd can't do it yet
+
+If your plugin needs an event lerd does not fire or a job it cannot hand over yet, [open an issue](https://github.com/lerd-env/lerd/issues) describing the plugin and what it needs, or add it yourself following [Extending the Plugin System](../contributing/plugins.md). Don't work around the gap by editing lerd's configuration files or reaching into its containers: a plugin that does is not approved for the catalog, and the next lerd release can break it.

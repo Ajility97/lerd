@@ -1,5 +1,5 @@
 # A lerd plugin. Every key except api_version and name is optional: delete the
-# surfaces you don't need. Reference: https://lerd.sh/usage/plugins/
+# surfaces you don't need. Reference: https://lerd.sh/features/plugins
 api_version: 1
 name: hello
 version: 0.1.0
