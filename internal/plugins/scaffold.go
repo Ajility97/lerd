@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// skeleton is the boilerplate plugin `lerd plugin new` copies. It reads its own
-// name from LERD_PLUGIN_NAME everywhere, so only plugin.yaml needs renaming.
+// skeleton is the boilerplate plugin `lerd plugin new` copies. Its scripts read
+// their name from LERD_PLUGIN_NAME; every other file says hello and is renamed.
 //
 //go:embed all:skeleton
 var skeleton embed.FS
@@ -35,16 +35,24 @@ func Scaffold(name, dest string) error {
 		if err != nil {
 			return err
 		}
-		if path == "skeleton/"+ManifestFile {
-			data = []byte(strings.Replace(string(data), "\nname: hello\n", "\nname: "+name+"\n"+requiresLine(), 1))
-		}
 		// embed drops file modes, so anything under bin/ is the executable part.
-		mode := os.FileMode(0o644)
-		if strings.HasPrefix(path, "skeleton/bin/") {
-			mode = 0o755
+		mode := os.FileMode(0o755)
+		if !strings.HasPrefix(path, "skeleton/bin/") {
+			mode = 0o644
+			data = []byte(renameSkeleton(string(data), name))
+		}
+		if path == "skeleton/"+ManifestFile {
+			data = []byte(strings.Replace(string(data), "\nname: "+name+"\n", "\nname: "+name+"\n"+requiresLine(), 1))
 		}
 		return os.WriteFile(target, data, mode)
 	})
+}
+
+// renameSkeleton swaps the skeleton's name for the new one, as an id (hello) and
+// as a title (Hello), so "demo-tool" titles its page "Demo tool".
+func renameSkeleton(text, name string) string {
+	title := strings.ToUpper(name[:1]) + strings.ReplaceAll(name[1:], "-", " ")
+	return strings.ReplaceAll(strings.ReplaceAll(text, "hello", name), "Hello", title)
 }
 
 // requiresLine pins a new plugin to the lerd release that wrote it, the oldest
