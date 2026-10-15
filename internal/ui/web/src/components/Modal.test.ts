@@ -46,6 +46,18 @@ describe('Modal', () => {
     expect(container.querySelector('.max-w-5xl')).toBeInTheDocument();
   });
 
+  // A long snapshot list ran past the bottom of the window with no way to reach
+  // the rest. The panel stops at the viewport and its body scrolls instead.
+  it('caps the panel at the viewport and scrolls the body', () => {
+    render(Harness, { props: { open: true, title: 'X', onclose: () => {}, withFooter: true } });
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.className).toContain('max-h-[calc(100dvh-2rem)]');
+    const scroller = screen.getByTestId('body').parentElement!;
+    expect(scroller.className).toContain('overflow-y-auto');
+    expect(scroller.contains(screen.getByText('X'))).toBe(false);
+    expect(scroller.contains(screen.getByTestId('footer'))).toBe(false);
+  });
+
   it('defaults to the md width class', () => {
     const { container } = render(Harness, { props: { open: true, title: 'X', onclose: () => {} } });
     expect(container.querySelector('.max-w-lg')).toBeInTheDocument();
