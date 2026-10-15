@@ -105,7 +105,10 @@ describe('PullModal', () => {
     pullPlan.mockResolvedValue({ ...plan, behind: 0 });
     render(PullModal, { props });
     expect(await screen.findByText('Up to date')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Pull' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Pull' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+    await fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+    expect(closeModal).toHaveBeenCalled();
   });
 
   it('shows why the plan failed', async () => {

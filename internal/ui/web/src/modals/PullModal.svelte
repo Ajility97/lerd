@@ -133,9 +133,11 @@
       {/if}
     {:else if pulling}
       <DetailButton tone="primary" disabled loading={true}>{m.pullPlan_pulling()}</DetailButton>
+    {:else if plan && plan.behind === 0}
+      <DetailButton tone="primary" onclick={closeModal}>{m.common_ok()}</DetailButton>
     {:else}
       <DetailButton onclick={closeModal}>{m.common_cancel()}</DetailButton>
-      <DetailButton tone="primary" onclick={doPull} disabled={planning || !plan || plan.behind === 0 || conflicts.length > 0 || diverged}
+      <DetailButton tone="primary" onclick={doPull} disabled={planning || !plan || conflicts.length > 0 || diverged}
         >{m.gitSync_pull()}</DetailButton
       >
     {/if}
