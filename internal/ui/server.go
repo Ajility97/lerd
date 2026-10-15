@@ -272,6 +272,8 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/services/presets/", withCORS(publishAfter(handleServicePresetInstall, eventbus.KindServices, eventbus.KindStatus)))
 	mux.HandleFunc("/api/services/", withCORS(publishAfter(handleServiceAction, eventbus.KindServices, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/internal/snapshot-run", handleInternalSnapshotNotify)
+	mux.HandleFunc("/api/internal/plugin-failed", handleInternalPluginFailed)
+	notifyPluginFailures()
 	mux.HandleFunc("/api/auto-snapshot", withCORS(handleAutoSnapshot))
 	mux.HandleFunc("/api/auto-snapshot/", withCORS(handleAutoSnapshotSite))
 	mux.HandleFunc("/api/databases", withCORS(handleDatabases))

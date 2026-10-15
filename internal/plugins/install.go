@@ -92,6 +92,7 @@ func place(stage, staged, want string, replace bool, src *Source) (*Plugin, erro
 	if err := os.Rename(named, dest); err != nil {
 		return nil, err
 	}
+	ClearFailure(name)
 	return ReadPlugin(dest)
 }
 
@@ -105,6 +106,7 @@ func Remove(name string) error {
 	if _, err := os.Stat(filepath.Join(dir, ManifestFile)); err != nil {
 		return fmt.Errorf("plugin %s is not installed", name)
 	}
+	ClearFailure(name)
 	return os.RemoveAll(dir)
 }
 

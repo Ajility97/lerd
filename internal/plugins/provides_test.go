@@ -75,4 +75,7 @@ func TestProvide_FailureCarriesWhatThePluginSaid(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "no space left for a branch") {
 		t.Fatalf("err = %v", err)
 	}
+	if f, ok := LastFailure("brancher"); !ok || f.What != JobWorktreeDatabase+" create" {
+		t.Errorf("recorded %+v %v", f, ok)
+	}
 }

@@ -1,8 +1,12 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -211,11 +215,36 @@ func newPluginRunCmd(p *plugins.Plugin, c plugins.Command, name string) *cobra.C
 			if err != nil {
 				return err
 			}
-			run.Stdin, run.Stdout, run.Stderr = os.Stdin, os.Stdout, os.Stderr
-			return runAndPropagate(run)
+			var stderr bytes.Buffer
+			run.Stdin, run.Stdout, run.Stderr = os.Stdin, os.Stdout, io.MultiWriter(os.Stderr, &stderr)
+			err = run.Run()
+			if exit, ok := err.(*exec.ExitError); ok {
+				offerPluginReport(plugins.Failure{Plugin: p.Name, Surface: plugins.SurfaceCLI, What: c.Name, Error: strings.TrimSpace(stderr.String() + "\n" + err.Error())})
+				os.Exit(exit.ExitCode())
+			}
+			return err
 		},
 	}
 }
+
+// offerPluginReport records a failed plugin command and, when the plugin came
+// from the catalog, prints where to report it. The user watched it fail, so no
+// notification follows.
+func offerPluginReport(f plugins.Failure) {
+	plugins.Record(f)
+	if u := f.ReportURL(); u != "" {
+		fmt.Fprintf(os.Stderr, "\nPlugin %s failed. Report it to its author: %s\n", f.Plugin, u)
+	}
+}
+
+// postPluginFailure asks the dashboard to raise the notification for a
+// failure recorded in this process, such as a hook the watcher ran.
+func postPluginFailure(f plugins.Failure) {
+	body, _ := json.Marshal(map[string]string{"plugin": f.Plugin})
+	_, _, _ = postUnix("/api/internal/plugin-failed", body)
+}
+
+func init() { plugins.SetFailureNotifier(postPluginFailure) }
 
 // cwdSiteEnv tells a plugin which site the user is standing in, if any.
 func cwdSiteEnv() map[string]string {

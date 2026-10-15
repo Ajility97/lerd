@@ -204,7 +204,9 @@ func runPluginCommand(w http.ResponseWriter, r *http.Request, site *config.Site,
 		writeJSON(w, map[string]any{"error": err.Error()})
 		return
 	}
-	streamRun(w, r.Context(), cmd, false)
+	if code := streamRun(w, r.Context(), cmd, false); code != 0 {
+		plugins.Failed(plugins.Failure{Plugin: target.Plugin, Surface: plugins.SurfaceSiteCommand, What: target.Name, Error: fmt.Sprintf("exited with code %d", code)})
+	}
 }
 
 // pluginCommandProcess builds the process for a plugin site command, run in cwd
@@ -341,27 +343,27 @@ func streamShellRun(w http.ResponseWriter, ctx context.Context, cwd, shell strin
 
 // streamRun runs cmd and streams it as streamShellRun describes, killing it
 // when the client goes away.
-func streamRun(w http.ResponseWriter, ctx context.Context, cmd *exec.Cmd, captureURL bool) {
+func streamRun(w http.ResponseWriter, ctx context.Context, cmd *exec.Cmd, captureURL bool) int {
 	send, ok := sseSender(w)
 	if !ok {
-		return
+		return 0
 	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		send("error", "stdout pipe: "+err.Error())
-		return
+		return 0
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		send("error", "stderr pipe: "+err.Error())
-		return
+		return 0
 	}
 
 	start := time.Now()
 	if err := cmd.Start(); err != nil {
 		send("error", "start: "+err.Error())
-		return
+		return 0
 	}
 	defer context.AfterFunc(ctx, func() { _ = cmd.Process.Kill() })()
 
@@ -404,7 +406,7 @@ func streamRun(w http.ResponseWriter, ctx context.Context, cmd *exec.Cmd, captur
 			exitCode = ee.ExitCode()
 		} else {
 			send("error", "wait: "+err.Error())
-			return
+			return 0
 		}
 	}
 
@@ -419,6 +421,7 @@ func streamRun(w http.ResponseWriter, ctx context.Context, cmd *exec.Cmd, captur
 	}
 	body, _ := json.Marshal(payload)
 	send("done", string(body))
+	return exitCode
 }
 
 // sseSender opens the event stream a run is reported through and returns the

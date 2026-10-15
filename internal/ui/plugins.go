@@ -136,7 +136,9 @@ func runPluginEndpoint(w http.ResponseWriter, r *http.Request, p *plugins.Plugin
 	cmd.Stdin = io.LimitReader(r.Body, 1<<20)
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
-		http.Error(w, strings.TrimSpace(stderr.String()+"\n"+err.Error()), http.StatusInternalServerError)
+		msg := strings.TrimSpace(stderr.String() + "\n" + err.Error())
+		plugins.Failed(plugins.Failure{Plugin: p.Name, Surface: plugins.SurfaceAPI, What: e.Path, Error: msg})
+		http.Error(w, msg, http.StatusInternalServerError)
 		return
 	}
 	if json.Valid(stdout.Bytes()) {
@@ -296,6 +298,22 @@ type managedPlugin struct {
 	Commit string `json:"commit,omitempty"`
 	// Update is the newer approved commit, when there is one.
 	Update string `json:"update,omitempty"`
+	// Failure is the plugin's latest failure, with where to report it.
+	Failure *pluginFailure `json:"failure,omitempty"`
+}
+
+type pluginFailure struct {
+	plugins.Failure
+	ReportURL string `json:"report_url,omitempty"`
+}
+
+// failureFor is the plugin's latest failure as the dashboard draws it.
+func failureFor(name string) *pluginFailure {
+	f, ok := plugins.LastFailure(name)
+	if !ok {
+		return nil
+	}
+	return &pluginFailure{Failure: f, ReportURL: f.ReportURL()}
 }
 
 // catalogEntry is a catalog listing as the Browse view draws it.
@@ -372,7 +390,7 @@ func managedPlugins() []managedPlugin {
 	list, errs := plugins.Load()
 	out := make([]managedPlugin, 0, len(list)+len(errs))
 	for _, p := range list {
-		row := managedPlugin{Name: p.Name, Version: p.Version, Description: p.Description, Adds: p.Surfaces(), Requires: p.Requirements()}
+		row := managedPlugin{Name: p.Name, Version: p.Version, Description: p.Description, Adds: p.Surfaces(), Requires: p.Requirements(), Failure: failureFor(p.Name)}
 		if src, ok := plugins.InstalledSource(p.Name); ok {
 			row.Commit = src.Commit
 			if l, newer := plugins.PendingUpdate(p.Name); newer {

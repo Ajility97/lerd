@@ -109,6 +109,7 @@ func (p *Plugin) runHook(event, run string, payload map[string]string) {
 	status := "ok"
 	if err != nil {
 		status = err.Error()
+		Failed(Failure{Plugin: p.Name, Surface: SurfaceHook, What: event, Error: strings.TrimSpace(out.String() + "\n" + status)})
 	}
 	f, ferr := os.OpenFile(filepath.Join(DataDirFor(p.Name), HookLog), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if ferr != nil {

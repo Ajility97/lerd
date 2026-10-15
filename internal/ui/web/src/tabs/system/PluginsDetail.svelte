@@ -126,6 +126,16 @@
                   </div>
                 {/if}
                 {#if p.requires?.length}<PluginRequirements requires={p.requires} />{/if}
+                {#if p.failure}
+                  <div class="mt-1.5 flex items-start gap-2">
+                    <p class="flex-1 min-w-0 text-xs text-red-600 dark:text-red-400 break-words">
+                      {m.system_plugins_lastFailure({ what: p.failure.what })}: {p.failure.error.split('\n')[0]}
+                    </p>
+                    {#if p.failure.report_url}
+                      <a href={p.failure.report_url} target="_blank" rel="noopener noreferrer" class="shrink-0 text-xs font-medium text-lerd-red hover:underline">{m.system_plugins_report()}</a>
+                    {/if}
+                  </div>
+                {/if}
               {/if}
             </div>
             <div class="flex gap-2 shrink-0">

@@ -67,6 +67,16 @@ export interface ManagedPlugin {
   commit?: string;
   // A newer approved commit, when there is one.
   update?: string;
+  // Its latest failure, with a filled-in issue on its repository when known.
+  failure?: PluginFailure;
+}
+
+export interface PluginFailure {
+  surface: string;
+  what: string;
+  error: string;
+  at: string;
+  report_url?: string;
 }
 
 // An approved plugin in the catalog, as the Browse view draws it.

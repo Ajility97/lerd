@@ -31,6 +31,20 @@ it('lists plugins, with what each adds and why a broken one failed', async () =>
   expect(getByText('jq')).toBeTruthy();
 });
 
+// The author can only fix what they hear about, so a failure links straight to
+// a filled-in issue on the plugin's repository.
+it('shows a plugin\'s last failure with a link to report it', async () => {
+  installed = [
+    {
+      name: 'hello',
+      failure: { plugin: 'hello', surface: 'hook', what: 'site.linked', error: 'boom\nmore', at: '2026-10-15T10:00:00Z', report_url: 'https://github.com/acme/hello/issues/new?title=x' }
+    }
+  ];
+  const { findByText, getByRole } = render(PluginsDetail);
+  await findByText(/boom/);
+  expect(getByRole('link', { name: 'Report to the author' }).getAttribute('href')).toBe('https://github.com/acme/hello/issues/new?title=x');
+});
+
 // A broken plugin is exactly the one a user most needs to get rid of.
 it('removes a plugin after confirming, broken ones included', async () => {
   const { findByText, getAllByRole, getByRole } = render(PluginsDetail);

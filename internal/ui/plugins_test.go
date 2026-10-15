@@ -99,6 +99,16 @@ func TestPluginEndpoint_Errors(t *testing.T) {
 			t.Errorf("%s %s = %d, want %d", c.method, c.path, rec.Code, c.want)
 		}
 	}
+	if f, ok := plugins.LastFailure("echo"); !ok || f.Surface != plugins.SurfaceAPI || f.What != "say" || !strings.Contains(f.Error, "nope") {
+		t.Errorf("a failing endpoint is recorded, got %+v %v", f, ok)
+	}
+}
+
+func TestPluginFailureNotification(t *testing.T) {
+	n := pluginFailureNotification(plugins.Failure{Plugin: "echo", Surface: plugins.SurfaceHook, What: "site.linked", Error: "boom\nmore"})
+	if n.Kind != "plugin_failed" || n.URL != "#system/plugins" || n.Params["plugin"] != "echo" || n.Params["message"] != "boom" {
+		t.Errorf("notification %+v", n)
+	}
 }
 
 // Plugin endpoints sit behind the same gate as lerd's own: open ones answer an

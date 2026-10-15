@@ -67,6 +67,9 @@ func TestEmit_FailingHookIsLoggedAndOthersStillRun(t *testing.T) {
 	if !strings.Contains(string(log), "boom") || !strings.Contains(string(log), "exit status 3") {
 		t.Errorf("hook log should hold the output and the failure, got %q", log)
 	}
+	if f, ok := LastFailure("a-broken"); !ok || f.Surface != SurfaceHook || f.What != EventSiteLinked || !strings.Contains(f.Error, "boom") {
+		t.Errorf("a failing hook is recorded so the dashboard can offer a report, got %+v %v", f, ok)
+	}
 }
 
 func TestEmit_UnknownEventPanics(t *testing.T) {

@@ -181,7 +181,7 @@ const csrfHeader = "X-Lerd-CSRF"
 func csrfExemptPath(path string) bool {
 	switch path {
 	case "/api/remote-setup", "/api/webhooks/mailpit", "/api/internal/notify",
-		"/api/internal/snapshot-run":
+		"/api/internal/snapshot-run", "/api/internal/plugin-failed":
 		return true
 	}
 	return strings.HasPrefix(path, "/api/sites/") && strings.HasSuffix(path, "/unpause")

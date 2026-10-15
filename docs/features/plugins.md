@@ -252,6 +252,14 @@ A plugin runs as you, with everything you can do, so install only plugins you tr
 
 ---
 
+## When a plugin fails
+
+Lerd keeps each plugin's latest failure, whichever surface it came from: a hook, a command, a site command, an API endpoint, an MCP tool or a job it is in charge of. Its row in **System > Plugins** shows what failed and the first line of the error, and for a plugin installed from the catalog a **Report to the author** link opens a new issue on its repository, filled in with the plugin's commit, your lerd version and the error. A failing `lerd <plugin>:<command>` prints the same link in the terminal.
+
+A failure you were not watching, such as a hook the watcher ran, also raises a **Plugin failures** notification, which can be switched off in the notification settings like any other. The same failure again within the hour stays quiet. Reports go to the plugin's author rather than to lerd, since only they can fix their plugin; the issue says where to send it on if lerd turns out to be at fault.
+
+---
+
 ## When lerd can't do it yet
 
 If your plugin needs an event lerd does not fire or a job it cannot hand over yet, [open an issue](https://github.com/lerd-env/lerd/issues) describing the plugin and what it needs, or add it yourself following [Extending the Plugin System](../contributing/plugins.md). Don't work around the gap by editing lerd's configuration files or reaching into its containers: a plugin that does is not approved for the catalog, and the next lerd release can break it.

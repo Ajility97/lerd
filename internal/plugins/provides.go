@@ -63,6 +63,7 @@ func (p *Plugin) Provide(job, action string, request map[string]string) ([]byte,
 		timer.Stop()
 	}
 	if err != nil {
+		Failed(Failure{Plugin: p.Name, Surface: SurfaceProvide, What: job + " " + action, Error: strings.TrimSpace(stderr.String() + "\n" + err.Error())})
 		if msg := strings.TrimSpace(stderr.String()); msg != "" {
 			return nil, fmt.Errorf("plugin %s %s %s: %s", p.Name, job, action, msg)
 		}
