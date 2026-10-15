@@ -82,11 +82,12 @@ func TestMissing_LooksInLerdsOwnBinFolder(t *testing.T) {
 	}
 }
 
-// Every lerd install brings PHP, so a PHP script never needs it on PATH.
-func TestMissing_PHPIsAlwaysThere(t *testing.T) {
-	isolate(t)
-	t.Setenv("PATH", "/nonexistent")
-	if got := Missing([]string{"php"}); len(got) != 0 {
-		t.Errorf("missing %v", got)
+// A plugin runs on this machine, and lerd's php runs in a container, so a PHP
+// script would run without the plugin's context.
+func TestReadPlugin_RefusesAPHPScript(t *testing.T) {
+	dir := writePlugin(t, t.TempDir(), "p", "api_version: 1\nname: p\ncommands:\n  - {name: a, run: bin/run}\n")
+	script(t, dir, "bin/run", "#!/usr/bin/env php\n<?php echo 1;\n")
+	if _, err := ReadPlugin(dir); err == nil || !strings.Contains(err.Error(), "bin/run") || !strings.Contains(err.Error(), "PHP") {
+		t.Fatalf("err = %v", err)
 	}
 }

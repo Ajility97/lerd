@@ -10,11 +10,14 @@ commands:
   - name: greet
     usage: Print a greeting for a site
     run: bin/greet
-  # `lerd hello:sites`, calling lerd's own API from a PHP script.
+  # `lerd hello:sites`, an example of calling lerd's own API.
   - name: sites
     usage: List lerd's sites through its API
-    run: bin/sites.php
+    run: bin/sites
 
+
+# Commands the scripts call beyond their interpreters; bin/sites uses curl.
+requires: [curl]
 # Shown in the site's Commands menu and the command palette.
 site_commands:
   - name: greet

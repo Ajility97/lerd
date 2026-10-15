@@ -101,14 +101,7 @@ func Missing(reqs []string) []string {
 	return out
 }
 
-// lerdProvides is what every lerd install brings, so a plugin may count on it
-// even where the shim's folder is missing from PATH.
-var lerdProvides = map[string]bool{"php": true}
-
 func installed(req string) bool {
-	if lerdProvides[req] {
-		return true
-	}
 	if filepath.IsAbs(req) {
 		return isExecutable(req)
 	}
@@ -142,6 +135,11 @@ func (p *Plugin) checkRequirements() error {
 	for _, r := range p.Requires {
 		if !commandNameRe.MatchString(r) {
 			return fmt.Errorf("requires %q must be a command name, not a path", r)
+		}
+	}
+	for _, run := range p.executables() {
+		if filepath.Base(interpreter(filepath.Join(p.Dir, run))) == "php" {
+			return fmt.Errorf("%s is a PHP script, and PHP runs in lerd's containers rather than on this machine: write it in shell, Python or Node", run)
 		}
 	}
 	if gone := Missing(p.Requirements()); len(gone) > 0 {

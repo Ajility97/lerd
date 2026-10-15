@@ -1,6 +1,6 @@
 # Plugins
 
-A plugin adds behaviour to lerd without touching lerd itself: CLI commands, tools and a skill for AI assistants, a page on the dashboard's rail, a tab on every site, commands in a site's Commands menu, API endpoints, and hooks that run when something happens. A plugin is a folder holding a `plugin.yaml` and the files it names, and every one of those surfaces is served by running one of its executables, so a plugin can be written in anything: a shell script, PHP, Python, a compiled binary.
+A plugin adds behaviour to lerd without touching lerd itself: CLI commands, tools and a skill for AI assistants, a page on the dashboard's rail, a tab on every site, commands in a site's Commands menu, API endpoints, and hooks that run when something happens. A plugin is a folder holding a `plugin.yaml` and the files it names, and every one of those surfaces is served by running one of its executables, so a plugin can be written in anything that runs on the machine: a shell script, Python, Node, a compiled binary. PHP is the one exception, since lerd runs it in containers.
 
 Frameworks and services are not plugins. They are declarative definitions that live in the [framework](../usage/frameworks.md) and [service](../usage/services.md) stores and reach every install on their own. A plugin is code you install yourself.
 
@@ -34,7 +34,7 @@ A plugin that fails to load is skipped and listed with its error; it never stops
 
 [plugins.lerd.sh](https://plugins.lerd.sh) lists the plugins approved in the [lerd-env/plugins](https://github.com/lerd-env/plugins) registry, and the dashboard's **Browse** tab shows the same list with an Install button. Each listing names a repository and the exact commit a maintainer approved, and that commit is the only one lerd installs: it fetches that commit alone, checks it is the one it got, and keeps no git history beside it, so a repository that moves on later changes nothing on your machine. When a newer commit is approved, the plugin shows an **Update** button and `lerd plugin update` moves to it, keeping the data the plugin stored.
 
-To be listed, a plugin meets the registry's [approval terms](https://github.com/lerd-env/plugins/blob/main/SUBMITTING.md). Among them, everything it runs is a script a reviewer can read, in shell, PHP, Python, Node or similar: compiled binaries are not listed, though a plugin you install from a folder or your own repository can be written in anything.
+To be listed, a plugin meets the registry's [approval terms](https://github.com/lerd-env/plugins/blob/main/SUBMITTING.md). Among them, everything it runs is a script a reviewer can read, in shell, Python, Node or similar: compiled binaries are not listed, though a plugin you install from a folder or your own repository can be a binary too.
 
 lerd reads the catalog at most once a day and keeps the last copy, so browsing and installed plugins work offline. Plugins installed from a folder or a repository of your own show as not listed and are never updated from the catalog.
 
@@ -57,7 +57,7 @@ commands:                   # lerd hello:greet
     run: bin/greet          # a shell script; each file's first line picks its language
   - name: sites
     usage: List lerd's sites through its API
-    run: bin/sites.php      # PHP, run by lerd's own php
+    run: bin/sites.js       # Node
   - name: report
     usage: Summarise a site's slowest requests
     run: bin/report.py      # Python, found on the machine's path
@@ -178,11 +178,9 @@ Per surface:
 
 ### Which language
 
-Lerd runs the file itself, so its first line picks the interpreter: `#!/bin/sh`, `#!/usr/bin/env python3`, `#!/usr/bin/env node` or `#!/usr/bin/env php`. On a lerd machine `node` and `php` on the path are lerd's own, so a plugin needs nothing installed beyond what lerd already brought.
+Lerd runs the file itself, on this machine, so its first line picks the interpreter: `#!/bin/sh`, `#!/usr/bin/env python3` or `#!/usr/bin/env node`. PHP is the exception: lerd keeps PHP in its containers rather than on the machine, so a script whose first line names `php` is refused, with a message saying so.
 
-Lerd reads that first line from every file the manifest runs, and adds anything else the scripts call that you list under `requires`, such as `jq` or `git`. Together they are the plugin's requirements, shown on its card in **Browse** and in the installed list. A plugin whose requirements this machine lacks is refused at install with the names it is missing, and one that loses a requirement later shows as broken with the same reason. `php` always counts as installed, since every lerd brings it. Lerd's own bin folder is always on the path a plugin runs with, so a `node` lerd installed is found even when the dashboard's service started with a bare one.
-
-PHP is the one that runs elsewhere: lerd keeps PHP in its containers, so a PHP script runs inside one through lerd's `php` shim. It still gets every `LERD_*` variable, with `LERD_API_URL` pointed at the host as the container reaches it, but no `LERD_BIN`, since there is no lerd inside the container. A PHP plugin talks to lerd through its API instead. Its own folder and `LERD_PLUGIN_DATA` are under your home folder, which the container sees, but paths outside it such as `/tmp` are not.
+Lerd reads that first line from every file the manifest runs, and adds anything else the scripts call that you list under `requires`, such as `jq` or `git`. Together they are the plugin's requirements, shown on its card in **Browse** and in the installed list. A plugin whose requirements this machine lacks is refused at install with the names it is missing, and one that loses a requirement later shows as broken with the same reason. Lerd's own bin folder is always on the path a plugin runs with, so a `node` lerd installed is found even when the dashboard's service started with a bare one.
 
 ---
 

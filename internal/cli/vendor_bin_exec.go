@@ -10,7 +10,6 @@ import (
 	"github.com/geodro/lerd/internal/agentenv"
 	"github.com/geodro/lerd/internal/envpass"
 	"github.com/geodro/lerd/internal/nativephp"
-	"github.com/geodro/lerd/internal/plugins"
 	"github.com/geodro/lerd/internal/podman"
 	"golang.org/x/term"
 )
@@ -70,9 +69,6 @@ func containerExecEnvArgs(cwd string) []string {
 	// manager, direnv) injected into lerd's own process. Names only: podman
 	// reads each value out of lerd's environment, so no secret is in argv.
 	args = append(args, envpass.Args(cwd, os.Environ())...)
-	// A plugin script running here, like a PHP one through the php shim, keeps
-	// the context lerd gave it on the host.
-	args = append(args, plugins.ContainerEnvArgs(os.Environ())...)
 	// Point composer/git at the shared ssh-agent when it's running, so private
 	// packages with passphrase-protected keys authenticate over SSH. No-op when
 	// the agent isn't up (falls back to the bind-mounted on-disk keys).

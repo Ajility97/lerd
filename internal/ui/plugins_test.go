@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	"encoding/json"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -458,55 +457,5 @@ func TestPluginsList_DescribesUI(t *testing.T) {
 	}
 	if p.SiteTab == nil || p.SiteTab.URL != "/plugins/echo/ui/site.html" {
 		t.Errorf("site tab = %+v", p.SiteTab)
-	}
-}
-
-// A PHP plugin script runs inside a container and reaches the API through
-// host.containers.internal, arriving from one of the host's own addresses. Its
-// token lets it in as local; the same token from the LAN does not.
-func TestRemoteControlGate_PluginTokenFromTheHostIsLocal(t *testing.T) {
-	installAPIPlugin(t)
-	setupConfigDirRaw(t, "", "", false)
-	hostIP := ""
-	addrs, _ := net.InterfaceAddrs()
-	for _, a := range addrs {
-		if ipNet, ok := a.(*net.IPNet); ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
-			hostIP = ipNet.IP.String()
-			break
-		}
-	}
-	if hostIP == "" {
-		t.Skip("no non-loopback IPv4 address on this machine")
-	}
-	token, err := plugins.Token("echo")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cases := []struct {
-		name, ip, token string
-		want            int
-	}{
-		{"host address with token", hostIP, token, http.StatusOK},
-		{"host address without token", hostIP, "", http.StatusForbidden},
-		{"LAN address with token", "192.0.2.10", token, http.StatusForbidden},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			next := &nextHandler{}
-			req := httptest.NewRequest(http.MethodGet, "/api/sites", nil)
-			req.RemoteAddr = c.ip + ":40000"
-			if c.token != "" {
-				req.Header.Set(plugins.TokenHeader, c.token)
-			}
-			rec := httptest.NewRecorder()
-			withRemoteControlGate(next).ServeHTTP(rec, req)
-			got := rec.Code
-			if next.called {
-				got = http.StatusOK
-			}
-			if got != c.want {
-				t.Errorf("status %d, want %d", got, c.want)
-			}
-		})
 	}
 }

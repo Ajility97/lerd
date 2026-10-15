@@ -36,9 +36,9 @@ func TestReadManifest_SkeletonIsValid(t *testing.T) {
 	}
 	if len(p.Commands) == 0 || len(p.Hooks) == 0 || p.MCP == nil || len(p.API) == 0 || p.UI == nil || p.UI.Page == nil || p.UI.SiteTab == nil {
 		t.Errorf("the boilerplate should exercise every surface, got %+v", p.Manifest)
-	} // It shows a script in another language, with nothing beyond what lerd ships.
-	if got := strings.Join(p.Requirements(), ","); got != "/bin/sh,php" {
-		t.Errorf("the boilerplate requires %q, want only sh and lerd's own php", got)
+	}
+	if got := strings.Join(p.Requirements(), ","); got != "/bin/sh,curl" {
+		t.Errorf("the boilerplate requires %q, want sh and the curl bin/sites calls", got)
 	}
 }
 
