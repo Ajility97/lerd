@@ -14,7 +14,7 @@ lerd plugin list            # installed plugins, and any that failed to load
 lerd hello:greet shop       # run one of its commands
 ```
 
-`lerd plugin new` writes the boilerplate to `~/.local/share/lerd/plugins/<name>/`. It exercises every surface, so the fastest way to write a plugin is to delete what you don't need from it. Reload the dashboard to see its rail page and site tab.
+`lerd plugin new` writes the boilerplate to `~/.local/share/lerd/plugins/<name>/`. It exercises every surface apart from [services and frameworks](#services-and-frameworks), so the fastest way to write a plugin is to delete what you don't need from it. Reload the dashboard to see its rail page and site tab.
 
 | Command | What it does |
 |---|---|
@@ -94,6 +94,25 @@ A manifest written for a newer lerd still loads as long as its `api_version` is 
 `lerd` names the oldest release the plugin needs, compared on major and minor. Give it a lower bound only, never an upper one: every later lerd keeps loading the plugin, so it never needs a new version just because lerd shipped one. A lerd older than the bound refuses to install or load it and says which release it needs, and the Browse tab shows the requirement in place of the Install button. An approved update that needs a newer lerd than yours is not offered until you update lerd.
 
 A change that would break existing plugins raises `api_version` instead, which is the one thing that can make a plugin stop loading on a newer lerd.
+
+---
+
+## Services and frameworks
+
+A plugin can bring services and frameworks of its own, written exactly like the ones in the [service](https://github.com/lerd-env/services) and [framework](https://github.com/lerd-env/frameworks) stores, one file each:
+
+```
+hello/
+  plugin.yaml
+  services/queuebox.yaml      # name: queuebox
+  frameworks/acme.yaml        # name: acme
+```
+
+A service shows up in the service picker beside lerd's own and is installed from there like any other; installing the plugin starts nothing. A framework is detected, listed by `lerd framework list` with the source `plugin`, and serves sites like a framework of your own. Each file's `name` must match its file name, and a framework comes as a single `<name>.yaml` with no per-version files.
+
+A plugin that ships a service must say in its README where each one comes from: the image it runs and the project that publishes it, so whoever installs the plugin knows what they are pulling before they pull it. The catalog only approves plugins that do.
+
+A plugin only adds names. One that ships a service or framework lerd already has, from itself, the store, your own definitions or another plugin, is refused at install with the names it clashes on. Should the store publish the same name later, the store's definition wins. Removing the plugin takes its definitions away, while a service you installed from it stays installed until you remove it.
 
 ---
 

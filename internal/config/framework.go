@@ -1265,6 +1265,9 @@ func GetFramework(name string) (*Framework, bool) {
 		if fw := loadFrameworkYAML(filepath.Join(FrameworksDir(), name+".yaml")); fw != nil {
 			return fw, true
 		}
+		if fw := loadPluginFramework(name); fw != nil {
+			return fw, true
+		}
 		return nil, false
 	}
 
@@ -1638,6 +1641,9 @@ func GetFrameworkForDir(name, projectDir string) (*Framework, bool) {
 	if fw := loadFrameworkYAML(filepath.Join(FrameworksDir(), name+".yaml")); fw != nil {
 		return mergeProjectWorkers(mergeStorePackages(fw, projectDir), projectDir), true
 	}
+	if fw := loadPluginFramework(name); fw != nil {
+		return mergeProjectWorkers(mergeStorePackages(fw, projectDir), projectDir), true
+	}
 
 	return nil, false
 }
@@ -1681,6 +1687,9 @@ func GetFrameworkSource(name string) FrameworkSource {
 	matches, _ := filepath.Glob(filepath.Join(StoreFrameworksDir(), name+"@*.yaml"))
 	if len(matches) > 0 {
 		return SourceStore
+	}
+	if loadPluginFramework(name) != nil {
+		return SourcePlugin
 	}
 	return ""
 }
@@ -2092,7 +2101,7 @@ func DetectFramework(dir string) (string, bool) {
 	var matches []string
 	matched := map[string]bool{}
 	seen := map[string]bool{}
-	for _, fwDir := range []string{FrameworksDir(), StoreFrameworksDir()} {
+	for _, fwDir := range frameworkDirs() {
 		entries, _ := filepath.Glob(filepath.Join(fwDir, "*.yaml"))
 		// Every major of a framework gets a look, because majors can detect on
 		// entirely different evidence: CodeIgniter 3 keys off
@@ -2178,7 +2187,7 @@ func ListFrameworks() []*Framework {
 	// User-defined first (unversioned), then store-installed.
 	// For store, include both <name>.yaml and <name>@<version>.yaml.
 	// Deduplicate by name — user-defined wins, then first store version seen.
-	for _, fwDir := range []string{FrameworksDir(), StoreFrameworksDir()} {
+	for _, fwDir := range frameworkDirs() {
 		entries, _ := filepath.Glob(filepath.Join(fwDir, "*.yaml"))
 		// Sort reverse so higher versions appear first.
 		sort.Sort(sort.Reverse(sort.StringSlice(entries)))
@@ -2205,6 +2214,7 @@ const (
 	SourceBuiltIn FrameworkSource = "built-in"
 	SourceUser    FrameworkSource = "user"
 	SourceStore   FrameworkSource = "store"
+	SourcePlugin  FrameworkSource = "plugin"
 )
 
 // FrameworkInfo holds a framework definition together with its source metadata.
@@ -2265,7 +2275,23 @@ func ListFrameworksDetailed() []FrameworkInfo {
 		result = append(result, FrameworkInfo{Framework: fw, Source: SourceUser})
 	}
 
+	for _, name := range pluginDefinitionNames(PluginFrameworks) {
+		if seenName[name] {
+			continue
+		}
+		if fw := loadPluginFramework(name); fw != nil {
+			seenName[name] = true
+			result = append(result, FrameworkInfo{Framework: fw, Source: SourcePlugin})
+		}
+	}
+
 	return result
+}
+
+// frameworkDirs lists the folders definitions are read from, first one winning
+// a name: the user's own, the store's, then each plugin's.
+func frameworkDirs() []string {
+	return append([]string{FrameworksDir(), StoreFrameworksDir()}, PluginDefinitionDirs(PluginFrameworks)...)
 }
 
 // SaveFramework writes a framework definition to FrameworksDir()/{name}.yaml.

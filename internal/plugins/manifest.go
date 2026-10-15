@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/geodro/lerd/internal/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -164,6 +165,9 @@ func (p *Plugin) validate() error {
 	if err := p.validateAPI(); err != nil {
 		return err
 	}
+	if err := config.CheckPluginDefinitions(p.Dir); err != nil {
+		return err
+	}
 	if p.UI != nil {
 		for _, page := range []*UIPage{p.UI.Page, p.UI.SiteTab} {
 			if err := p.validatePage(page); err != nil {
@@ -272,6 +276,8 @@ func (p *Plugin) Surfaces() []string {
 	add("page", p.UI != nil && p.UI.Page != nil)
 	add("site_tab", p.UI != nil && p.UI.SiteTab != nil)
 	add("page_script", p.UI != nil && p.UI.PageScript != "")
+	add("services", p.ships(config.PluginServices))
+	add("frameworks", p.ships(config.PluginFrameworks))
 	return out
 }
 

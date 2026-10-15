@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/git"
 	"gopkg.in/yaml.v3"
 )
@@ -67,6 +68,9 @@ func place(stage, staged, want string, replace bool, src *Source) (*Plugin, erro
 	}
 	if _, err := ReadPlugin(named); err != nil {
 		return nil, err
+	}
+	if clashes := config.PluginDefinitionClashes(named, installedDir(name)); len(clashes) > 0 {
+		return nil, fmt.Errorf("plugin %s ships what lerd already has: %s", name, strings.Join(clashes, ", "))
 	}
 	if src != nil {
 		if err := writeSource(named, src); err != nil {
