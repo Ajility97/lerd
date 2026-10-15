@@ -129,3 +129,14 @@ func TestMiseExecPrefix_NoVersion(t *testing.T) {
 		t.Errorf("ExecPrefix(\"\") = %q, want no pinned selector", got)
 	}
 }
+
+// "default" is fnm's alias for the default version; mise has no such version,
+// so a shim pinned to node@default failed for every npm global, pnpm and yarn
+// included. It means the version mise has configured.
+func TestMiseExecPrefix_DefaultIsMisesOwn(t *testing.T) {
+	m := miseManager{bin: "/usr/bin/mise"}
+	got := m.ExecPrefixWithEnv("default", []string{"npm_config_prefix=/p"})
+	if strings.Contains(got, "node@") || !strings.Contains(got, " exec node --") {
+		t.Errorf("ExecPrefixWithEnv(default) = %q, want bare node", got)
+	}
+}
