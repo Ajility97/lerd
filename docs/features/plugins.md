@@ -34,6 +34,8 @@ A plugin that fails to load is skipped and listed with its error; it never stops
 
 [plugins.lerd.sh](https://plugins.lerd.sh) lists the plugins approved in the [lerd-env/plugins](https://github.com/lerd-env/plugins) registry, and the dashboard's **Browse** tab shows the same list with an Install button. Each listing names a repository and the exact commit a maintainer approved, and that commit is the only one lerd installs: it fetches that commit alone, checks it is the one it got, and keeps no git history beside it, so a repository that moves on later changes nothing on your machine. When a newer commit is approved, the plugin shows an **Update** button and `lerd plugin update` moves to it, keeping the data the plugin stored.
 
+To be listed, a plugin meets the registry's [approval terms](https://github.com/lerd-env/plugins/blob/main/SUBMITTING.md). Among them, everything it runs is a script a reviewer can read, in shell, PHP, Python, Node or similar: compiled binaries are not listed, though a plugin you install from a folder or your own repository can be written in anything.
+
 lerd reads the catalog at most once a day and keeps the last copy, so browsing and installed plugins work offline. Plugins installed from a folder or a repository of your own show as not listed and are never updated from the catalog.
 
 ---
