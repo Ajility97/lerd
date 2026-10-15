@@ -505,6 +505,49 @@ func TestParseNpmAudit(t *testing.T) {
 	}
 }
 
+// bun audit maps each vulnerable package to its advisories, and bun prints its
+// .env line on stderr, which runCapture folds in ahead of the payload.
+func TestParseBunAudit(t *testing.T) {
+	two := "[4.80ms] \".env\"\n" + `{"lodash":[{"id":1,"severity":"high"},{"id":2,"severity":"moderate"}],"minimist":[{"id":3,"severity":"critical"}]}`
+	if n := parseBunAudit(two); n != 2 {
+		t.Errorf("two vulnerable packages: got %d, want 2", n)
+	}
+	if n := parseBunAudit("{}"); n != 0 {
+		t.Errorf("clean: got %d, want 0", n)
+	}
+	if n := parseBunAudit("error: No lockfile was found"); n != -1 {
+		t.Errorf("no lockfile: got %d, want -1, a 0 would be a false all-clear", n)
+	}
+}
+
+// A bun project has no package-lock.json for npm audit to read, so its audit
+// goes to bun, found in ~/.bun/bin the way the installer puts it there.
+func TestCheckNodeAudit_bunProjectIsAuditedByBun(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	bin := filepath.Join(home, ".bun", "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\n[ \"$1 $2\" = \"audit --json\" ] || exit 9\necho '{\"lodash\":[{\"id\":1}]}'\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(bin, "bun"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	site := t.TempDir()
+	for _, f := range []string{"package.json", "bun.lock"} {
+		if err := os.WriteFile(filepath.Join(site, f), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	c := checkNodeAudit(context.Background(), site)
+	if c.Status != StatusWarn || !strings.Contains(c.Detail, "bun update") {
+		t.Fatalf("got %+v, want a warning that names bun update", c)
+	}
+	if c.Fix != "" {
+		t.Errorf("fix = %q, npm audit fix would not touch a bun lockfile", c.Fix)
+	}
+}
+
 func TestHumanize(t *testing.T) {
 	cases := map[string]string{"node_audit": "Node Audit", "php_version": "Php Version", "migrations": "Migrations"}
 	for in, want := range cases {

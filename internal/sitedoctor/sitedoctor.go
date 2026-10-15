@@ -21,6 +21,7 @@ import (
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/envfile"
+	"github.com/geodro/lerd/internal/node"
 	phpkg "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/serviceops"
@@ -1273,9 +1274,13 @@ func checkNodeDeps(path string) Check {
 	return Check{Name: "node_deps", Status: StatusWarn, Detail: "No lockfile is committed, installs won't be reproducible."}
 }
 
-// checkNodeAudit warns when `npm audit` reports vulnerabilities. Network- and
-// lock-dependent, so it degrades to "unknown" when it can't run.
+// checkNodeAudit warns when `npm audit`, or bun's on a bun project, reports
+// vulnerabilities. Network- and lock-dependent, so it degrades to "unknown"
+// when it can't run.
 func checkNodeAudit(ctx context.Context, path string) Check {
+	if node.UsesBun(path) {
+		return checkBunAudit(ctx, path)
+	}
 	cctx, cancel := context.WithTimeout(ctx, commandTimeout)
 	defer cancel()
 	out, exit, err := runCapture(cctx, path, "npm audit --json")
@@ -1290,6 +1295,49 @@ func checkNodeAudit(ctx context.Context, path string) Check {
 		return Check{Name: "node_audit", Status: StatusWarn, Detail: fmt.Sprintf("%d known vulnerabilit%s in node packages, run npm audit fix.", n, Plural(n, "y", "ies")), Fix: FixNpmAuditFix}
 	}
 	return Check{Name: "node_audit", Status: StatusOK}
+}
+
+// checkBunAudit audits a bun project with bun itself, since npm audit needs a
+// package-lock.json a bun project never has. bun has no audit fix to offer.
+func checkBunAudit(ctx context.Context, path string) Check {
+	bun := node.BunPath()
+	if bun == "" {
+		return Check{Name: "node_audit", Status: StatusUnknown, Detail: "This project uses bun, which isn't installed, so its packages couldn't be audited."}
+	}
+	cctx, cancel := context.WithTimeout(ctx, commandTimeout)
+	defer cancel()
+	out, exit, err := runCapture(cctx, path, "'"+strings.ReplaceAll(bun, "'", `'\''`)+"' audit --json")
+	if err != nil || exit < 0 {
+		return Check{Name: "node_audit", Status: StatusUnknown, Detail: "Couldn't run bun audit, dependencies may not be installed or the network is unreachable."}
+	}
+	n := parseBunAudit(out)
+	if n < 0 {
+		return Check{Name: "node_audit", Status: StatusUnknown, Detail: "Couldn't read bun audit output."}
+	}
+	if n > 0 {
+		return Check{Name: "node_audit", Status: StatusWarn, Detail: fmt.Sprintf("%d node package%s with known vulnerabilities, run bun update.", n, Plural(n, "", "s"))}
+	}
+	return Check{Name: "node_audit", Status: StatusOK}
+}
+
+// parseBunAudit returns how many packages `bun audit --json` lists advisories
+// for, or -1 when there is no JSON, as when bun finds no lockfile.
+func parseBunAudit(output string) int {
+	start := strings.IndexByte(output, '{')
+	if start < 0 {
+		return -1
+	}
+	var parsed map[string][]json.RawMessage
+	if err := json.NewDecoder(strings.NewReader(output[start:])).Decode(&parsed); err != nil {
+		return -1
+	}
+	n := 0
+	for _, advisories := range parsed {
+		if len(advisories) > 0 {
+			n++
+		}
+	}
+	return n
 }
 
 // parseNpmAudit returns the total vulnerability count in `npm audit --json`
