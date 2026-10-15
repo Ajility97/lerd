@@ -54,6 +54,16 @@ it('names the lerd a plugin needs instead of offering to install it', async () =
   expect(queryByRole('button', { name: 'Install' })).toBeNull();
 });
 
+// Installing would only end in lerd refusing it, so say what is missing first.
+it('lists what a plugin requires and offers no install while something is missing', async () => {
+  catalog = [{ name: 'needy', repo: 'r', commit: A, installed: false, compatible: true, requires: ['python3', 'jq'], missing: ['jq'] }];
+  const { findByText, getByText, queryByRole } = render(PluginBrowse);
+  await findByText('needy');
+  expect(getByText('python3')).toBeTruthy();
+  expect(getByText('jq').className).toContain('text-red');
+  expect(queryByRole('button', { name: 'Install' })).toBeNull();
+});
+
 it('says why when the catalog cannot be reached', async () => {
   globalThis.fetch = vi.fn(async () => new Response('fetching the plugin catalog: no route', { status: 502 })) as unknown as typeof fetch;
   const { findByText } = render(PluginBrowse);

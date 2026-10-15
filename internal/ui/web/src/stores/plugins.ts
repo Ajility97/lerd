@@ -61,6 +61,7 @@ export interface ManagedPlugin {
   version?: string;
   description?: string;
   adds?: string[];
+  requires?: string[];
   error?: string;
   // The catalog commit it was installed at; absent when not listed.
   commit?: string;
@@ -79,11 +80,13 @@ export interface CatalogEntry {
   tags?: string[];
   images?: string[];
   lerd?: string;
+  requires?: string[];
   added_at?: string;
   updated_at?: string;
   stars?: number;
   installed: boolean;
   compatible: boolean;
+  missing?: string[];
 }
 
 // loadCatalog throws with lerd's reason when the catalog cannot be reached.

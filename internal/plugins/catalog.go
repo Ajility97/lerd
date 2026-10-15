@@ -39,6 +39,9 @@ type Listing struct {
 	Tags        []string `json:"tags,omitempty"`
 	// Lerd is the approved commit's own `lerd` constraint.
 	Lerd string `json:"lerd,omitempty"`
+	// Requires is what the approved commit needs on the machine, as
+	// Plugin.Requirements reads it.
+	Requires []string `json:"requires,omitempty"`
 	// Images are copied by the registry at the approved commit and published
 	// beside the index, the first one being the preview. The index lists them
 	// relative to itself; LoadCatalog hands them out as absolute URLs.

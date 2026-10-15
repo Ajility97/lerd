@@ -3,6 +3,7 @@
   import DetailButton from '$components/DetailButton.svelte';
   import ConfirmModal from '$components/ConfirmModal.svelte';
   import EmptyState from '$components/EmptyState.svelte';
+  import PluginRequirements from '$components/PluginRequirements.svelte';
   import PluginBrowse from './PluginBrowse.svelte';
   import { managedPlugins, loadManagedPlugins, installPlugin, removePlugin, updatePlugin } from '$stores/plugins';
   import { routeRest, goToTab } from '$stores/route';
@@ -124,6 +125,7 @@
                     {/each}
                   </div>
                 {/if}
+                {#if p.requires?.length}<PluginRequirements requires={p.requires} />{/if}
               {/if}
             </div>
             <div class="flex gap-2 shrink-0">

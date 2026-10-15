@@ -54,7 +54,13 @@ description: A starting point for a lerd plugin
 commands:                   # lerd hello:greet
   - name: greet
     usage: Print a greeting for a site
-    run: bin/greet
+    run: bin/greet          # a shell script; each file's first line picks its language
+  - name: sites
+    usage: List lerd's sites through its API
+    run: bin/sites.php      # PHP, run by lerd's own php
+  - name: report
+    usage: Summarise a site's slowest requests
+    run: bin/report.py      # Python, found on the machine's path
 
 site_commands:              # a site's Commands menu and the command palette
   - name: greet
@@ -82,6 +88,8 @@ api:                        # served at /api/plugins/hello/greet
     methods: [GET]          # GET when omitted
     run: bin/greet
     loopback_only: false    # true keeps it to the lerd host, like lerd's own host actions
+
+requires: [jq]              # commands its scripts call, beyond the interpreters lerd reads itself
 
 provides:                   # jobs the plugin takes over from lerd, see below
   worktree_database: bin/db
@@ -171,6 +179,8 @@ Per surface:
 ### Which language
 
 Lerd runs the file itself, so its first line picks the interpreter: `#!/bin/sh`, `#!/usr/bin/env python3`, `#!/usr/bin/env node` or `#!/usr/bin/env php`. On a lerd machine `node` and `php` on the path are lerd's own, so a plugin needs nothing installed beyond what lerd already brought.
+
+Lerd reads that first line from every file the manifest runs, and adds anything else the scripts call that you list under `requires`, such as `jq` or `git`. Together they are the plugin's requirements, shown on its card in **Browse** and in the installed list. A plugin whose requirements this machine lacks is refused at install with the names it is missing, and one that loses a requirement later shows as broken with the same reason. `php` always counts as installed, since every lerd brings it. Lerd's own bin folder is always on the path a plugin runs with, so a `node` lerd installed is found even when the dashboard's service started with a bare one.
 
 PHP is the one that runs elsewhere: lerd keeps PHP in its containers, so a PHP script runs inside one through lerd's `php` shim. It still gets every `LERD_*` variable, with `LERD_API_URL` pointed at the host as the container reaches it, but no `LERD_BIN`, since there is no lerd inside the container. A PHP plugin talks to lerd through its API instead. Its own folder and `LERD_PLUGIN_DATA` are under your home folder, which the container sees, but paths outside it such as `/tmp` are not.
 

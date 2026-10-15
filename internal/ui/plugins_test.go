@@ -197,6 +197,26 @@ func TestPluginManager_ListsInstalledAndBroken(t *testing.T) {
 	if strings.Join(got[1].Adds, ",") != "api,page,site_tab" {
 		t.Errorf("echo adds = %v", got[1].Adds)
 	}
+	if strings.Join(got[1].Requires, ",") != "/bin/sh" {
+		t.Errorf("echo requires = %v, want its scripts' interpreter", got[1].Requires)
+	}
+}
+
+func TestPluginManager_CatalogMarksWhatThisMachineLacks(t *testing.T) {
+	installAPIPlugin(t)
+	serveCatalog(t,
+		plugins.Listing{Name: "ready", Repo: "https://github.com/x/ready", Commit: strings.Repeat("a", 40), Requires: []string{"sh"}},
+		plugins.Listing{Name: "needy", Repo: "https://github.com/x/needy", Commit: strings.Repeat("b", 40), Requires: []string{"sh", "lerd-test-no-such-tool"}},
+	)
+	rec := httptest.NewRecorder()
+	handlePluginManager(rec, localRequest(http.MethodGet, "/api/plugin-manager/catalog", ""))
+	var got []catalogEntry
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("%v: %s", err, rec.Body)
+	}
+	if len(got) != 2 || len(got[0].Missing) != 0 || strings.Join(got[1].Missing, ",") != "lerd-test-no-such-tool" {
+		t.Errorf("got %+v", got)
+	}
 }
 
 func TestPluginManager_InstallAndRemove(t *testing.T) {

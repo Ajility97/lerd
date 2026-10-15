@@ -38,6 +38,9 @@ type Manifest struct {
 	// Provides maps each job the plugin takes over from lerd to the executable
 	// lerd runs for it.
 	Provides map[string]string `yaml:"provides,omitempty" json:"provides,omitempty"`
+	// Requires names the commands the plugin's scripts call beyond their own
+	// interpreters, which lerd reads from each script's first line.
+	Requires []string `yaml:"requires,omitempty" json:"requires,omitempty"`
 }
 
 // Command is a CLI command, invoked as `lerd <plugin>:<name>`.
@@ -175,6 +178,9 @@ func (p *Plugin) validate() error {
 		if err := p.checkExecutable(run); err != nil {
 			return err
 		}
+	}
+	if err := p.checkRequirements(); err != nil {
+		return err
 	}
 	if err := config.CheckPluginDefinitions(p.Dir); err != nil {
 		return err

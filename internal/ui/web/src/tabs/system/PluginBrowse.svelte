@@ -5,6 +5,7 @@
   import ConfirmModal from '$components/ConfirmModal.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import Icon from '$components/Icon.svelte';
+  import PluginRequirements from '$components/PluginRequirements.svelte';
   import { loadCatalog, installListedPlugin, type CatalogEntry } from '$stores/plugins';
   import { notifyLocalFailure, notifyLocalInfo } from '$lib/notify';
   import { m } from '../../paraglide/messages.js';
@@ -122,12 +123,15 @@
               {#if e.author}<span class="text-xs text-gray-400 truncate">{e.author}</span>{/if}
             </div>
             {#if e.description}<p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{e.description}</p>{/if}
+            {#if e.requires?.length}<PluginRequirements requires={e.requires} missing={e.missing ?? []} />{/if}
             <div class="mt-auto pt-2 flex items-center justify-between gap-2">
               <span class="text-xs text-gray-400 tabular-nums">{e.stars ? '★ ' + e.stars.toLocaleString() : ''}</span>
               {#if e.installed}
                 <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">{m.system_plugins_installedBadge()}</span>
               {:else if !e.compatible}
                 <span class="text-xs text-gray-500 dark:text-gray-400">{m.system_plugins_needsLerd({ constraint: e.lerd ?? '' })}</span>
+              {:else if e.missing?.length}
+                <span class="text-xs text-red-600 dark:text-red-400">{m.system_plugins_missing({ list: e.missing.join(', ') })}</span>
               {:else}
                 <DetailButton tone="primary" onclick={() => (confirm = e)} loading={installing === e.name} disabled={installing !== ''}>
                   {m.common_install()}

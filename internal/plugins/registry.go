@@ -105,6 +105,7 @@ func (p *Plugin) Command(run, surface string, args []string, extra map[string]st
 		"LERD_BIN="+self,
 		"LERD_API_URL="+APIURL,
 		"LERD_API_TOKEN="+token,
+		"PATH="+searchPath(),
 	)
 	for k, v := range extra {
 		cmd.Env = append(cmd.Env, k+"="+v)

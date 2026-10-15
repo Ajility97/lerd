@@ -290,6 +290,7 @@ type managedPlugin struct {
 	Version     string   `json:"version,omitempty"`
 	Description string   `json:"description,omitempty"`
 	Adds        []string `json:"adds,omitempty"`
+	Requires    []string `json:"requires,omitempty"`
 	Error       string   `json:"error,omitempty"`
 	// Commit is the catalog commit it was installed at; empty when not listed.
 	Commit string `json:"commit,omitempty"`
@@ -302,6 +303,8 @@ type catalogEntry struct {
 	plugins.Listing
 	Installed  bool `json:"installed"`
 	Compatible bool `json:"compatible"`
+	// Missing is what the plugin requires that this machine lacks.
+	Missing []string `json:"missing,omitempty"`
 }
 
 // handlePluginManager serves the plugin manager:
@@ -353,7 +356,7 @@ func handlePluginManager(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		writeJSON(w, managedPlugin{Name: p.Name, Version: p.Version, Description: p.Description, Adds: p.Surfaces()})
+		writeJSON(w, managedPlugin{Name: p.Name, Version: p.Version, Description: p.Description, Adds: p.Surfaces(), Requires: p.Requirements()})
 	case r.Method == http.MethodDelete && name != "":
 		if err := plugins.Remove(name); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -369,7 +372,7 @@ func managedPlugins() []managedPlugin {
 	list, errs := plugins.Load()
 	out := make([]managedPlugin, 0, len(list)+len(errs))
 	for _, p := range list {
-		row := managedPlugin{Name: p.Name, Version: p.Version, Description: p.Description, Adds: p.Surfaces()}
+		row := managedPlugin{Name: p.Name, Version: p.Version, Description: p.Description, Adds: p.Surfaces(), Requires: p.Requirements()}
 		if src, ok := plugins.InstalledSource(p.Name); ok {
 			row.Commit = src.Commit
 			if l, newer := plugins.PendingUpdate(p.Name); newer {
@@ -393,7 +396,7 @@ func catalogEntries() ([]catalogEntry, error) {
 	out := make([]catalogEntry, 0, len(c.Plugins))
 	for _, l := range c.Plugins {
 		_, err := os.Stat(filepath.Join(plugins.Dir(), l.Name, plugins.ManifestFile))
-		out = append(out, catalogEntry{Listing: l, Installed: err == nil, Compatible: plugins.Compatible(l.Lerd)})
+		out = append(out, catalogEntry{Listing: l, Installed: err == nil, Compatible: plugins.Compatible(l.Lerd), Missing: plugins.Missing(l.Requires)})
 	}
 	return out, nil
 }

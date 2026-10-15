@@ -8,7 +8,7 @@ const calls: { method: string; url: string; body?: string }[] = [];
 beforeEach(() => {
   installed = [
     { name: 'broken', error: 'api_version 9 needs a newer lerd' },
-    { name: 'hello', version: '0.1.0', description: 'Says hello', adds: ['commands', 'page'] }
+    { name: 'hello', version: '0.1.0', description: 'Says hello', adds: ['commands', 'page'], requires: ['python3', 'jq'] }
   ];
   calls.length = 0;
   globalThis.fetch = vi.fn(async (url: string, init?: RequestInit) => {
@@ -27,6 +27,8 @@ it('lists plugins, with what each adds and why a broken one failed', async () =>
   expect(getByText('Says hello')).toBeTruthy();
   expect(getByText('page')).toBeTruthy();
   expect(getByText(/api_version 9 needs a newer lerd/)).toBeTruthy();
+  expect(getByText('python3')).toBeTruthy();
+  expect(getByText('jq')).toBeTruthy();
 });
 
 // A broken plugin is exactly the one a user most needs to get rid of.
