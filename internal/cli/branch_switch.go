@@ -221,8 +221,12 @@ func snapshotTargetFor(path string) (serviceops.SnapshotTarget, bool) {
 }
 
 // branchSnapshotPrefix names the snapshots the switcher takes, which is how it
-// tells its own copies from ones taken by hand.
-const branchSnapshotPrefix = "before-switch"
+// tells its own copies from ones taken by hand. The 1.37 betas saved them
+// as before-switch, which read as the branch being switched to.
+const (
+	branchSnapshotPrefix       = "branch"
+	legacyBranchSnapshotPrefix = "before-switch"
+)
 
 // branchSnapshotName is the name a copy of branch is saved under; the store
 // appends the time. Branch slashes would read as directories, so they go.
@@ -234,7 +238,8 @@ func branchSnapshotName(branch string) string {
 func staleBranchSnapshots(snaps []serviceops.Snapshot, branch, keep string) []string {
 	var stale []string
 	for _, s := range snaps {
-		if s.GitBranch == branch && s.Name != keep && strings.HasPrefix(s.Name, branchSnapshotPrefix+"-") {
+		own := strings.HasPrefix(s.Name, branchSnapshotPrefix+"-") || strings.HasPrefix(s.Name, legacyBranchSnapshotPrefix+"-")
+		if s.GitBranch == branch && s.Name != keep && own {
 			stale = append(stale, s.Name)
 		}
 	}

@@ -237,24 +237,27 @@ func TestSwitchBranch_failedMigrationKeepsTheSnapshotName(t *testing.T) {
 }
 
 // Only the switcher's own copies of the same branch are replaced: a snapshot
-// taken by hand, or another branch's copy, is never touched.
+// taken by hand, or another branch's copy, is never touched. Copies saved under
+// the old before-switch name are still the switcher's own.
 func TestStaleBranchSnapshots(t *testing.T) {
 	snaps := []serviceops.Snapshot{
-		{Name: "before-switch-1", GitBranch: "main"},
-		{Name: "before-switch-2", GitBranch: "main"},
-		{Name: "before-switch-3", GitBranch: "dev"},
+		{Name: "before-switch-main-1", GitBranch: "main"},
+		{Name: "branch-main-1", GitBranch: "main"},
+		{Name: "branch-main-2", GitBranch: "main"},
+		{Name: "branch-dev-3", GitBranch: "dev"},
 		{Name: "pre-migration-1", GitBranch: "main"},
 	}
-	got := staleBranchSnapshots(snaps, "main", "before-switch-2")
-	if strings.Join(got, ",") != "before-switch-1" {
-		t.Fatalf("got %v, want only the older main copy", got)
+	got := staleBranchSnapshots(snaps, "main", "branch-main-2")
+	if strings.Join(got, ",") != "before-switch-main-1,branch-main-1" {
+		t.Fatalf("got %v, want both older main copies", got)
 	}
 }
 
-// Snapshot names hold no path separators, and carry the branch so two
+// The name says whose database it is: the branch being left, not the one being
+// switched to. It holds no path separators, and carries the branch so two
 // switches in the same second, from different branches, never collide.
 func TestBranchSnapshotName(t *testing.T) {
-	if got := branchSnapshotName("feature/payments"); got != "before-switch-feature-payments" {
+	if got := branchSnapshotName("feature/payments"); got != "branch-feature-payments" {
 		t.Fatalf("got %q", got)
 	}
 }
