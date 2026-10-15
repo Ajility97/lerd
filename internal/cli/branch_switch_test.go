@@ -236,10 +236,9 @@ func TestSwitchBranch_failedMigrationKeepsTheSnapshotName(t *testing.T) {
 	}
 }
 
-// Only the switcher's own copies of the same branch are replaced: a snapshot
-// taken by hand, even one named like the switcher's, or another branch's copy,
-// is never touched. Copies the 1.37 betas saved as before-switch predate the
-// flag and are still the switcher's own.
+// Only the switcher's own copies of the same branch are replaced, the betas'
+// unflagged before-switch ones included. A snapshot taken by hand, even one
+// named like the switcher's, or another branch's copy is never touched.
 func TestStaleBranchSnapshots(t *testing.T) {
 	snaps := []serviceops.Snapshot{
 		{Name: "before-switch-main-1", GitBranch: "main"},

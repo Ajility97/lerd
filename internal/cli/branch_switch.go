@@ -220,10 +220,9 @@ func snapshotTargetFor(path string) (serviceops.SnapshotTarget, bool) {
 	return t, t.Database != "" && serviceops.SnapshotSupported(t.Service, false)
 }
 
-// branchSnapshotPrefix names the snapshots the switcher takes. They are told
-// apart from ones taken by hand by their Switch flag, except the copies the 1.37
-// betas saved before it existed, under a name that read as the branch being
-// switched to.
+// branchSnapshotPrefix names the switcher's copies; their Switch flag is what
+// tells them from ones taken by hand. The 1.37 betas saved unflagged ones as
+// before-switch, a name that read as the branch being switched to.
 const (
 	branchSnapshotPrefix       = "branch"
 	legacyBranchSnapshotPrefix = "before-switch"
