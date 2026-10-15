@@ -54,9 +54,9 @@
       aria-modal="true"
       aria-labelledby={titleId}
       tabindex="-1"
-      class="relative outline-none bg-white dark:bg-lerd-card border border-gray-200 dark:border-lerd-border rounded-xl shadow-2xl w-full {widthClass} mx-4 lerd-panel-in transition-[max-width] duration-200 ease-out"
+      class="relative flex flex-col max-h-[calc(100dvh-2rem)] outline-none bg-white dark:bg-lerd-card border border-gray-200 dark:border-lerd-border rounded-xl shadow-2xl w-full {widthClass} mx-4 lerd-panel-in transition-[max-width] duration-200 ease-out"
     >
-      <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-lerd-border">
+      <div class="shrink-0 flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-lerd-border">
         <h3 id={titleId} class="min-w-0 break-words font-semibold text-gray-900 dark:text-white">{title}</h3>
         {#if actions}
           <div class="ml-auto shrink-0 flex items-center gap-2">{@render actions()}</div>
@@ -70,9 +70,9 @@
           <Icon name="close" class="w-5 h-5" />
         </button>
       </div>
-      {@render children()}
+      <div class="min-h-0 overflow-y-auto">{@render children()}</div>
       {#if footer}
-        <div class="px-5 py-3 border-t border-gray-100 dark:border-lerd-border flex items-center justify-end gap-2">
+        <div class="shrink-0 px-5 py-3 border-t border-gray-100 dark:border-lerd-border flex items-center justify-end gap-2">
           {@render footer()}
         </div>
       {/if}
