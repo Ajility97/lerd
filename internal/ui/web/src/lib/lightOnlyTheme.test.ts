@@ -68,6 +68,20 @@ describe('repaintLightOnly', () => {
     expect(bg).toMatch(/^#[0-9a-f]{6}$/);
   });
 
+  it('keeps a gradient-only panel opaque once its sheen is dropped', () => {
+    // A browser hands the background shorthand back as longhands, so the
+    // gradient arrives on background-image with no colour beside it.
+    const doc = sheetWith('#nav { background-image: linear-gradient(to right, #f3f3f3, #dadcde); }');
+    repaintLightOnly(doc, true);
+    expect(rule(doc).getPropertyValue('background-image')).toBe('none');
+    expect(rule(doc).getPropertyValue('background-color')).toMatch(/^#[0-9a-f]{6}$/);
+    repaintLightOnly(doc, true);
+    expect(rule(doc).getPropertyValue('background-color')).toMatch(/^#[0-9a-f]{6}$/);
+    repaintLightOnly(doc, false);
+    expect(rule(doc).getPropertyValue('background-image')).toContain('gradient');
+    expect(rule(doc).getPropertyValue('background-color')).toBe('');
+  });
+
   it('drops the shadow a light design lifts its text with', () => {
     const doc = sheetWith('.tab { color: #333333; text-shadow: 0 1px 0 #ffffff; }');
     repaintLightOnly(doc, true);
