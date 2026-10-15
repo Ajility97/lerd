@@ -1312,7 +1312,7 @@ func nodeAuditorFor(path string) nodeAuditor {
 	if node.UsesBun(path) {
 		return nodeAuditor{"bun", "audit --json", "bun update", func(o string, _ int) int { return parseBunAudit(o) }}
 	}
-	switch gitpkg.JSPackageManager(path) {
+	switch node.PackageManager(path) {
 	case "pnpm":
 		return nodeAuditor{"pnpm", "audit --json", "pnpm update", parsePnpmAudit}
 	case "yarn":
@@ -1331,14 +1331,38 @@ func yarnBerry(path string) bool {
 	return err == nil && strings.Contains(string(data), "__metadata:")
 }
 
+// lookJSBin and activeNode are indirected so tests can take the corepack route.
+var (
+	lookJSBin  = gitpkg.LookJSBin
+	activeNode = node.Active
+)
+
+// managerAuditCommand runs the manager's own binary when there is one, else
+// pnpm or yarn through corepack under the project's Node, the way lerd installs
+// those projects. bun is never served by corepack.
+func managerAuditCommand(a nodeAuditor, path string) (string, bool) {
+	if bin, ok := lookJSBin(a.tool); ok {
+		return "'" + strings.ReplaceAll(bin, "'", `'\''`) + "' " + a.args, true
+	}
+	mgr := activeNode()
+	if a.tool == "bun" || !mgr.Available() {
+		return "", false
+	}
+	version, _ := node.DetectVersion(path)
+	if version == "" {
+		version = "default"
+	}
+	return "COREPACK_ENABLE_DOWNLOAD_PROMPT=0 " + mgr.ExecPrefix(version) + " corepack " + a.tool + " " + a.args, true
+}
+
 func checkManagerAudit(ctx context.Context, path string, a nodeAuditor) Check {
-	bin, ok := gitpkg.LookJSBin(a.tool)
+	command, ok := managerAuditCommand(a, path)
 	if !ok {
 		return Check{Name: "node_audit", Status: StatusUnknown, Detail: fmt.Sprintf("This project uses %s, which isn't installed, so its packages couldn't be audited.", a.tool)}
 	}
 	cctx, cancel := context.WithTimeout(ctx, commandTimeout)
 	defer cancel()
-	out, exit, err := runCapture(cctx, path, "'"+strings.ReplaceAll(bin, "'", `'\''`)+"' "+a.args)
+	out, exit, err := runCapture(cctx, path, command)
 	if err != nil || exit < 0 {
 		return Check{Name: "node_audit", Status: StatusUnknown, Detail: fmt.Sprintf("Couldn't run %s audit, dependencies may not be installed or the network is unreachable.", a.tool)}
 	}

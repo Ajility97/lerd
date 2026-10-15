@@ -336,13 +336,6 @@ func jsPackageManager(projectPath string) (name string, args []string) {
 	return jsManagerFor(func(f string) bool { return hasFile(projectPath, f) })
 }
 
-// JSPackageManager names the package manager lerd installs projectPath's JS
-// dependencies with, read from the lockfile it ships.
-func JSPackageManager(projectPath string) string {
-	name, _ := jsPackageManager(projectPath)
-	return name
-}
-
 // LookJSBin finds a JS package manager's binary, including the install dirs a
 // daemon's restricted PATH leaves out.
 func LookJSBin(name string) (string, bool) {

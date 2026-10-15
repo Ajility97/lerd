@@ -10,6 +10,7 @@ import (
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/envfile"
+	"github.com/geodro/lerd/internal/node"
 )
 
 func writeEnv(t *testing.T, dir, name, body string) {
@@ -581,10 +582,13 @@ func TestNodeAuditorFor(t *testing.T) {
 		{map[string]string{"yarn.lock": "# yarn lockfile v1\n"}, "yarn", "audit --json"},
 		{map[string]string{"yarn.lock": "__metadata:\n  version: 8\n"}, "yarn", "npm audit --all --recursive --json"},
 		{map[string]string{"package-lock.json": "{}"}, "", ""},
+		{map[string]string{"package.json": `{"packageManager":"pnpm@10.0.0"}`}, "pnpm", "audit --json"},
 	}
 	for _, c := range cases {
 		dir := t.TempDir()
-		c.files["package.json"] = "{}"
+		if _, ok := c.files["package.json"]; !ok {
+			c.files["package.json"] = "{}"
+		}
 		for name, body := range c.files {
 			if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
 				t.Fatal(err)
@@ -594,6 +598,35 @@ func TestNodeAuditorFor(t *testing.T) {
 		if a.tool != c.tool || a.args != c.args {
 			t.Errorf("%v: got %q %q, want %q %q", c.files, a.tool, a.args, c.tool, c.args)
 		}
+	}
+}
+
+// fakeNode stands in for the active Node manager; only what the corepack route
+// reads is filled in.
+type fakeNode struct{ node.Manager }
+
+func (fakeNode) Available() bool                  { return true }
+func (fakeNode) ExecPrefix(version string) string { return "fnm exec --using=" + version + " --" }
+
+// With no pnpm or yarn binary around, the audit runs through corepack under the
+// project's Node, the way lerd installs and runs those projects.
+func TestManagerAuditCommand_fallsBackToCorepack(t *testing.T) {
+	origLook, origNode := lookJSBin, activeNode
+	t.Cleanup(func() { lookJSBin, activeNode = origLook, origNode })
+	lookJSBin = func(string) (string, bool) { return "", false }
+	activeNode = func() node.Manager { return fakeNode{} }
+
+	site := t.TempDir()
+	if err := os.WriteFile(filepath.Join(site, ".nvmrc"), []byte("22\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := managerAuditCommand(nodeAuditor{tool: "pnpm", args: "audit --json"}, site)
+	want := "COREPACK_ENABLE_DOWNLOAD_PROMPT=0 fnm exec --using=22 -- corepack pnpm audit --json"
+	if !ok || got != want {
+		t.Fatalf("got %q, %v\nwant %q", got, ok, want)
+	}
+	if _, ok := managerAuditCommand(nodeAuditor{tool: "bun", args: "audit --json"}, site); ok {
+		t.Error("bun has no corepack route, want none")
 	}
 }
 
