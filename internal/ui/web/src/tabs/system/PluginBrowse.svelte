@@ -126,6 +126,8 @@
               <span class="text-xs text-gray-400 tabular-nums">{e.stars ? '★ ' + e.stars.toLocaleString() : ''}</span>
               {#if e.installed}
                 <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">{m.system_plugins_installedBadge()}</span>
+              {:else if !e.compatible}
+                <span class="text-xs text-gray-500 dark:text-gray-400">{m.system_plugins_needsLerd({ constraint: e.lerd ?? '' })}</span>
               {:else}
                 <DetailButton tone="primary" onclick={() => (confirm = e)} loading={installing === e.name} disabled={installing !== ''}>
                   {m.common_install()}

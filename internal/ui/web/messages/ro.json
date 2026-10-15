@@ -1431,6 +1431,7 @@
   "system_plugins_installConfirmBody": "Lerd instalează commit-ul {commit}, exact cum a fost aprobat. Pluginul rulează cu drepturile tale.",
   "system_plugins_installConfirmTitle": "Instalezi {name}?",
   "system_plugins_installedBadge": "Instalat",
+  "system_plugins_needsLerd": "Necesită Lerd {constraint}",
   "system_plugins_noMatch": "Niciun plugin nu se potrivește",
   "system_plugins_notListed": "Nu e în catalog",
   "system_plugins_search": "Caută pluginuri",

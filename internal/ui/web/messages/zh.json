@@ -1431,6 +1431,7 @@
   "system_plugins_installConfirmBody": "Lerd 会按批准时的原样安装提交 {commit}。插件以你的身份和权限运行。",
   "system_plugins_installConfirmTitle": "安装 {name}？",
   "system_plugins_installedBadge": "已安装",
+  "system_plugins_needsLerd": "需要 Lerd {constraint}",
   "system_plugins_noMatch": "没有匹配的插件",
   "system_plugins_notListed": "不在目录中",
   "system_plugins_search": "搜索插件",

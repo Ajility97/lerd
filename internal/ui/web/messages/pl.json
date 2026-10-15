@@ -1431,6 +1431,7 @@
   "system_plugins_installConfirmBody": "Lerd instaluje commit {commit} dokładnie w zatwierdzonej postaci. Wtyczka działa z Twoimi uprawnieniami.",
   "system_plugins_installConfirmTitle": "Zainstalować {name}?",
   "system_plugins_installedBadge": "Zainstalowana",
+  "system_plugins_needsLerd": "Wymaga Lerd {constraint}",
   "system_plugins_noMatch": "Żadna wtyczka nie pasuje",
   "system_plugins_notListed": "Brak w katalogu",
   "system_plugins_search": "Szukaj wtyczek",

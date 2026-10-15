@@ -368,6 +368,23 @@ func TestPluginManager_CatalogMarksInstalled(t *testing.T) {
 	}
 }
 
+func TestPluginManager_CatalogMarksWhatNeedsANewerLerd(t *testing.T) {
+	installAPIPlugin(t)
+	serveCatalog(t,
+		plugins.Listing{Name: "now", Repo: "https://github.com/x/now", Commit: strings.Repeat("a", 40), Lerd: ">=1.0"},
+		plugins.Listing{Name: "later", Repo: "https://github.com/x/later", Commit: strings.Repeat("b", 40), Lerd: ">=999.0"},
+	)
+	rec := httptest.NewRecorder()
+	handlePluginManager(rec, localRequest(http.MethodGet, "/api/plugin-manager/catalog", ""))
+	var got []catalogEntry
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("%v: %s", err, rec.Body)
+	}
+	if len(got) != 2 || !got[0].Compatible || got[1].Compatible {
+		t.Errorf("got %+v", got)
+	}
+}
+
 // An unreachable catalog answers 502 with the reason rather than an empty
 // list, so the page can say why there is nothing to browse.
 func TestPluginManager_CatalogUnreachable(t *testing.T) {

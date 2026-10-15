@@ -1431,6 +1431,7 @@
   "system_plugins_installConfirmBody": "Lerd installeert commit {commit}, precies zoals die is goedgekeurd. De plugin draait als jij, met jouw rechten.",
   "system_plugins_installConfirmTitle": "{name} installeren?",
   "system_plugins_installedBadge": "Geïnstalleerd",
+  "system_plugins_needsLerd": "Vereist Lerd {constraint}",
   "system_plugins_noMatch": "Geen plugin komt overeen",
   "system_plugins_notListed": "Niet in de catalogus",
   "system_plugins_search": "Plugins zoeken",

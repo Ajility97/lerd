@@ -1431,6 +1431,7 @@
   "system_plugins_installConfirmBody": "Lerd cài đúng commit {commit} như khi được duyệt. Plugin chạy với quyền của bạn.",
   "system_plugins_installConfirmTitle": "Cài {name}?",
   "system_plugins_installedBadge": "Đã cài",
+  "system_plugins_needsLerd": "Cần Lerd {constraint}",
   "system_plugins_noMatch": "Không có plugin nào khớp",
   "system_plugins_notListed": "Không có trong danh mục",
   "system_plugins_search": "Tìm plugin",

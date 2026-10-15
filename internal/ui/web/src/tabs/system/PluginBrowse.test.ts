@@ -8,9 +8,9 @@ let posts: unknown[];
 
 beforeEach(() => {
   catalog = [
-    { name: 'old', repo: 'r', commit: A, stars: 50, updated_at: '2026-01-01', installed: false },
-    { name: 'fresh', repo: 'r', commit: 'b'.repeat(40), stars: 2, updated_at: '2026-10-01', installed: false, images: ['https://plugins.lerd.sh/images/fresh/1.png'] },
-    { name: 'mine', repo: 'r', commit: A, installed: true }
+    { name: 'old', repo: 'r', commit: A, stars: 50, updated_at: '2026-01-01', installed: false, compatible: true },
+    { name: 'fresh', repo: 'r', commit: 'b'.repeat(40), stars: 2, updated_at: '2026-10-01', installed: false, images: ['https://plugins.lerd.sh/images/fresh/1.png'], compatible: true },
+    { name: 'mine', repo: 'r', commit: A, installed: true, compatible: true }
   ];
   posts = [];
   globalThis.fetch = vi.fn(async (url: string, init?: RequestInit) => {
@@ -44,6 +44,14 @@ it('installs by name after confirming the approved commit', async () => {
   expect(dialog.textContent).toContain('aaaaaaa');
   await fireEvent.click(within(dialog).getByRole('button', { name: 'Install' }));
   await waitFor(() => expect(posts).toEqual([{ name: 'old' }]));
+});
+
+// Offering the install would only end in a refusal from the binary.
+it('names the lerd a plugin needs instead of offering to install it', async () => {
+  catalog = [{ name: 'later', repo: 'r', commit: A, installed: false, compatible: false, lerd: '>=1.40' }];
+  const { findByText, queryByRole } = render(PluginBrowse);
+  await findByText('Needs Lerd >=1.40');
+  expect(queryByRole('button', { name: 'Install' })).toBeNull();
 });
 
 it('says why when the catalog cannot be reached', async () => {

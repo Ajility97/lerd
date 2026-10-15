@@ -37,6 +37,8 @@ type Listing struct {
 	Author      string   `json:"author,omitempty"`
 	Category    string   `json:"category,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
+	// Lerd is the approved commit's own `lerd` constraint.
+	Lerd string `json:"lerd,omitempty"`
 	// Images are copied by the registry at the approved commit and published
 	// beside the index, the first one being the preview. The index lists them
 	// relative to itself; LoadCatalog hands them out as absolute URLs.
@@ -248,14 +250,15 @@ func IsCatalogName(arg string) bool {
 }
 
 // PendingUpdate returns the newer approved listing for an installed catalog
-// plugin, or false when it is current, unlisted or the catalog is unreachable.
+// plugin, or false when it is current, unlisted, needs a newer lerd or the
+// catalog is unreachable.
 func PendingUpdate(name string) (*Listing, bool) {
 	src, ok := InstalledSource(name)
 	if !ok {
 		return nil, false
 	}
 	l, err := FindListing(name)
-	if err != nil || l.Commit == src.Commit {
+	if err != nil || l.Commit == src.Commit || !Compatible(l.Lerd) {
 		return nil, false
 	}
 	return l, true

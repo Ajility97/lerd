@@ -1431,6 +1431,7 @@
   "system_plugins_installConfirmBody": "O Lerd instala o commit {commit}, exatamente como foi aprovado. O plugin roda como você, com suas permissões.",
   "system_plugins_installConfirmTitle": "Instalar {name}?",
   "system_plugins_installedBadge": "Instalado",
+  "system_plugins_needsLerd": "Requer Lerd {constraint}",
   "system_plugins_noMatch": "Nenhum plugin corresponde",
   "system_plugins_notListed": "Fora do catálogo",
   "system_plugins_search": "Buscar plugins",

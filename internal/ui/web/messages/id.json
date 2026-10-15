@@ -1431,6 +1431,7 @@
   "system_plugins_installConfirmBody": "Lerd memasang commit {commit}, persis seperti yang disetujui. Plugin berjalan sebagai Anda, dengan izin Anda.",
   "system_plugins_installConfirmTitle": "Pasang {name}?",
   "system_plugins_installedBadge": "Terpasang",
+  "system_plugins_needsLerd": "Memerlukan Lerd {constraint}",
   "system_plugins_noMatch": "Tidak ada plugin yang cocok",
   "system_plugins_notListed": "Tidak ada di katalog",
   "system_plugins_search": "Cari plugin",

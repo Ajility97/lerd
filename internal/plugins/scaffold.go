@@ -36,7 +36,7 @@ func Scaffold(name, dest string) error {
 			return err
 		}
 		if path == "skeleton/"+ManifestFile {
-			data = []byte(strings.Replace(string(data), "\nname: hello\n", "\nname: "+name+"\n", 1))
+			data = []byte(strings.Replace(string(data), "\nname: hello\n", "\nname: "+name+"\n"+requiresLine(), 1))
 		}
 		// embed drops file modes, so anything under bin/ is the executable part.
 		mode := os.FileMode(0o644)
@@ -45,4 +45,14 @@ func Scaffold(name, dest string) error {
 		}
 		return os.WriteFile(target, data, mode)
 	})
+}
+
+// requiresLine pins a new plugin to the lerd release that wrote it, the oldest
+// it is known to run on; an untagged build has no release to name.
+func requiresLine() string {
+	release := releaseRe.FindString(runningVersion)
+	if release == "" {
+		return ""
+	}
+	return fmt.Sprintf("lerd: \">=%s\"\n", strings.TrimPrefix(release, "v"))
 }

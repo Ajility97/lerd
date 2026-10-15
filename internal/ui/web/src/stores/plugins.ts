@@ -78,10 +78,12 @@ export interface CatalogEntry {
   category?: string;
   tags?: string[];
   images?: string[];
+  lerd?: string;
   added_at?: string;
   updated_at?: string;
   stars?: number;
   installed: boolean;
+  compatible: boolean;
 }
 
 // loadCatalog throws with lerd's reason when the catalog cannot be reached.

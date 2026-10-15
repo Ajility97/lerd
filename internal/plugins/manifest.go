@@ -22,10 +22,12 @@ const ManifestFile = "plugin.yaml"
 const APIVersion = 1
 
 type Manifest struct {
-	APIVersion   int               `yaml:"api_version" json:"api_version"`
-	Name         string            `yaml:"name" json:"name"`
-	Version      string            `yaml:"version,omitempty" json:"version,omitempty"`
-	Description  string            `yaml:"description,omitempty" json:"description,omitempty"`
+	APIVersion  int    `yaml:"api_version" json:"api_version"`
+	Name        string `yaml:"name" json:"name"`
+	Version     string `yaml:"version,omitempty" json:"version,omitempty"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+	// Lerd is the oldest lerd release the plugin needs, as a constraint like ">=1.37".
+	Lerd         string            `yaml:"lerd,omitempty" json:"lerd,omitempty"`
 	Commands     []Command         `yaml:"commands,omitempty" json:"commands,omitempty"`
 	SiteCommands []SiteCommand     `yaml:"site_commands,omitempty" json:"site_commands,omitempty"`
 	Hooks        map[string]string `yaml:"hooks,omitempty" json:"hooks,omitempty"`
@@ -123,6 +125,9 @@ func (p *Plugin) validate() error {
 	}
 	if p.APIVersion > APIVersion {
 		return fmt.Errorf("api_version %d needs a newer lerd (this one supports %d)", p.APIVersion, APIVersion)
+	}
+	if !Compatible(p.Lerd) {
+		return fmt.Errorf("needs lerd %s (this is %s)", p.Lerd, runningVersion)
 	}
 	if !nameRe.MatchString(p.Name) {
 		return fmt.Errorf("name %q must be lowercase letters, digits and dashes", p.Name)

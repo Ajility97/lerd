@@ -1431,6 +1431,7 @@
   "system_plugins_installConfirmBody": "Lerd は承認されたとおりのコミット {commit} をインストールします。プラグインはあなたの権限で動作します。",
   "system_plugins_installConfirmTitle": "{name} をインストールしますか？",
   "system_plugins_installedBadge": "インストール済み",
+  "system_plugins_needsLerd": "Lerd {constraint} が必要",
   "system_plugins_noMatch": "一致するプラグインはありません",
   "system_plugins_notListed": "カタログにありません",
   "system_plugins_search": "プラグインを検索",

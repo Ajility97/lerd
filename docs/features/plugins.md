@@ -45,6 +45,7 @@ Every key except `api_version` and `name` is optional. Paths are relative to the
 ```yaml
 api_version: 1
 name: hello                 # lowercase letters, digits and dashes; must match the folder name
+lerd: ">=1.37"              # the oldest lerd it runs on; lerd plugin new fills in the one that wrote it
 version: 0.1.0
 description: A starting point for a lerd plugin
 
@@ -87,6 +88,12 @@ ui:                         # files live under ui/, the only folder the dashboar
 ```
 
 A manifest written for a newer lerd still loads as long as its `api_version` is one this lerd knows: unknown keys are ignored. An unknown value in a known key, such as a hook for an event this lerd doesn't have, refuses the plugin with a message naming it.
+
+### Which lerd a plugin runs on
+
+`lerd` names the oldest release the plugin needs, compared on major and minor. Give it a lower bound only, never an upper one: every later lerd keeps loading the plugin, so it never needs a new version just because lerd shipped one. A lerd older than the bound refuses to install or load it and says which release it needs, and the Browse tab shows the requirement in place of the Install button. An approved update that needs a newer lerd than yours is not offered until you update lerd.
+
+A change that would break existing plugins raises `api_version` instead, which is the one thing that can make a plugin stop loading on a newer lerd.
 
 ---
 
