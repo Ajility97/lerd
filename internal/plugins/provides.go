@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 )
 
 // Jobs a plugin can take over from lerd by declaring itself in charge of them
@@ -20,10 +19,6 @@ var jobs = map[string]bool{JobWorktreeDatabase: true}
 // SurfaceProvide is the surface a plugin's executable runs under when lerd
 // hands it a job.
 const SurfaceProvide = "provide"
-
-// provideLimit bounds one job; a copy-on-write branch takes seconds, so a
-// plugin still running after this is stuck rather than busy.
-const provideLimit = 5 * time.Minute
 
 // ProviderOf returns the installed plugin in charge of job, or nil when lerd
 // does the job itself.
@@ -57,11 +52,7 @@ func (p *Plugin) Provide(job, action string, request map[string]string) ([]byte,
 	cmd.Stdin = bytes.NewReader(body)
 	var out, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &stderr
-	if err = cmd.Start(); err == nil {
-		timer := time.AfterFunc(provideLimit, func() { _ = cmd.Process.Kill() })
-		err = cmd.Wait()
-		timer.Stop()
-	}
+	err = RunWithin(cmd, provideLimit)
 	if err != nil {
 		Failed(Failure{Plugin: p.Name, Surface: SurfaceProvide, What: job + " " + action, Error: strings.TrimSpace(stderr.String() + "\n" + err.Error())})
 		if msg := strings.TrimSpace(stderr.String()); msg != "" {

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -204,9 +205,27 @@ func runPluginCommand(w http.ResponseWriter, r *http.Request, site *config.Site,
 		writeJSON(w, map[string]any{"error": err.Error()})
 		return
 	}
-	if code := streamRun(w, r.Context(), cmd, false); code != 0 {
+	ctx, cancel := context.WithTimeout(r.Context(), pluginSiteCommandLimit(target))
+	defer cancel()
+	code := streamRun(w, ctx, cmd, false)
+	switch {
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		plugins.Failed(plugins.Failure{Plugin: target.Plugin, Surface: plugins.SurfaceSiteCommand, What: target.Name, Error: fmt.Sprintf("timed out after %s", pluginSiteCommandLimit(target))})
+	case code != 0:
 		plugins.Failed(plugins.Failure{Plugin: target.Plugin, Surface: plugins.SurfaceSiteCommand, What: target.Name, Error: fmt.Sprintf("exited with code %d", code)})
 	}
+}
+
+// pluginSiteCommandLimit is how long a plugin site command may run.
+func pluginSiteCommandLimit(target *config.FrameworkCommand) time.Duration {
+	if p, err := plugins.Find(target.Plugin); err == nil {
+		for _, c := range p.SiteCommands {
+			if target.Name == p.Name+":"+c.Name {
+				return c.Limit()
+			}
+		}
+	}
+	return plugins.SiteCommandLimit
 }
 
 // pluginCommandProcess builds the process for a plugin site command, run in cwd

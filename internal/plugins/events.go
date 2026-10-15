@@ -46,9 +46,6 @@ func IsEvent(name string) bool { return events[name] }
 // HookLog is the file in a plugin's data dir that collects its hooks' output.
 const HookLog = "hooks.log"
 
-// hookLimit stops a hung hook from holding up the link or start that fired it.
-const hookLimit = 30 * time.Second
-
 // Emit runs every installed plugin's hook for event, one after another. The
 // payload goes in as JSON on stdin with "event" added, and each key also as
 // LERD_<KEY>. A hook's output and failure land in its hooks.log; neither ever
@@ -98,12 +95,7 @@ func (p *Plugin) runHook(event, run string, payload map[string]string) {
 		cmd.Dir = p.Dir
 		cmd.Stdin = bytes.NewReader(stdin)
 		cmd.Stdout, cmd.Stderr = &out, &out
-		err = cmd.Start()
-	}
-	if err == nil {
-		timer := time.AfterFunc(hookLimit, func() { _ = cmd.Process.Kill() })
-		err = cmd.Wait()
-		timer.Stop()
+		err = RunWithin(cmd, hookLimit)
 	}
 
 	status := "ok"

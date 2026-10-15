@@ -76,7 +76,7 @@ func callPluginTool(p *plugins.Plugin, t *plugins.MCPTool, args map[string]any) 
 	cmd.Dir = dir
 	cmd.Stdin = bytes.NewReader(stdin)
 	cmd.Stdout, cmd.Stderr = &out, &out
-	if err := cmd.Run(); err != nil {
+	if err := plugins.RunWithin(cmd, t.Limit()); err != nil {
 		msg := strings.TrimSpace(out.String() + "\n" + err.Error())
 		plugins.Failed(plugins.Failure{Plugin: p.Name, Surface: plugins.SurfaceMCP, What: t.Name, Error: msg})
 		return toolErr(msg), nil

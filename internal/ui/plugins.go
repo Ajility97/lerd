@@ -135,7 +135,7 @@ func runPluginEndpoint(w http.ResponseWriter, r *http.Request, p *plugins.Plugin
 	cmd.Dir = dir
 	cmd.Stdin = io.LimitReader(r.Body, 1<<20)
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	if err := cmd.Run(); err != nil {
+	if err := plugins.RunWithin(cmd, e.Limit()); err != nil {
 		msg := strings.TrimSpace(stderr.String() + "\n" + err.Error())
 		plugins.Failed(plugins.Failure{Plugin: p.Name, Surface: plugins.SurfaceAPI, What: e.Path, Error: msg})
 		http.Error(w, msg, http.StatusInternalServerError)

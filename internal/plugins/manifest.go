@@ -57,6 +57,8 @@ type SiteCommand struct {
 	Description string `yaml:"description,omitempty" json:"description,omitempty"`
 	Confirm     bool   `yaml:"confirm,omitempty" json:"confirm,omitempty"`
 	Run         string `yaml:"run" json:"run"`
+	// Timeout raises SiteCommandLimit for this command, up to an hour.
+	Timeout string `yaml:"timeout,omitempty" json:"timeout,omitempty"`
 }
 
 type MCP struct {
@@ -69,6 +71,8 @@ type MCPTool struct {
 	Description string         `yaml:"description" json:"description"`
 	InputSchema map[string]any `yaml:"input_schema,omitempty" json:"input_schema,omitempty"`
 	Run         string         `yaml:"run" json:"run"`
+	// Timeout raises MCPLimit for this tool, up to ten minutes.
+	Timeout string `yaml:"timeout,omitempty" json:"timeout,omitempty"`
 }
 
 // Endpoint is served at /api/plugins/<plugin>/<path>.
@@ -79,6 +83,8 @@ type Endpoint struct {
 	// LoopbackOnly closes the endpoint to remote dashboards unless the user
 	// turned on remote full access, like lerd's own host-action routes.
 	LoopbackOnly bool `yaml:"loopback_only,omitempty" json:"loopback_only,omitempty"`
+	// Timeout raises APILimit for this endpoint, up to ten minutes.
+	Timeout string `yaml:"timeout,omitempty" json:"timeout,omitempty"`
 }
 
 type UI struct {
@@ -154,6 +160,9 @@ func (p *Plugin) validate() error {
 		if err := p.checkNamed("site command", c.Name, c.Run, seen); err != nil {
 			return err
 		}
+		if err := checkLimit(c.Timeout, maxSiteCommandLimit); err != nil {
+			return fmt.Errorf("site command %q: %w", c.Name, err)
+		}
 	}
 	for event, run := range p.Hooks {
 		if !IsEvent(event) {
@@ -222,6 +231,9 @@ func (p *Plugin) validateMCP() error {
 		if err := p.checkNamed("mcp tool", tool.Name, tool.Run, seen); err != nil {
 			return err
 		}
+		if err := checkLimit(tool.Timeout, maxEntryLimit); err != nil {
+			return fmt.Errorf("mcp tool %q: %w", tool.Name, err)
+		}
 	}
 	return nil
 }
@@ -243,6 +255,9 @@ func (p *Plugin) validateAPI() error {
 		}
 		if err := p.checkExecutable(e.Run); err != nil {
 			return err
+		}
+		if err := checkLimit(e.Timeout, maxEntryLimit); err != nil {
+			return fmt.Errorf("api path %q: %w", e.Path, err)
 		}
 	}
 	return nil

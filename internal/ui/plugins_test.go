@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/plugins"
@@ -457,5 +458,28 @@ func TestPluginsList_DescribesUI(t *testing.T) {
 	}
 	if p.SiteTab == nil || p.SiteTab.URL != "/plugins/echo/ui/site.html" {
 		t.Errorf("site tab = %+v", p.SiteTab)
+	}
+}
+
+func TestPluginEndpoint_StopsAtItsTimeout(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	dir := filepath.Join(plugins.Dir(), "slow")
+	if err := os.MkdirAll(filepath.Join(dir, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, plugins.ManifestFile), []byte("api_version: 1\nname: slow\napi:\n  - {path: wait, run: bin/wait, timeout: 200ms}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "bin", "wait"), []byte("#!/bin/sh\nsleep 5\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	rec := httptest.NewRecorder()
+	handlePluginAPI(rec, localRequest(http.MethodGet, "/api/plugins/slow/wait", ""))
+	if rec.Code != http.StatusInternalServerError || !strings.Contains(rec.Body.String(), "timed out after 200ms") {
+		t.Errorf("%d %s", rec.Code, rec.Body)
+	}
+	if time.Since(start) > 3*time.Second {
+		t.Error("the endpoint must answer at its limit")
 	}
 }

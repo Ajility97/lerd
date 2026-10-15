@@ -68,6 +68,7 @@ site_commands:              # a site's Commands menu and the command palette
     description: Print a greeting for this site
     confirm: false          # ask before running
     run: bin/greet
+    timeout: 45m            # longer than the 30 minute default, up to 1h
 
 hooks:                      # event -> executable
   site.linked: bin/on-event
@@ -88,6 +89,7 @@ api:                        # served at /api/plugins/hello/greet
     methods: [GET]          # GET when omitted
     run: bin/greet
     loopback_only: false    # true keeps it to the lerd host, like lerd's own host actions
+    timeout: 2m             # longer than the 30 second default, up to 10m
 
 requires: [jq]              # commands its scripts call, beyond the interpreters lerd reads itself
 
@@ -175,6 +177,20 @@ Per surface:
 - **MCP tools** get the tool's arguments as JSON on stdin; stdout is the result, and a non-zero exit is reported to the assistant as an error. A `site` argument hands over the site.
 - **API endpoints** get the request body on stdin and `LERD_METHOD` and `LERD_QUERY`; a `site` query parameter hands over the site. A zero exit answers 200 with stdout, served as JSON when it parses as JSON, and any other exit answers 500 with stderr.
 - **Hooks** get `LERD_EVENT` and the event's payload, both as JSON on stdin and as `LERD_<KEY>` variables.
+
+### How long it may run
+
+Every surface but the CLI stops an executable that runs past its limit and records it as a failure, so a stuck script never holds up the dashboard, an assistant or the operation that fired a hook. A CLI command has no limit, since it runs in your terminal where Ctrl-C is yours.
+
+| Surface | Default | `timeout:` up to |
+|---|---|---|
+| Hooks | 30s | fixed |
+| API endpoints | 30s | 10m |
+| MCP tools | 2m | 10m |
+| Site commands | 30m | 1h |
+| Jobs under `provides` | 5m | fixed |
+
+`timeout` takes a duration like `90s` or `10m` on a single site command, MCP tool or API endpoint. A value past the ceiling refuses the plugin with a message naming it.
 
 ### Which language
 
