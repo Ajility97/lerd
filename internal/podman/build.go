@@ -153,9 +153,10 @@ func mkcertPath() string {
 }
 
 // mkcertCABlock copies the mkcert rootCA.pem into tmpDir and returns the
-// Containerfile snippet that installs it into the Alpine trust store.
-// Returns empty string if mkcert is not installed or the CA does not exist.
-func mkcertCABlock(tmpDir string) string {
+// Containerfile snippet that installs it into the Alpine trust store, and into
+// chromium's own when the image carries it. Returns empty string if mkcert is
+// not installed or the CA does not exist.
+func mkcertCABlock(tmpDir string, packages []string) string {
 	out, err := exec.Command(mkcertPath(), "-CAROOT").Output()
 	if err != nil {
 		return ""
@@ -169,9 +170,23 @@ func mkcertCABlock(tmpDir string) string {
 	if err := os.WriteFile(dest, src, 0644); err != nil {
 		return ""
 	}
-	return "# Lerd mkcert CA — trust local .test HTTPS inside the container\n" +
+	return mkcertTrustBlock(packages)
+}
+
+// mkcertTrustBlock installs the CA copied in as mkcert-ca.crt. Chromium reads
+// trust anchors from the NSS database under $HOME, not the system store, and
+// lerd's chromium shim runs it with HOME=/root, so the CA is imported there too.
+func mkcertTrustBlock(packages []string) string {
+	block := "# Lerd mkcert CA — trust local .test HTTPS inside the container\n" +
 		"COPY mkcert-ca.crt /usr/local/share/ca-certificates/mkcert-ca.crt\n" +
 		"RUN update-ca-certificates\n"
+	if slices.Contains(packages, "chromium") {
+		block += "RUN apk add --no-cache nss-tools \\\n" +
+			"    && mkdir -p /root/.pki/nssdb \\\n" +
+			"    && certutil -d sql:/root/.pki/nssdb -N --empty-password \\\n" +
+			"    && certutil -d sql:/root/.pki/nssdb -A -t \"C,,\" -n lerd-mkcert -i /usr/local/share/ca-certificates/mkcert-ca.crt\n"
+	}
+	return block
 }
 
 // ContainerfileHash returns the SHA-256 hash of the embedded PHP-FPM Containerfile.
@@ -540,7 +555,7 @@ func buildFPMImage(version string, force, local bool, customExts []string, extDe
 				mysqlClientCompatBlock +
 				buildCustomExtBlockWithToolchain(version, customExts, extDeps) +
 				buildCustomPackagesBlock(packages) +
-				mkcertCABlock(tmp)
+				mkcertCABlock(tmp, packages)
 			goto build
 		}
 	}
@@ -564,7 +579,7 @@ func buildFPMImage(version string, force, local bool, customExts []string, extDe
 		containerfile = strings.ReplaceAll(containerfile, "{{.CustomExtensions}}", buildCustomExtBlock(version, customExts, extDeps))
 		containerfile = strings.ReplaceAll(containerfile, "{{.CustomExtensionsRuntime}}", buildCustomExtRuntimeDeps(version, customExts, extDeps))
 		containerfile = strings.ReplaceAll(containerfile, "{{.CustomPackages}}", buildCustomPackagesBlock(packages))
-		containerfile = strings.ReplaceAll(containerfile, "{{.MkcertCA}}", mkcertCABlock(tmp))
+		containerfile = strings.ReplaceAll(containerfile, "{{.MkcertCA}}", mkcertCABlock(tmp, packages))
 	}
 
 build:

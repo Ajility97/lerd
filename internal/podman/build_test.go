@@ -695,3 +695,23 @@ func TestNeedsFPMRebuild_IgnoresVersionsOutsideTheGivenSet(t *testing.T) {
 		t.Error("a stale image inside the set must still force a rebuild")
 	}
 }
+
+// Chromium on Linux takes local trust anchors from the NSS database in
+// $HOME/.pki/nssdb, not the system store, and lerd's chromium shim runs it with
+// HOME=/root. So an image with chromium imports lerd's CA there too, after the
+// system store has it; one without chromium carries no NSS step.
+func TestMkcertTrustBlock(t *testing.T) {
+	plain := mkcertTrustBlock([]string{"imagemagick"})
+	if !strings.Contains(plain, "update-ca-certificates") || strings.Contains(plain, "certutil") {
+		t.Fatalf("without chromium:\n%s", plain)
+	}
+	withChromium := mkcertTrustBlock([]string{"chromium", "xvfb"})
+	for _, want := range []string{"nss-tools", "-d sql:/root/.pki/nssdb -N --empty-password", `-A -t "C,," -n lerd-mkcert -i /usr/local/share/ca-certificates/mkcert-ca.crt`} {
+		if !strings.Contains(withChromium, want) {
+			t.Errorf("with chromium, missing %q in:\n%s", want, withChromium)
+		}
+	}
+	if strings.Index(withChromium, "update-ca-certificates") > strings.Index(withChromium, "certutil") {
+		t.Error("the NSS import must come after the CA file is in place")
+	}
+}
