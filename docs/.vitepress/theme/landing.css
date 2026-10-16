@@ -136,6 +136,17 @@
 .lerd-landing .fw-own:hover .fw-name{color:var(--accent-2)}
 
 /* services */
+.lerd-landing .sec-lead{margin-top:20px;color:var(--ink-2);font-size:17px;max-width:62ch}
+.lerd-landing .sec-lead a{color:var(--ink);font-weight:600;white-space:nowrap}
+.lerd-landing .sec-lead a:hover{color:var(--accent-2)}
+.lerd-landing .rt-grid .fw{gap:12px}
+.lerd-landing .rt-grid .fw-name{font-size:18px}
+.lerd-landing .rt-cmd{font:13px var(--mono);color:var(--accent-2);background:none;padding:0}
+.lerd-landing .rt-p{font-size:14px;color:var(--muted);line-height:1.55}
+.lerd-landing .plat .p{min-height:0}
+.lerd-landing .plat .explore{margin-top:auto;padding-top:6px}
+.lerd-landing .card .names{display:flex;flex-wrap:wrap;font:12px/1.9 var(--mono);color:var(--muted)}
+.lerd-landing .card .names i{color:var(--faint);font-style:normal;padding:0 6px}
 .lerd-landing .fw-port{display:block;font:13px var(--mono);color:var(--muted);font-weight:400;margin-top:2px}
 .lerd-landing .more{margin-top:40px;border-top:1px solid var(--line)}
 .lerd-landing .more-row{display:grid;grid-template-columns:200px 1fr;gap:24px;padding:22px 0;border-bottom:1px solid var(--line)}

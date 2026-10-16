@@ -91,7 +91,7 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
       <section class="hero"><div class="wrap">
         <div class="label"><b>00</b> / Open source, rootless, no Docker</div>
         <h1>Lerd <span>Local PHP development for Linux and macOS</span></h1>
-        <p>Free and open source, with no paid tier. Automatic .test domains with HTTPS, per-project PHP and Node, every service your app needs, all as rootless Podman containers. No Docker daemon, no sudo.</p>
+        <p>Lerd gives each project a .test domain with HTTPS, its own PHP and Node versions, and the databases and services it needs, all running as rootless Podman containers. It's free and open source, with no Docker daemon and no sudo.</p>
         <div class="hero-row">
           <div class="cmd"><i>$</i><code>{{ D.INSTALL }}</code><button class="copy" type="button" @click="copyInstall">{{ copied ? 'COPIED' : 'COPY' }}</button></div>
           <button class="btn primary" type="button" @click="demoOpen = true">Try the live demo</button>
@@ -116,7 +116,7 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
       <section class="sec" id="lineup" ref="lineup"><div class="wrap">
         <div class="sec-head">
           <div class="label"><b>01–{{ pad(D.LINEUP.length) }}</b> / The lineup</div>
-          <h2>Everything your projects need, <span>from first run to debugging.</span></h2>
+          <h2>What you get <span>after one install.</span></h2>
         </div>
         <div class="slides" :class="{ paused: hovered || !onScreen }" @mouseenter="hovered = true" @mouseleave="hovered = false">
           <div class="index" role="tablist" aria-label="Features">
@@ -134,6 +134,7 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
               <div class="badges">
                 <span v-for="t in c.tags" :key="t.t || t" class="badge" :class="{ beta: t.beta }">{{ t.t || t }}</span>
               </div>
+              <p v-if="c.names" class="names"><span v-for="(n, i) in c.names" :key="n"><i v-if="i">·</i>{{ n }}</span></p>
               <div class="cli"><i>$</i> {{ c.cli }}</div>
               <a class="explore" :href="withBase(c.href)">{{ c.more }} →</a>
             </div>
@@ -146,7 +147,7 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
       <section class="sec" id="frameworks"><div class="wrap">
         <div class="sec-head">
           <div class="label"><b>{{ pad(D.LINEUP.length + 1) }}</b> / Frameworks</div>
-          <h2>Detected and <span>set up for you.</span></h2>
+          <h2>Frameworks Lerd <span>already knows.</span></h2>
         </div>
         <div class="fw-grid">
           <a v-for="(f, i) in D.FRAMEWORKS" :key="f.logo" class="fw" :href="withBase(`/getting-started/${f.page}`)">
@@ -158,10 +159,28 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
         </div>
       </div></section>
 
+      <section class="sec" id="runtimes"><div class="wrap">
+        <div class="sec-head">
+          <div class="label"><b>{{ pad(D.LINEUP.length + 2) }}</b> / Beyond PHP</div>
+          <div>
+            <h2>Your Node, Python and Rails apps, <span>on the same .test domains.</span></h2>
+            <p class="sec-lead">lerd init recognises the project, picks its dev server and a free port, and runs it on the host, so file watching and hot reload behave as usual. Lerd restarts it if it dies, keeps its logs and puts nginx with TLS in front. Databases and services go into its .env like on any PHP site. <a :href="withBase('/usage/host-proxy')">Non-PHP apps guide →</a></p>
+          </div>
+        </div>
+        <div class="fw-grid rt-grid">
+          <div v-for="(r, i) in D.RUNTIMES" :key="r.name" class="fw">
+            <span class="n">{{ pad(i + 1) }}</span>
+            <h3 class="fw-name">{{ r.name }}</h3>
+            <code class="rt-cmd">{{ r.cmd }}</code>
+            <p class="rt-p">{{ r.p }}</p>
+          </div>
+        </div>
+      </div></section>
+
       <section class="sec" id="services"><div class="wrap">
         <div class="sec-head">
-          <div class="label"><b>{{ pad(D.LINEUP.length + 2) }}</b> / Services</div>
-          <h2>Every service <span>your app needs.</span></h2>
+          <div class="label"><b>{{ pad(D.LINEUP.length + 3) }}</b> / Services</div>
+          <h2>Databases, caches, search <span>and mail.</span></h2>
         </div>
         <div class="fw-grid">
           <div v-for="(s, i) in D.SVC_SHOW" :key="s.logo" class="fw">
@@ -177,10 +196,25 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
         </div>
       </div></section>
 
+      <section class="sec" id="platforms"><div class="wrap">
+        <div class="sec-head">
+          <div class="label"><b>{{ pad(D.LINEUP.length + 4) }}</b> / Platforms</div>
+          <h2>Linux, macOS <span>and Windows.</span></h2>
+        </div>
+        <div class="grid6 plat">
+          <div v-for="(pl, i) in D.PLATFORMS" :key="pl.name" class="p">
+            <div class="card-top"><span class="n">{{ pad(i + 1) }}</span><span class="badge" :class="pl.beta ? 'beta' : 'ok'">{{ pl.status }}</span></div>
+            <h3>{{ pl.name }}</h3>
+            <p>{{ pl.p }}</p>
+            <a class="explore" :href="withBase(pl.href)">{{ pl.name }} install guide →</a>
+          </div>
+        </div>
+      </div></section>
+
       <section class="sec" id="principles"><div class="wrap">
         <div class="sec-head">
-          <div class="label"><b>{{ pad(D.LINEUP.length + 3) }}</b> / Principles</div>
-          <h2>What Lerd will <span>never</span> ask of you.</h2>
+          <div class="label"><b>{{ pad(D.LINEUP.length + 5) }}</b> / Principles</div>
+          <h2>What Lerd <span>won't do.</span></h2>
         </div>
         <div class="grid6">
           <div v-for="(p, i) in D.PRINCIPLES" :key="p.h" class="p"><span class="n">{{ pad(i + 1) }}</span><h3>{{ p.h }}</h3><p>{{ p.p }}</p></div>
@@ -189,8 +223,8 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
 
       <section class="sec" id="compare"><div class="wrap">
         <div class="sec-head">
-          <div class="label"><b>{{ pad(D.LINEUP.length + 4) }}</b> / Compare</div>
-          <h2>How it lines up <span>against the others.</span></h2>
+          <div class="label"><b>{{ pad(D.LINEUP.length + 6) }}</b> / Compare</div>
+          <h2>Lerd next to <span>Herd, Laragon, DDEV, Lando and Sail.</span></h2>
         </div>
         <div class="cmp-wrap">
           <table class="cmp">
@@ -207,9 +241,9 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
       </div></section>
 
       <section class="cta" id="start"><div class="wrap">
-        <div class="label"><b>{{ pad(D.LINEUP.length + 5) }}</b> / Get started</div>
-        <h2>Live in two commands.</h2>
-        <p>Install once, then run lerd init in any PHP project. It's on https://project.test a minute later.</p>
+        <div class="label"><b>{{ pad(D.LINEUP.length + 7) }}</b> / Get started</div>
+        <h2>Install, then run lerd init.</h2>
+        <p>The script installs Lerd and sets up DNS and certificates. Then cd into a project, run lerd init and open its .test address.</p>
         <div class="hero-row">
           <div class="cmd"><i>$</i><code>{{ D.INSTALL }}</code><button class="copy" type="button" @click="copyInstall">{{ copied ? 'COPIED' : 'COPY' }}</button></div>
           <a class="btn" :href="GITHUB" target="_blank" rel="noopener">Star on GitHub<span v-if="stars" class="stars">{{ starLabel(stars) }}</span></a>
@@ -231,7 +265,7 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
       <div class="foot">
         <div>
           <a class="brand" href="#top"><img :src="withBase('/assets/logo.svg')" alt="" width="26" height="26">Lerd</a>
-          <p class="small">Open-source local PHP development for Linux and macOS, and Windows via WSL2 (beta). Podman-native, rootless, daemonless.</p>
+          <p class="small">Open-source local PHP development for Linux and macOS, and Windows via WSL2 (beta). Runs on rootless Podman.</p>
           <div class="social">
               <a href="https://github.com/lerd-env/lerd" target="_blank" rel="noopener" aria-label="GitHub"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.014 2.898-.014 3.293 0 .322.216.694.825.576C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
               <a href="https://discord.gg/5JK54s7xCC" target="_blank" rel="noopener" aria-label="Discord"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg></a>
@@ -259,7 +293,7 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
           <li><a :href="GITHUB" target="_blank" rel="noopener">GitHub</a></li>
           <li><a :href="DISCORD" target="_blank" rel="noopener">Discord</a></li>
           <li><a :href="withBase('/changelog')">Changelog</a></li>
-          <li><a :href="withBase('/getting-started/comparison')">Comparison</a></li>
+          <li><a :href="withBase('/getting-started/comparison')">Lerd vs other tools</a></li>
           <li><a :href="withBase('/contributing/building')">Contributing</a></li>
           <li><a href="https://github.com/sponsors/geodro" target="_blank" rel="noopener">Sponsors</a></li>
         </ul></div>
