@@ -203,6 +203,9 @@ func newPestBrowserInstallCmd() *cobra.Command {
 			"Re-run it after bumping the Playwright version in your project.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
+			if err := nativePestBrowserRefusal(); err != nil {
+				return err
+			}
 			version, err := phpExtVersion(args)
 			if err != nil {
 				return err
@@ -225,6 +228,14 @@ func playwrightVolumeMounted(container string) bool {
 func playwrightEnvBaked(container string) bool {
 	out, err := podman.Cmd("exec", container, "printenv", "PLAYWRIGHT_BROWSERS_PATH").Output()
 	return err == nil && strings.TrimSpace(string(out)) != ""
+}
+
+// chromiumTrustsCA reports whether chromium's own NSS database in container
+// holds lerd's CA. An image built with no CA, mkcert being absent, has nothing to
+// trust and passes.
+func chromiumTrustsCA(container string) bool {
+	return podman.Cmd("exec", container, "sh", "-c",
+		"[ ! -f /usr/local/share/ca-certificates/mkcert-ca.crt ] || certutil -L -d sql:/root/.pki/nssdb -n lerd-mkcert >/dev/null 2>&1").Run() == nil
 }
 
 func installPestBrowser(version string, w io.Writer) error {
@@ -273,8 +284,8 @@ func installPestBrowser(version string, w io.Writer) error {
 	}
 
 	// Rebuild when chromium was just opted in, or when an image from an older
-	// install lacks the baked PLAYWRIGHT_BROWSERS_PATH the test runner relies on.
-	needRebuild := len(added) > 0 || !playwrightEnvBaked(container)
+	// install lacks the baked PLAYWRIGHT_BROWSERS_PATH or chromium's trust in the CA.
+	needRebuild := len(added) > 0 || !playwrightEnvBaked(container) || !chromiumTrustsCA(container)
 	if needRebuild {
 		fmt.Fprintf(w, "Baking chromium and Xvfb into the PHP %s image...\n", version)
 		if err := podman.RebuildFPMImageTo(version, false, w); err != nil {
@@ -356,6 +367,9 @@ func newPestBrowserRemoveCmd() *cobra.Command {
 			"with other PHP versions); delete it manually to reclaim disk.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
+			if err := nativePestBrowserRefusal(); err != nil {
+				return err
+			}
 			version, err := phpExtVersion(args)
 			if err != nil {
 				return err
@@ -413,6 +427,9 @@ func newPestBrowserDoctorCmd() *cobra.Command {
 		Short: "Diagnose the Pest browser testing setup for a PHP version",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
+			if err := nativePestBrowserRefusal(); err != nil {
+				return err
+			}
 			version, err := phpExtVersion(args)
 			if err != nil {
 				return err
@@ -458,6 +475,10 @@ func doctorPestBrowser(version string, w io.Writer) error {
 
 	chromiumOK := podman.Cmd("exec", container, "chromium", "--version").Run() == nil
 	check(chromiumOK, "chromium present in the container", "lerd pest:browser install")
+
+	// The system store alone passes curl and PHP while chromium still refuses
+	// every .test certificate, so a secured site's Vite assets never load.
+	check(chromiumOK && chromiumTrustsCA(container), "chromium trusts lerd's certificate authority", "lerd pest:browser install")
 
 	xvfbOK := podman.Cmd("exec", container, "sh", "-c", "command -v xvfb-run >/dev/null").Run() == nil
 	check(xvfbOK, "Xvfb present for headed runs", "lerd pest:browser install")

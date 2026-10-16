@@ -88,6 +88,8 @@ Pest v4's native [browser testing](https://pestphp.com/docs/browser-testing) (`p
 
 In lerd your tests run inside the PHP-FPM container, so the browser has to live there too. Two facts make that tricky: Playwright's own Chromium is a glibc binary that cannot run on the container's musl libc, and Pest exposes no hook to point Playwright at a remote browser. lerd solves both by baking Alpine's musl-native Chromium into the FPM image and transparently shimming Playwright's browser to it. Xvfb is baked in alongside it so headed runs have a display to draw on.
 
+On macOS with the [native PHP runtime](../features/native-runtime.md) none of this applies: Pest runs on your Mac, so Playwright launches its own browser there and trusts lerd's certificates through the keychain. Install the browser with `lerd npx playwright install chromium`; the `lerd pest:browser` commands refuse under that runtime.
+
 ### 1. Install the Pest browser plugin
 
 ```bash
@@ -101,13 +103,13 @@ lerd npm install playwright
 lerd pest:browser install
 ```
 
-This adds `chromium`, `xvfb` and `xvfb-run` to your declared package set (the same mechanism as `lerd php:pkg`, so it applies to every PHP image and the container is not split off onto its own image), rebuilds the current version, downloads the Playwright browser registry into a persistent volume, and shims Playwright's glibc browser to the musl Chromium with `--no-sandbox`. It is safe to re-run, and you should re-run it after bumping the Playwright version in your project.
+This adds `chromium`, `xvfb` and `xvfb-run` to your declared package set (the same mechanism as `lerd php:pkg`, so it applies to every PHP image and the container is not split off onto its own image), rebuilds the current version, downloads the Playwright browser registry into a persistent volume, and shims Playwright's glibc browser to the musl Chromium with `--no-sandbox`. Chromium does not read the container's system trust store, so lerd's certificate authority is also imported into Chromium's own certificate database in the image; without it every asset a secured site serves, such as the Vite dev server's scripts, fails to load while text-only assertions still pass. It is safe to re-run, and you should re-run it after bumping the Playwright version in your project.
 
 The registry download is driven by your project's own Playwright (it decides which components and revisions are needed), but lerd fetches and unpacks the archives itself with `curl` and `unzip` inside the container. Playwright's Node extractor deadlocks partway through writing into the bind-mounted cache on some hosts, which used to leave the install hanging silently with no output. A stalled download now aborts with an error instead, and interrupting the command cleans up the in-container downloader and its install lock so a retry starts clean.
 
 Components that Playwright mirrors are retried against that mirror when the primary download server does not answer, so networks that block the CDN still work. Each site's browsers are registered against its own Playwright package the way Playwright itself does it, which keeps a second site's install from garbage-collecting them.
 
-Check the setup at any time with `lerd pest:browser doctor`, and tear it back down with `lerd pest:browser remove` (un-bakes the browser packages and rebuilds; the cache volume is left intact):
+Check the setup at any time with `lerd pest:browser doctor`, which also confirms Chromium trusts lerd's certificate authority (re-run `lerd pest:browser install` to rebuild an image from before this check), and tear it back down with `lerd pest:browser remove` (un-bakes the browser packages and rebuilds; the cache volume is left intact):
 
 ```bash
 lerd pest:browser doctor
