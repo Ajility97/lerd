@@ -12,7 +12,7 @@
       rel="stylesheet"
     />
     <style>
-      /* ---- Laravel-dark tokens, lifted from the landing page ---- */
+      /* ---- Tokens lifted from the landing page ---- */
       :root {
         --bg: #0a0a0b;
         --bg-2: #0e0e10;
@@ -58,39 +58,12 @@
          shorter frame, so only the vertical breathing room changes. */
       .frame.featured { height: 600px; }
 
-      /* Ambient field — subtle grid, masked to the top, plus warm + cool washes. */
+      /* The landing hero's red wash, from the top-left corner. */
       .frame::before {
         content: "";
         position: absolute;
         inset: 0;
-        background-image:
-          linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-          linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
-        background-size: 56px 56px;
-        mask-image: radial-gradient(ellipse 90% 70% at 30% 0%, #000 30%, transparent 80%);
-      }
-      .frame::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background:
-          radial-gradient(50% 55% at 4% 6%, rgba(167, 139, 250, 0.07), transparent 60%);
-      }
-
-      /* Warm bloom on the left, behind the brand — dim and soft. */
-      .glow {
-        position: absolute;
-        z-index: 0;
-        top: -200px;
-        left: -160px;
-        width: 720px;
-        height: 600px;
-        pointer-events: none;
-        background:
-          radial-gradient(closest-side at 50% 45%, rgba(255, 91, 80, 0.16), transparent 72%),
-          radial-gradient(closest-side at 48% 50%, rgba(255, 45, 32, 0.1), transparent 78%),
-          radial-gradient(closest-side at 50% 52%, rgba(255, 168, 92, 0.09), transparent 80%);
-        filter: blur(10px);
+        background: radial-gradient(50% 70% at 8% 0%, rgba(255, 45, 32, 0.16), transparent 70%);
       }
 
       /* ---- Left: brand + headline + sub ---- */
@@ -105,42 +78,36 @@
         flex-direction: column;
         justify-content: center;
       }
-      .brand {
+      .label {
         display: flex;
         align-items: center;
-        gap: 16px;
-        margin-bottom: 38px;
-      }
-      .brand img { width: 64px; height: 64px; display: block; }
-      .brand .word {
-        font-size: 40px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
+        gap: 12px;
+        font: 500 14px/1 var(--mono);
+        letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--ink);
+        color: var(--muted);
       }
+      .label img { width: 28px; height: 28px; display: block; }
       h1 {
-        margin: 0;
-        font-weight: 600;
-        font-size: 64px;
-        line-height: 1;
-        letter-spacing: -0.035em;
-        white-space: nowrap;
+        margin: 26px 0 0;
+        font-weight: 700;
+        font-size: 132px;
+        line-height: 0.95;
+        letter-spacing: -0.04em;
       }
-      h1 .accent {
-        background: linear-gradient(180deg, var(--accent-2), var(--accent));
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
+      h1 span {
+        display: block;
+        margin-top: 0.22em;
+        font-size: 0.33em;
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        color: #5d5d66;
       }
       .sub {
         margin: 30px 0 0;
-        font-size: 20px;
-        line-height: 1.42;
+        font: 15px/1 var(--mono);
         color: var(--muted);
-        max-width: 38ch;
       }
-      .sub b { color: var(--ink-2); font-weight: 600; }
 
       /* ---- Right: the dashboard demo, bleeding off and fading to dark ---- */
       .shot {
@@ -163,23 +130,24 @@
         display: flex;
         align-items: center;
         gap: 10px;
-        height: 30px;
-        padding: 0 11px;
+        height: 22px;
+        padding: 0 10px;
         background: #161616;
       }
       .dots { display: flex; gap: 5px; }
-      .dots i { width: 7px; height: 7px; border-radius: 50%; display: block; }
+      .dots i { width: 6px; height: 6px; border-radius: 50%; display: block; }
       .dots i:nth-child(1) { background: #ff5f57; }
       .dots i:nth-child(2) { background: #febc2e; }
       .dots i:nth-child(3) { background: #28c840; }
-      .shot-body { position: relative; height: calc(100% - 30px); overflow: hidden; }
+      .shot-body { position: relative; height: calc(100% - 22px); overflow: hidden; }
       /* Render the demo at a wide logical viewport, then scale it down so the
          full desktop dashboard fits inside the window chrome. */
       .shot-body iframe {
         width: 1480px;
         height: 827px;
         border: 0;
-        transform: scale(0.4716);
+        /* Up one pixel: the scaled frame's top row shows the page behind the demo. */
+        transform: translateY(-1px) scale(0.4716);
         transform-origin: top left;
         background: #0d0d0d;
       }
@@ -206,7 +174,6 @@
   </head>
   <body>
     <div class="frame">
-      <div class="glow"></div>
       <!-- dashboard demo, behind the copy, fading right/bottom -->
       <div class="shot">
         <div class="shot-bar">
@@ -221,22 +188,17 @@
 
       <!-- brand + message -->
       <div class="copy">
-        <div class="brand">
-          <img src="/assets/logo.svg" alt="Lerd logo" />
-          <span class="word">Lerd</span>
-        </div>
-        <h1>Local PHP dev.<br /><span class="accent">Native on Linux.</span></h1>
-        <p class="sub">
-          A <b>Podman-native</b> local environment for the developers who ship PHP every day.
-          Rootless, daemonless, zero&nbsp;config. Also on macOS.
-        </p>
+        <div class="label"><img src="/assets/logo.svg" alt="" /><span>Open source, rootless, no Docker</span></div>
+        <h1>Lerd <span>Local PHP development for Linux and macOS</span></h1>
+        <p class="sub">lerd.sh</p>
       </div>
     </div>
     <script>
       // The window is drawn as the desktop app, whose title bar is the dashboard's header colour.
       document.getElementById('demo').addEventListener('load', (e) => {
         const rail = e.target.contentDocument.querySelector('aside');
-        if (rail) document.querySelector('.shot-bar').style.background = getComputedStyle(rail).backgroundColor;
+        // The body takes the colour too, so the scaled frame's sub-pixel edge leaves no seam under the bar.
+        if (rail) for (const el of document.querySelectorAll('.shot-bar, .shot')) el.style.background = getComputedStyle(rail).backgroundColor;
       });
       if (location.search.includes('featured')) {
         document.querySelector('.frame').classList.add('featured');
