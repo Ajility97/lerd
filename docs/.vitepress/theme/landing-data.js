@@ -22,13 +22,6 @@ export const LOGOS = {
   bedrock:  { ch: 'B', c: '#21759b' },
   lumen:    { ch: 'L', c: '#f4645f' },
   yii:      { ch: 'Y', c: '#40b3d8' },
-  claude:   { ch: 'C', c: '#ff8a65' },
-  cursor:   { ch: '⌘', c: '#e5e7eb' },
-  codex:    { ch: '{', c: '#34d399' },
-  gemini:   { ch: 'G', c: '#60a5fa' },
-  copilot:  { ch: '⊙', c: '#cbd5e1' },
-  junie:    { ch: 'J', c: '#a78bfa' },
-  windsurf: { ch: '≈', c: '#38bdf8' },
   mysql:    { ch: 'M', c: '#38bdf8' },
   postgres: { ch: 'P', c: '#60a5fa' },
   redis:    { ch: 'R', c: '#ff5b50' },
@@ -38,7 +31,6 @@ export const LOGOS = {
   mongo:    { ch: 'M', c: '#34d399' },
   stripe:   { ch: '$', c: '#a78bfa' },
   elastic:  { ch: 'E', c: '#00bfb3' },
-  antigravity: { ch: 'A', c: '#60a5fa' },
 }
 
 // `bare` drops the tile and fills the box with the mark itself, for places that
