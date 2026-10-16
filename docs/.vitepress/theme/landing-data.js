@@ -191,10 +191,10 @@ export const CMP = {
 
 /* ---- Principles ---- */
 export const PRINCIPLES = [
-  { h: 'No Docker daemon', p: 'Podman runs the containers rootless, under your own systemd user, with no daemon.' },
-  { h: 'No sudo', p: 'Installs to ~/.local/bin. DNS, TLS and ports are set up without touching system files.' },
-  { h: 'No required config', p: 'Frameworks are detected from the repo. An optional .lerd.yaml adds services or workers.' },
-  { h: 'No hardcoded stack', p: 'Frameworks and services ship as versioned definitions that reach you within a day.' },
-  { h: 'No licence fee', p: "MIT licensed. There's no paid tier and no account to sign up for, now or later." },
-  { h: 'No system pollution', p: 'Everything lives under your home directory, so uninstalling leaves the machine as it was.' },
+  { h: 'Rootless Podman', p: 'Containers run rootless under your own systemd user, with no daemon behind them.' },
+  { h: 'Runs as you', p: 'Installs to ~/.local/bin. DNS, TLS and ports are set up without touching system files.' },
+  { h: 'Detects your project', p: 'Frameworks are detected from the repo. An optional .lerd.yaml adds services or workers.' },
+  { h: 'Updates within a day', p: 'Frameworks and services are versioned definitions that arrive without a release.' },
+  { h: 'Open source, MIT', p: 'All of it is free and in one MIT-licensed binary, with no paid tier and no account.' },
+  { h: 'Stays in your home', p: 'Everything lives under your home directory, so uninstalling leaves the machine as it was.' },
 ]

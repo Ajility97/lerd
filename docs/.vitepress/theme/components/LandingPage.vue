@@ -214,7 +214,7 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
       <section class="sec" id="principles"><div class="wrap">
         <div class="sec-head">
           <div class="label"><b>{{ pad(D.LINEUP.length + 5) }}</b> / Principles</div>
-          <h2>What Lerd <span>won't do.</span></h2>
+          <h2>How Lerd <span>is built.</span></h2>
         </div>
         <div class="grid6">
           <div v-for="(p, i) in D.PRINCIPLES" :key="p.h" class="p"><span class="n">{{ pad(i + 1) }}</span><h3>{{ p.h }}</h3><p>{{ p.p }}</p></div>
