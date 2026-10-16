@@ -19,9 +19,9 @@ designed for PHP developers on Linux and macOS, and on Windows through WSL2 (bet
 No Docker. No sudo. No system pollution. Just `lerd link` and your project
 is live at `project.test` with HTTPS.
 
-## Built for PHP developers on Linux, macOS and Windows
+## Built for PHP developers on Linux and macOS
 
-Lerd is built for PHP developers who want frictionless local development, on a Linux desktop, a Mac, or Windows through WSL2: automatic `.test` domains, per-project PHP versions, one-click HTTPS, zero Docker. Works with Laravel, Symfony, WordPress, Drupal, Magento, CakePHP, Statamic, Yii, and any custom PHP framework.
+Lerd is built for PHP developers who want frictionless local development, on a Linux desktop, a Mac, or Windows through WSL2 (beta): automatic `.test` domains, per-project PHP versions, one-click HTTPS, zero Docker. Works with Laravel, Symfony, WordPress, Drupal, Magento, CakePHP, Statamic, Yii, and any custom PHP framework.
 
 ## Features
 

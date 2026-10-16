@@ -49,12 +49,12 @@ export default defineConfig({
     ['meta', { property: 'og:image:type', content: 'image/png' }],
     ['meta', { property: 'og:image:width', content: '1499' }],
     ['meta', { property: 'og:image:height', content: '787' }],
-    ['meta', { property: 'og:image:alt', content: 'Lerd, local PHP development for Linux, macOS and Windows' }],
+    ['meta', { property: 'og:image:alt', content: 'Lerd, local PHP development for Linux and macOS' }],
 
     // Twitter / X
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:image', content: OG_IMAGE }],
-    ['meta', { name: 'twitter:image:alt', content: 'Lerd, local PHP development for Linux, macOS and Windows' }],
+    ['meta', { name: 'twitter:image:alt', content: 'Lerd, local PHP development for Linux and macOS' }],
 
     // Structured data (rich results / knowledge graph)
     [
@@ -67,7 +67,7 @@ export default defineConfig({
             '@type': 'SoftwareApplication',
             name: 'Lerd',
             applicationCategory: 'DeveloperApplication',
-            operatingSystem: 'Linux, macOS',
+            operatingSystem: 'Linux, macOS, Windows (WSL2)',
             description:
               'Open-source local PHP development environment for Linux, macOS and Windows (WSL2): automatic .test domains and HTTPS, per-project PHP 7.4–8.5 and Node, rootless Podman, a built-in Web UI, and an MCP server for AI agents. No Docker daemon, no sudo.',
             keywords:
@@ -85,7 +85,7 @@ export default defineConfig({
             name: 'Lerd',
             url: SITE_URL,
             description:
-              'Documentation and downloads for Lerd, the open-source local PHP development environment for Linux, macOS and Windows.',
+              'Documentation and downloads for Lerd, the open-source local PHP development environment for Linux, macOS and Windows (WSL2).',
           },
         ],
       }),

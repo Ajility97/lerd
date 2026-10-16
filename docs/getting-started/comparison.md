@@ -125,7 +125,7 @@ See [Laravel Sail alternative](/getting-started/sail) for the full migration gui
 | Git worktrees | Each worktree served at its own branch domain, with its own database when its migrations differ | Not built in |
 | Cost | Free | Free |
 
-**Choose ddev when:** your team is cross-platform, you work with multiple frameworks (not just Laravel), you want per-project service isolation, or your workflow already depends on Docker or Podman.
+**Choose ddev when:** your team is cross-platform, you work with multiple frameworks, you want per-project service isolation, or your workflow already depends on Docker or Podman.
 
 **Choose Lerd when:** you want a zero-config shared stack you can drop any project into without touching its files, or prefer a lighter footprint on rootless Podman.
 
