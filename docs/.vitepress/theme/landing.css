@@ -43,7 +43,7 @@
 .lerd-landing .gh:hover .stars{color:var(--amber);border-color:rgba(251,191,36,.3)}
 
 /* hero: the dashboard bleeds off the right edge */
-.lerd-landing .hero{position:relative;overflow:hidden;padding:96px 0 72px;border-bottom:1px solid var(--line);background:radial-gradient(50% 70% at 8% 0%,rgba(255,45,32,.16),transparent 70%)}
+.lerd-landing .hero{position:relative;overflow:hidden;padding:96px 0 72px;border-bottom:1px solid var(--line)}
 .lerd-landing .hero .wrap{position:relative;z-index:1}
 .lerd-landing .hero h1{font-size:clamp(48px,8vw,104px);line-height:.95;letter-spacing:-.04em;font-weight:700;margin:28px 0;max-width:11ch}
 .lerd-landing .hero h1 span{display:block;color:var(--faint);font-size:.46em;line-height:1.08;letter-spacing:-.03em;margin-top:.3em;max-width:16ch}
@@ -219,7 +219,7 @@
 }
 
 /* cta + footer */
-.lerd-landing .cta{margin:112px 0 0;padding:96px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:radial-gradient(60% 120% at 50% 0%,var(--wash),transparent 70%)}
+.lerd-landing .cta{margin:112px 0 0;padding:96px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .lerd-landing .cta h2{font-size:clamp(40px,6vw,80px);letter-spacing:-.04em;line-height:.98;font-weight:700;max-width:14ch;margin-top:24px}
 .lerd-landing .cta p{color:var(--ink-2);margin:20px 0 36px;font-size:19px;max-width:52ch}
 .lerd-landing .cta .hero-row{margin-top:0}

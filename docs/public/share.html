@@ -14,7 +14,8 @@
     <style>
       /* ---- Tokens lifted from the landing page ---- */
       :root {
-        --bg: #0a0a0b;
+        --bg: #161616; /* the app's card and header grey, lerd theme */
+        --rule: #262626; /* the app's border colour */
         --bg-2: #0e0e10;
         --panel: #131316;
         --line: #26262c;
@@ -58,14 +59,6 @@
          shorter frame, so only the vertical breathing room changes. */
       .frame.featured { height: 600px; }
 
-      /* The landing hero's red wash, from the top-left corner. */
-      .frame::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(50% 70% at 8% 0%, rgba(255, 45, 32, 0.16), transparent 70%);
-      }
-
       /* ---- Left: brand + headline + sub ---- */
       .copy {
         position: absolute;
@@ -88,7 +81,11 @@
         color: var(--muted);
       }
       .label img { width: 28px; height: 28px; display: block; }
+      /* A ruled frame inset from the edge and a red bar along the foot. */
+      .frame::before { content: ""; position: absolute; inset: 28px; border: 1px solid var(--rule); z-index: 2; pointer-events: none; }
+      .frame::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background: var(--accent); z-index: 4; }
       h1 {
+        color: var(--accent);
         margin: 26px 0 0;
         font-weight: 700;
         font-size: 132px;
@@ -101,7 +98,7 @@
         font-size: 0.33em;
         line-height: 1.08;
         letter-spacing: -0.03em;
-        color: #5d5d66;
+        color: #f4f4f5;
       }
       .sub {
         margin: 30px 0 0;
@@ -110,21 +107,20 @@
       }
 
       /* ---- Right: the dashboard demo, bleeding off and fading to dark ---- */
+      /* Everything outside the frame line is cropped, so the frame is the window's edge. */
+      .stage { position: absolute; inset: 28px; overflow: hidden; z-index: 1; }
       .shot {
         position: absolute;
-        z-index: 1;
         top: 50%;
-        right: -88px;
+        right: -116px; /* the same spot as before the crop: left edge at 588px */
         transform: translateY(-50%);
         width: 700px;
         height: 420px;
-        border: 1px solid var(--line);
+        border: 1px solid #262626;
         border-radius: 16px;
         background: #0d0d0d;
         overflow: hidden;
-        box-shadow:
-          0 1px 0 rgba(255, 255, 255, 0.04) inset,
-          0 40px 90px -28px rgba(0, 0, 0, 0.85);
+        box-shadow: 0 20px 50px -24px rgba(0, 0, 0, 0.45);
       }
       .shot-bar {
         display: flex;
@@ -142,49 +138,23 @@
       .shot-body { position: relative; height: calc(100% - 22px); overflow: hidden; }
       /* Render the demo at a wide logical viewport, then scale it down so the
          full desktop dashboard fits inside the window chrome. */
-      .shot-body iframe {
-        width: 1480px;
-        height: 827px;
-        border: 0;
-        /* Up one pixel: the scaled frame's top row shows the page behind the demo. */
-        transform: translateY(-1px) scale(0.4716);
-        transform-origin: top left;
-        background: #0d0d0d;
-      }
+      .shot-body img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top; }
 
-      /* Fade the panel into the dark bg on the right and bottom edges. */
-      .fade {
-        position: absolute;
-        inset: 0;
-        z-index: 2;
-        pointer-events: none;
-        background:
-          linear-gradient(180deg, transparent 72%, rgba(10, 10, 11, 0.6) 92%, var(--bg) 100%);
-      }
-      /* Frame-level right-edge fade — dims the demo as it reaches the true frame
-         edge (the window itself bleeds off-frame and would be clipped). */
-      .edge {
-        position: absolute;
-        inset: 0;
-        z-index: 2;
-        pointer-events: none;
-        background: linear-gradient(90deg, transparent 72%, rgba(10, 10, 11, 0.55) 88%, var(--bg) 100%);
-      }
     </style>
   </head>
   <body>
     <div class="frame">
-      <!-- dashboard demo, behind the copy, fading right/bottom -->
+      <!-- the dashboard, cropped at the frame line -->
+      <div class="stage">
       <div class="shot">
         <div class="shot-bar">
           <span class="dots"><i></i><i></i><i></i></span>
         </div>
         <div class="shot-body">
-          <iframe id="demo" src="/demo/index.html" title="Lerd dashboard" loading="eager"></iframe>
-          <div class="fade"></div>
+          <img src="/assets/landing/dashboard.png" alt="" />
         </div>
       </div>
-      <div class="edge"></div>
+      </div>
 
       <!-- brand + message -->
       <div class="copy">
@@ -194,12 +164,6 @@
       </div>
     </div>
     <script>
-      // The window is drawn as the desktop app, whose title bar is the dashboard's header colour.
-      document.getElementById('demo').addEventListener('load', (e) => {
-        const rail = e.target.contentDocument.querySelector('aside');
-        // The body takes the colour too, so the scaled frame's sub-pixel edge leaves no seam under the bar.
-        if (rail) for (const el of document.querySelectorAll('.shot-bar, .shot')) el.style.background = getComputedStyle(rail).backgroundColor;
-      });
       if (location.search.includes('featured')) {
         document.querySelector('.frame').classList.add('featured');
       }
