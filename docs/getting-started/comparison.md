@@ -14,12 +14,12 @@
 | `.test` domains | Automatic via lerd's built-in DNS server | Automatic via native dnsmasq resolver |
 | HTTPS | `lerd secure` + mkcert, trusted system-wide | Built-in "Secure Site" toggle |
 | Xdebug | `lerd xdebug:on`, tray toggle | Per-site toggle (Herd Pro) |
-| Services | Built-in and free: MySQL, Postgres, Redis, Meilisearch, MongoDB, RustFS (S3), Mailpit and more from a service store that updates without a release; custom services via YAML presets | MySQL, MariaDB, PostgreSQL, Redis, Typesense, Meilisearch, MinIO, Reverb and mail, all in Herd Pro, along with the dumps window and log viewer |
+| Services | Free: MySQL, Postgres, Redis, Meilisearch, RustFS (S3) and Mailpit built in, MongoDB and more as add-ons from a service store that updates without a release, custom services via YAML presets | MySQL, MariaDB, PostgreSQL, Redis, Typesense, Meilisearch, MinIO, Reverb and mail, all in Herd Pro, along with the dumps window and log viewer |
 | Non-PHP projects | First-class via `Containerfile.lerd` (Node, Python, Go, Rails, ...) | Not directly supported, Herd focuses on PHP |
 | Per-project config | `.lerd.yaml` committed to the repo; covers PHP, Node, framework, services, workers, and custom containers; applied by `lerd link` / `lerd init` | [`herd.yml`](https://herd.laravel.com/docs/macos/sites/herd-yaml) committed to the repo; covers name, PHP, TLS, aliases on the free tier; services require Herd Pro; applied by `herd init` |
 | Queue + scheduler workers | `lerd worker start queue` / `schedule` as systemd user services | Not built in; run Horizon or supervisor yourself |
 | Dashboard | Web UI at `127.0.0.1:7073`, terminal dashboard, system tray, PhpStorm plugin, and an installable PWA at `lerd.localhost` | Native desktop app |
-| Git worktrees | Each worktree served at its own branch domain, with its own database when its migrations differ | Not built in |
+| Git worktrees | Each worktree served at its own branch domain, sharing the parent's database or [getting its own](/features/git-worktrees#per-worktree-database) | Not built in |
 | AI / MCP | Built-in MCP server; `lerd mcp:enable-global` registers it for Claude Code, Cursor, Junie, and Windsurf | Built-in MCP server for Claude Code, Cursor, Junie, and Windsurf |
 | Cost | Free | Free tier + paid Pro subscription |
 
@@ -45,12 +45,12 @@ See [Laravel Herd for Linux](/getting-started/herd-linux) for the command-by-com
 | `.test` domains | Automatic via lerd's built-in DNS server, no hosts file edits | Automatic via hosts file entries written by the tray app |
 | HTTPS | `lerd secure` + mkcert, trusted system-wide | One-click self-signed certificate, trusted manually |
 | Scaffolding | `lerd new` runs the framework's own installer | Quick app, one-click Laravel, WordPress, Symfony |
-| Services | MySQL, Postgres, Redis, Meilisearch, MongoDB, RustFS (S3), Mailpit and more from the service store, shared across sites | MySQL, PostgreSQL, Redis, Memcached, per-install |
+| Services | MySQL, Postgres, Redis, Meilisearch, RustFS (S3) and Mailpit built in, MongoDB and more as add-ons from the service store, shared across sites | MySQL, PostgreSQL, Redis, Memcached, per-install |
 | Non-PHP projects | First-class via `Containerfile.lerd` (Node, Python, Go, Rails) | Node, Python and Go bundled as tools, not served as projects |
 | Per-project config | `.lerd.yaml` committed to the repo | None, configuration lives in the Laragon install |
 | Queue + scheduler workers | `lerd worker start queue` / `schedule` as systemd user services | Not built in |
 | Dashboard | Web UI at `127.0.0.1:7073`, terminal dashboard, system tray, PhpStorm plugin, installable PWA | Native tray application |
-| Git worktrees | Each worktree served at its own branch domain, with its own database when its migrations differ | Not built in |
+| Git worktrees | Each worktree served at its own branch domain, sharing the parent's database or [getting its own](/features/git-worktrees#per-worktree-database) | Not built in |
 | AI / MCP | Built-in MCP server | Not built in |
 
 **Choose Laragon when:** you work on Windows and want native binaries with no container layer, and the portable folder suits how you move between machines.
@@ -81,7 +81,7 @@ See [Laragon for Linux](/getting-started/laragon-linux) for the feature-by-featu
 | Requires changes to project files | No | Yes, needs `docker-compose.yml` committed |
 | Works on legacy / client repos | Yes, just `lerd link` | Only if you can add Sail |
 | Dashboard | Web UI at `127.0.0.1:7073`, terminal dashboard, system tray, PhpStorm plugin, installable PWA at `lerd.localhost` | CLI + Docker Desktop |
-| Git worktrees | Each worktree served at its own branch domain, with its own database when its migrations differ | Not built in |
+| Git worktrees | Each worktree served at its own branch domain, sharing the parent's database or [getting its own](/features/git-worktrees#per-worktree-database) | Not built in |
 | Cost | Free | Free |
 
 **Choose Sail when:** your team uses it, you need per-project service versions, or you want infrastructure defined in the repo.
@@ -122,7 +122,7 @@ See [Laravel Sail alternative](/getting-started/sail) for the full migration gui
 | Works on legacy / client repos | Yes, just `lerd link` | Only if you can add ddev config |
 | Framework support | Laravel, Symfony, WordPress, Drupal, Magento, Statamic and more from the framework store; any other PHP framework via a YAML definition | Laravel, WordPress, Drupal, TYPO3, and many more |
 | Dashboard | Web UI at `127.0.0.1:7073`, terminal dashboard, system tray, PhpStorm plugin, installable PWA at `lerd.localhost` | CLI + optional per-project web UI |
-| Git worktrees | Each worktree served at its own branch domain, with its own database when its migrations differ | Not built in |
+| Git worktrees | Each worktree served at its own branch domain, sharing the parent's database or [getting its own](/features/git-worktrees#per-worktree-database) | Not built in |
 | Cost | Free | Free |
 
 **Choose ddev when:** your team is cross-platform, you work with multiple frameworks, you want per-project service isolation, or your workflow already depends on Docker or Podman.
@@ -152,7 +152,7 @@ See [Laravel Sail alternative](/getting-started/sail) for the full migration gui
 | Works on legacy / client repos | Yes, just `lerd link` | Only if you can add a Landofile |
 | Framework support | Laravel, Symfony, WordPress, Drupal, Magento, Statamic and more from the framework store; any other PHP framework via a YAML definition | Recipes for Drupal, WordPress, Laravel, Symfony, and many more |
 | Dashboard | Web UI at `127.0.0.1:7073`, terminal dashboard, system tray, PhpStorm plugin, installable PWA at `lerd.localhost` | CLI only |
-| Git worktrees | Each worktree served at its own branch domain, with its own database when its migrations differ | Not built in |
+| Git worktrees | Each worktree served at its own branch domain, sharing the parent's database or [getting its own](/features/git-worktrees#per-worktree-database) | Not built in |
 | Cost | Free | Free |
 
 **Choose Lando when:** your team is cross-platform, you want per-project service isolation defined in the repo, you work with hosting platforms like Pantheon, Platform.sh, or Lagoon and want their `lando pull` / `lando push` workflow, or your workflow already depends on Docker.
@@ -181,7 +181,7 @@ See [Laravel Sail alternative](/getting-started/sail) for the full migration gui
 | First run | Pulls prebuilt images | Builds images from source |
 | Works on legacy / client repos | Yes, just `lerd link` | Only if you can add Laradock to it |
 | Dashboard | Web UI at `127.0.0.1:7073`, terminal dashboard, system tray, PhpStorm plugin, installable PWA | CLI + Docker Desktop |
-| Git worktrees | Each worktree served at its own branch domain, with its own database when its migrations differ | Not built in |
+| Git worktrees | Each worktree served at its own branch domain, sharing the parent's database or [getting its own](/features/git-worktrees#per-worktree-database) | Not built in |
 | Cost | Free | Free |
 
 **Choose Laradock when:** two projects need different major versions of the same database at the same time, or your team wants the environment fully described inside the repo.

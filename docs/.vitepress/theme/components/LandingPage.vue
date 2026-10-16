@@ -643,7 +643,7 @@ onBeforeUnmount(() => {
           <div class="card cmp-wrap reveal d1" style="padding:8px 8px 0">
             <table class="cmp" id="cmp-table"></table>
           </div>
-          <p class="cmp-note reveal d2">Coming from another tool? See <a :href="withBase('/getting-started/herd-linux')">Laravel Herd for Linux</a>, <a :href="withBase('/getting-started/laragon-linux')">Laragon for Linux</a> and the <a :href="withBase('/getting-started/comparison')">full comparison</a>.</p>
+          <p class="cmp-note reveal d2">On Windows, Lerd runs inside WSL2 and is in beta, see the <a :href="withBase('/getting-started/wsl2')">Windows (WSL2) guide</a>. Coming from another tool? See <a :href="withBase('/getting-started/herd-linux')">Laravel Herd for Linux</a>, <a :href="withBase('/getting-started/laragon-linux')">Laragon for Linux</a> and the <a :href="withBase('/getting-started/comparison')">full comparison</a>.</p>
         </div>
       </section>
 
