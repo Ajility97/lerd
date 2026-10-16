@@ -696,10 +696,8 @@ func TestNeedsFPMRebuild_IgnoresVersionsOutsideTheGivenSet(t *testing.T) {
 	}
 }
 
-// Chromium on Linux takes local trust anchors from the NSS database in
-// $HOME/.pki/nssdb, not the system store, and lerd's chromium shim runs it with
-// HOME=/root. So an image with chromium imports lerd's CA there too, after the
-// system store has it; one without chromium carries no NSS step.
+// Chromium trusts the NSS database under HOME=/root, not the system store, so an
+// image with chromium imports lerd's CA there too, after the system store has it.
 func TestMkcertTrustBlock(t *testing.T) {
 	plain := mkcertTrustBlock([]string{"imagemagick"})
 	if !strings.Contains(plain, "update-ca-certificates") || strings.Contains(plain, "certutil") {

@@ -153,9 +153,7 @@ func mkcertPath() string {
 }
 
 // mkcertCABlock copies the mkcert rootCA.pem into tmpDir and returns the
-// Containerfile snippet that installs it into the Alpine trust store, and into
-// chromium's own when the image carries it. Returns empty string if mkcert is
-// not installed or the CA does not exist.
+// Containerfile snippet that trusts it, or "" when mkcert or its CA is missing.
 func mkcertCABlock(tmpDir string, packages []string) string {
 	out, err := exec.Command(mkcertPath(), "-CAROOT").Output()
 	if err != nil {
