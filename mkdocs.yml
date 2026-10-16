@@ -1,5 +1,5 @@
 site_name: Lerd
-site_description: Lerd is an open-source, Herd-like local PHP development environment for Linux. Automatic .test domains, PHP 8.2–8.4, rootless Podman. Works on Ubuntu, Fedora, Arch, and Debian. No Docker required.
+site_description: Lerd is an open-source local PHP development environment for Linux, macOS and Windows (WSL2). Automatic .test domains, PHP 7.4 to 8.5, rootless Podman. No Docker required.
 site_url: https://lerd.sh/
 repo_url: https://github.com/lerd-env/lerd
 repo_name: lerd-env/lerd

@@ -1,6 +1,6 @@
 # CLAUDE.md — agent guide for the lerd codebase
 
-You are a coding agent working on **lerd**: an open-source, Herd-like local PHP
+You are a coding agent working on **lerd**: an open-source local PHP
 development environment for Linux and macOS (Windows via WSL2, beta). It runs
 Nginx, PHP-FPM, and services as rootless Podman containers, and ships a built-in
 Svelte web UI, a TUI, a CLI, and an MCP server. No Docker, no sudo, no system

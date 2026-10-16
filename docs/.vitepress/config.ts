@@ -14,7 +14,7 @@ const SOFTWARE_VERSION = readFileSync(VERSION_GO, 'utf8').match(/Version\s*=\s*"
 
 export default defineConfig({
   title: 'Lerd',
-  description: 'Open-source, Herd-like local PHP development for Linux and macOS. Automatic .test domains, HTTPS, per-project PHP and Node, rootless Podman, no Docker daemon.',
+  description: 'Open-source local PHP development for Linux, macOS and Windows (WSL2). Automatic .test domains, HTTPS, per-project PHP and Node, rootless Podman, no Docker daemon.',
   base: '/',
   lang: 'en-US',
   cleanUrls: true,
@@ -49,12 +49,12 @@ export default defineConfig({
     ['meta', { property: 'og:image:type', content: 'image/png' }],
     ['meta', { property: 'og:image:width', content: '1499' }],
     ['meta', { property: 'og:image:height', content: '787' }],
-    ['meta', { property: 'og:image:alt', content: 'Lerd, local PHP development for Linux and macOS' }],
+    ['meta', { property: 'og:image:alt', content: 'Lerd, local PHP development for Linux, macOS and Windows' }],
 
     // Twitter / X
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:image', content: OG_IMAGE }],
-    ['meta', { name: 'twitter:image:alt', content: 'Lerd, local PHP development for Linux and macOS' }],
+    ['meta', { name: 'twitter:image:alt', content: 'Lerd, local PHP development for Linux, macOS and Windows' }],
 
     // Structured data (rich results / knowledge graph)
     [
@@ -69,7 +69,7 @@ export default defineConfig({
             applicationCategory: 'DeveloperApplication',
             operatingSystem: 'Linux, macOS',
             description:
-              'Open-source, Herd-like local PHP development environment for Linux and macOS: automatic .test domains and HTTPS, per-project PHP 7.4–8.5 and Node, rootless Podman, a built-in Web UI, and an MCP server for AI agents. No Docker daemon, no sudo.',
+              'Open-source local PHP development environment for Linux, macOS and Windows (WSL2): automatic .test domains and HTTPS, per-project PHP 7.4–8.5 and Node, rootless Podman, a built-in Web UI, and an MCP server for AI agents. No Docker daemon, no sudo.',
             keywords:
               'local PHP development, Laravel Herd for Linux, Laragon for Linux, Laragon alternative Linux, .test domains, rootless Podman, PHP-FPM, local development environment',
             url: SITE_URL,
@@ -85,7 +85,7 @@ export default defineConfig({
             name: 'Lerd',
             url: SITE_URL,
             description:
-              'Documentation and downloads for Lerd, the open-source local PHP development environment for Linux and macOS.',
+              'Documentation and downloads for Lerd, the open-source local PHP development environment for Linux, macOS and Windows.',
           },
         ],
       }),
