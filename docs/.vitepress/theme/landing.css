@@ -270,7 +270,7 @@
 /* ===========================================================
    HERO
    =========================================================== */
-.lerd-landing .hero { padding-top: clamp(120px, 16vh, 180px); padding-bottom: clamp(60px, 8vw, 100px); }
+.lerd-landing .hero { padding-top: clamp(120px, 16vh, 180px); padding-bottom: clamp(48px, 6vw, 68px); }
 /* The film opens the page under the fixed nav, filling the first screen; the
    hero after it no longer has to clear the nav itself. */
 .lerd-landing .spot { position: relative; padding: 66px 0 0; background: #000; }
@@ -310,6 +310,9 @@
 .lerd-landing .hero-meta b { color: var(--ink); font-weight: 600; }
 .lerd-landing .hero-meta .mi { display: flex; align-items: center; gap: 8px; }
 .lerd-landing .hero-meta svg { width: 16px; height: 16px; color: var(--accent-2); }
+.lerd-landing .hero-sponsor { display: inline-flex; align-items: center; gap: 16px; margin-top: clamp(48px, 6vw, 68px); opacity: .85; transition: opacity .2s; }
+.lerd-landing .hero-sponsor:hover { opacity: 1; }
+.lerd-landing .hero-sponsor img { height: 40px; width: auto; }
 
 /* OS tabs + install command */
 .lerd-landing .install { margin-top: 30px; max-width: 480px; }
