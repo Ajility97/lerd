@@ -412,6 +412,11 @@ onBeforeUnmount(() => {
             <span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2 4-4"/></svg>PHP <b>7.4 – 8.5</b></span>
             <span class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 2v3M14 2v3M10 19v3M14 19v3M2 10h3M2 14h3M19 10h3M19 14h3"/></svg><b>PHP on the host</b> · macOS beta</span>
           </div>
+
+          <a class="hero-sponsor reveal d4" href="https://www.jetbrains.com/phpstorm/">
+            <span class="strip-label">Sponsored by</span>
+            <img :src="withBase('/assets/sponsors/phpstorm-dark.svg')" alt="JetBrains PhpStorm" height="40" />
+          </a>
         </div>
       </section>
       <!-- ============ FRAMEWORK STRIP ============ -->

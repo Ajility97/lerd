@@ -12,6 +12,10 @@
 [![Reddit](https://img.shields.io/badge/Reddit-r%2Flerd-ff2d20?logo=reddit)](https://reddit.com/r/lerd)
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/5JK54s7xCC)
 
+**Sponsored by**
+
+<a href="https://www.jetbrains.com/phpstorm/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/public/assets/sponsors/phpstorm-dark.svg"><img src="docs/public/assets/sponsors/phpstorm.svg" height="48" alt="JetBrains PhpStorm"></picture></a>
+
 https://github.com/user-attachments/assets/707ca4cc-7eef-4285-b7bf-fdeb37f61458
 
 Lerd runs Nginx, PHP-FPM, and your services as rootless [Podman](https://podman.io) containers,
@@ -330,6 +334,8 @@ Lerd is free and open source, kept going by the people and companies who sponsor
 Using Lerd across a team? Commercial support is available, covering onboarding, priority fixes and help with your stack. Get in touch at [george@dumitres.co](mailto:george@dumitres.co).
 
 ### Companies
+
+<a href="https://www.jetbrains.com/phpstorm/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/public/assets/sponsors/phpstorm-dark.svg"><img src="docs/public/assets/sponsors/phpstorm.svg" height="48" alt="JetBrains PhpStorm"></picture></a>
 
 <a href="https://www.motional.io"><img src="https://avatars.githubusercontent.com/u/34476080?s=120&v=4" width="60" alt="Motional"></a>
 
