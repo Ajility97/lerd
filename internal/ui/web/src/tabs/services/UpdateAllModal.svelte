@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import ConfirmModal from '$components/ConfirmModal.svelte';
   import ServiceIcon from '$components/ServiceIcon.svelte';
   import Toggle from '$components/Toggle.svelte';
@@ -20,7 +21,9 @@
   }
   let { services, onclose, ondone }: Props = $props();
 
-  let on = $state<Record<string, boolean>>(Object.fromEntries(services.map((s) => [s.name, true])));
+  let on = $state<Record<string, boolean>>(
+    Object.fromEntries(untrack(() => services).map((s) => [s.name, true]))
+  );
   let updating = $state(false);
   // Live progress is cleared once a service's update ends, so its outcome is
   // kept here for the row to show while the rest of the batch runs.

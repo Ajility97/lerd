@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
   import type { Lens, LensGroup } from '$lib/lens';
   import LensLoadMore from '$components/LensLoadMore.svelte';
   import { m } from '../paraglide/messages.js';
@@ -13,7 +13,8 @@
     empty: Snippet;
   }
   let { lens, group, empty }: Props = $props();
-  const { groups, hasMore, total, fresh, loading } = lens;
+  // Every caller creates its lens once and never swaps it, so its stores are read once.
+  const { groups, hasMore, total, fresh, loading } = untrack(() => lens);
 
   let scroller = $state<HTMLDivElement | null>(null);
   function onscroll() {
