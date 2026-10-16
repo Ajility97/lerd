@@ -14,7 +14,7 @@
 
 **Sponsored by**
 
-<a href="https://www.jetbrains.com/phpstorm/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/public/assets/sponsors/phpstorm-dark.svg"><img src="docs/public/assets/sponsors/phpstorm.svg" height="48" alt="JetBrains PhpStorm"></picture></a>
+<a href="https://www.jetbrains.com/phpstorm/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/lerd-env/lerd/main/docs/public/assets/sponsors/phpstorm-dark.svg"><img src="https://raw.githubusercontent.com/lerd-env/lerd/main/docs/public/assets/sponsors/phpstorm.svg" height="48" alt="JetBrains PhpStorm"></picture></a>
 
 https://github.com/user-attachments/assets/707ca4cc-7eef-4285-b7bf-fdeb37f61458
 
@@ -335,7 +335,7 @@ Using Lerd across a team? Commercial support is available, covering onboarding, 
 
 ### Companies
 
-<a href="https://www.jetbrains.com/phpstorm/"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/public/assets/sponsors/phpstorm-dark.svg"><img src="docs/public/assets/sponsors/phpstorm.svg" height="48" alt="JetBrains PhpStorm"></picture></a>
+<a href="https://www.jetbrains.com/phpstorm/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/lerd-env/lerd/main/docs/public/assets/sponsors/phpstorm-dark.svg"><img src="https://raw.githubusercontent.com/lerd-env/lerd/main/docs/public/assets/sponsors/phpstorm.svg" height="48" alt="JetBrains PhpStorm"></picture></a>
 
 <a href="https://www.motional.io"><img src="https://avatars.githubusercontent.com/u/34476080?s=120&v=4" width="60" alt="Motional"></a>
 
