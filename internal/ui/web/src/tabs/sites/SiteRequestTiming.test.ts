@@ -60,12 +60,15 @@ vi.mock('$stores/profiler', async () => {
 vi.mock('$stores/dashboard', () => ({ openProfiler: vi.fn(), openProfilerReport: vi.fn() }));
 vi.mock('$lib/ws', async (actual) => ({ ...(await actual<typeof import('$lib/ws')>()), watchRequests: vi.fn(() => unwatchRequests) }));
 const unwatchRequests = vi.fn();
+vi.mock('$stores/queries', async (actual) => ({ ...(await actual<typeof import('$stores/queries')>()), setDebugCapture: vi.fn(async () => {}) }));
 
 import SiteRequestTiming from './SiteRequestTiming.svelte';
 import { profilerEnabled, setProfiler, captureCount, waitForCapture } from '$stores/profiler';
 import { openProfiler, openProfilerReport } from '$stores/dashboard';
 import { m } from '../../paraglide/messages.js';
 import { watchRequests, wsMessage } from '$lib/ws';
+import { status as dumpsStatus, type DumpsStatus } from '$stores/dumps';
+import { setDebugCapture } from '$stores/queries';
 
 // The profiler starts armed for the tests that are only about the navigation.
 function resetProfilerMocks(enabled = true) {
@@ -149,13 +152,42 @@ describe('SiteRequestTiming recent paging out of order', () => {
   });
 });
 
-// A route's time bar opens the slowest request recorded for it.
+// A route's time bar opens the slowest request recorded for it, but only when
+// something of that request is left to show: its debug events or an SPX profile.
 describe('SiteRequestTiming slowest request', () => {
+  const withSlowest = (slowest: NonNullable<Analytics['routes'][number]['slowest']>) =>
+    ({ ...analytics, routes: [{ ...analytics.routes[0], slowest }] }) as Analytics;
+  const site = { domain: 'whitewaters', can_profile: true };
+
   it('opens the route slowest request from its time bar', async () => {
-    const { findByRole, findByText } = render(SiteRequestTiming, { props: { site: { domain: 'whitewaters', can_profile: true } } });
+    loadSiteAnalytics.mockResolvedValueOnce(withSlowest({ ...analytics.routes[0].slowest!, profile_key: 'spx-1' }));
+    const { findByRole, findByText } = render(SiteRequestTiming, { props: { site } });
     await fireEvent.click(await findByRole('button', { name: m.sites_timing_openSlowest({ ms: '900 ms' }) }));
     expect(await findByText('GET /reports/9')).toBeTruthy();
-    expect(await findByText(m.sites_timing_nothingCaptured())).toBeTruthy();
+  });
+
+  it('asks for debug capture instead of opening an empty request while capture is off', async () => {
+    dumpsStatus.set({ enabled: false } as DumpsStatus);
+    const { findByLabelText, queryByRole } = render(SiteRequestTiming, { props: { site } });
+    expect(await findByLabelText(m.sites_timing_slowestCaptureOff())).toBeTruthy();
+    expect(queryByRole('button', { name: m.sites_timing_openSlowest({ ms: '900 ms' }) })).toBeNull();
+  });
+
+  it('offers to turn debug capture on right under the list', async () => {
+    dumpsStatus.set({ enabled: false } as DumpsStatus);
+    const { findByRole } = render(SiteRequestTiming, { props: { site } });
+    expect(await findByRole('status')).toHaveTextContent(m.sites_timing_captureOffHint());
+    await fireEvent.click(await findByRole('button', { name: m.sites_timing_captureTurnOn() }));
+    expect(setDebugCapture).toHaveBeenCalledWith(true);
+  });
+
+  it('says the request left the buffer when capture is on but nothing of it is kept', async () => {
+    dumpsStatus.set({ enabled: true } as DumpsStatus);
+    const { findByLabelText, queryByRole } = render(SiteRequestTiming, { props: { site } });
+    expect(await findByLabelText(m.sites_timing_slowestEvicted())).toBeTruthy();
+    expect(queryByRole('button', { name: m.sites_timing_openSlowest({ ms: '900 ms' }) })).toBeNull();
+    expect(queryByRole('button', { name: m.sites_timing_captureTurnOn() })).toBeNull();
+    dumpsStatus.set(null);
   });
 });
 
