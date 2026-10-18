@@ -28,6 +28,8 @@ export function fakeLensAnswer(events: DumpEvent[], url: string, enabled = true)
       if (p.get('site') && ev.ctx.site !== p.get('site')) return false;
       if (p.get('ctx') && ev.ctx.type !== p.get('ctx')) return false;
       if (p.get('rid') && ev.ctx.rid !== p.get('rid') && reached(ev) !== p.get('rid')) return false;
+      // Fixtures log requests already in route form, so equality stands in for lerd-ui's normalising.
+      if (p.get('route') && ev.ctx.request !== p.get('route')) return false;
       if (p.get('facet') && facetOf(ev) !== p.get('facet')) return false;
       if (p.get('tests') !== '1' && ev.ctx.test) return false;
       const q = (p.get('q') ?? '').toLowerCase();

@@ -262,3 +262,4 @@
   .lerd-landing .digest{flex-wrap:wrap;gap:10px 14px}
   .lerd-landing .digest-cta{margin-left:0}
 }
+.lerd-landing .zoom:focus{outline:none}

@@ -1,5 +1,5 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { withBase } from 'vitepress'
 import * as D from '../landing-data.js'
 import { data as starData } from '../stars.data'
@@ -26,6 +26,10 @@ onBeforeUnmount(() => clearTimeout(copyTimer))
 // animation, so the bar and the slide change can never drift apart.
 const slide = ref(0)
 const hovered = ref(false)
+// Keyboard focus pauses it too, so a focused link is never hidden under the reader.
+const focused = ref(false)
+const slides = ref(null)
+const onSlidesFocusOut = (e) => { focused.value = slides.value.contains(e.relatedTarget) }
 const onScreen = ref(false)
 const lineup = ref(null)
 function next() { slide.value = (slide.value + 1) % D.LINEUP.length }
@@ -49,22 +53,53 @@ function onDemoLoad(e) {
     if (rail) demoBar.value = getComputedStyle(rail).backgroundColor
   }
   sync()
+  // Keys pressed inside the demo stay in its document, so Escape is heard there too.
+  doc.addEventListener('keydown', (k) => { if (k.key === 'Escape') demoOpen.value = false })
   demoObserver = new MutationObserver(sync)
   demoObserver.observe(doc.documentElement, { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] })
   demoObserver.observe(doc.body, { childList: true })
 }
 // A lineup screenshot is cropped to its panel; clicking it shows the whole capture.
 const zoom = ref('')
-const onDemoKey = (e) => { if (e.key === 'Escape') { demoOpen.value = false; zoom.value = '' } }
-watch(() => demoOpen.value || Boolean(zoom.value), (open) => {
+// Both overlays are modal: focus moves in on open, Tab stays inside, and focus
+// goes back to whatever opened them on close.
+const overlay = ref(null)
+let opener = null
+function keepTabInside(e) {
+  const el = overlay.value
+  const items = [...el.querySelectorAll('button, [href], iframe')]
+  if (!items.length) { e.preventDefault(); el.focus(); return }
+  const first = items[0], last = items[items.length - 1]
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus() }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus() }
+}
+const onDemoKey = (e) => {
+  if (e.key === 'Escape') { demoOpen.value = false; zoom.value = '' }
+  else if (e.key === 'Tab' && overlay.value) keepTabInside(e)
+}
+// Tabbing out of the demo's frame skips the handler above, so focus that lands
+// behind the overlay is sent back to it.
+const onFocusIn = (e) => {
+  const el = overlay.value
+  if (el && !el.contains(e.target)) (el.querySelector('button') || el).focus()
+}
+watch(() => demoOpen.value || Boolean(zoom.value), async (open) => {
   document.documentElement.style.overflow = open ? 'hidden' : ''
-  if (open) document.addEventListener('keydown', onDemoKey)
-  else {
-    document.removeEventListener('keydown', onDemoKey)
-    if (demoObserver) { demoObserver.disconnect(); demoObserver = null }
+  if (open) {
+    opener = document.activeElement
+    document.addEventListener('keydown', onDemoKey)
+    document.addEventListener('focusin', onFocusIn)
+    await nextTick()
+    const el = overlay.value
+    ;(el.querySelector('button') || el).focus()
+    return
   }
+  document.removeEventListener('keydown', onDemoKey)
+  document.removeEventListener('focusin', onFocusIn)
+  if (demoObserver) { demoObserver.disconnect(); demoObserver = null }
+  if (opener) { opener.focus(); opener = null }
 })
-onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.overflow = ''; document.removeEventListener('keydown', onDemoKey) })
+onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.overflow = ''; document.removeEventListener('keydown', onDemoKey); document.removeEventListener('focusin', onFocusIn) })
 </script>
 
 <template>
@@ -118,7 +153,7 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
           <div class="label"><b>01–{{ pad(D.LINEUP.length) }}</b> / The lineup</div>
           <h2>What you get <span>after one install.</span></h2>
         </div>
-        <div class="slides" :class="{ paused: hovered || !onScreen }" @mouseenter="hovered = true" @mouseleave="hovered = false">
+        <div ref="slides" class="slides" :class="{ paused: hovered || focused || !onScreen }" @mouseenter="hovered = true" @mouseleave="hovered = false" @focusin="focused = true" @focusout="onSlidesFocusOut">
           <div class="index" role="tablist" aria-label="Features">
             <button v-for="(c, i) in D.LINEUP" :key="c.id" type="button" role="tab" :aria-selected="i === slide" :class="{ on: i === slide }" @click="slide = i">
               <span class="n">{{ pad(i + 1) }}</span><span class="t">{{ c.title }}</span>
@@ -301,11 +336,11 @@ onBeforeUnmount(() => { demoOpen.value = false; document.documentElement.style.o
       <div class="legal"><span>© 2026 Lerd · MIT-licensed open source</span><span>lerd.sh</span></div>
     </div></footer>
 
-    <div v-if="zoom" class="demo zoom" role="dialog" aria-modal="true" aria-label="Screenshot" @click="zoom = ''">
+    <div v-if="zoom" ref="overlay" class="demo zoom" role="dialog" aria-modal="true" aria-label="Screenshot" tabindex="-1" @click="zoom = ''">
       <img :src="zoom" alt="">
     </div>
 
-    <div v-if="demoOpen" class="demo" @click.self="demoOpen = false">
+    <div v-if="demoOpen" ref="overlay" class="demo" @click.self="demoOpen = false">
       <div class="pwa" role="dialog" aria-modal="true" aria-label="Lerd live demo">
         <div class="pwa-bar" :style="{ background: demoBar }">
           <img :src="withBase('/assets/logo.svg')" alt="" width="16" height="16">
