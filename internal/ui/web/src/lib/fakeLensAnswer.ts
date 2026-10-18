@@ -12,6 +12,11 @@ function facetOf(ev: DumpEvent): string {
   return d.status ?? d.level ?? '';
 }
 
+// The same thresholds lerd-ui groups with (internal/dumps/groups.go).
+const SLOW_MS = 100;
+const N_PLUS_ONE_AT = 3;
+const queryOf = (ev: DumpEvent) => (ev.kind === 'query' ? ((ev.data ?? {}) as { sql?: string; time_ms?: number }) : null);
+
 const isNav = (ev: DumpEvent) => ev.kind === 'browser' && (ev.data as { type?: string } | undefined)?.type === 'navigation';
 const reached = (ev: DumpEvent) => (ev.kind === 'browser' ? ((ev.data as { rid?: string } | undefined)?.rid ?? '') : '');
 const groupKey = (ev: DumpEvent) => (ev.ctx.rid && ev.kind !== 'dump' ? `rid:${ev.ctx.rid}` : `req:${ev.ctx.site}:${ev.ctx.request}:${ev.ctx.pid ?? ''}`);
@@ -52,14 +57,23 @@ export function fakeLensAnswer(events: DumpEvent[], url: string, enabled = true)
     const all = [...byKey.values()].sort((a, b) => b.last - a.last);
     const page = all.slice(0, limit);
     return {
-      groups: page.map((g) => ({
-        key: g.key,
-        count: g.rows.length,
-        total_ms: 0,
-        slow_count: 0,
-        n_plus_one: false,
-        rows: g.rows.slice(0, 100).map((event) => ({ event, dup: 1, seq: events.indexOf(event) + 1 }))
-      })),
+      groups: page.map((g) => {
+        // Fixtures write SQL already normalised, so the text itself is the shape.
+        const shapes = new Map<string, number>();
+        for (const ev of g.rows) {
+          const sql = queryOf(ev)?.sql;
+          if (sql) shapes.set(sql, (shapes.get(sql) ?? 0) + 1);
+        }
+        const ms = g.rows.map((ev) => Number(queryOf(ev)?.time_ms ?? 0));
+        return {
+          key: g.key,
+          count: g.rows.length,
+          total_ms: ms.reduce((a, b) => a + b, 0),
+          slow_count: ms.filter((m) => m >= SLOW_MS).length,
+          n_plus_one: [...shapes.values()].some((n) => n >= N_PLUS_ONE_AT),
+          rows: g.rows.slice(0, 100).map((event) => ({ event, dup: shapes.get(queryOf(event)?.sql ?? '') ?? 1, seq: events.indexOf(event) + 1 }))
+        };
+      }),
       next: all.length > limit ? page[page.length - 1].last : 0,
       total: matched.length
     };
