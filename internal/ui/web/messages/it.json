@@ -1080,7 +1080,7 @@
   "sites_timing_showMore": "Mostra altri",
   "sites_timing_openSlowest": "Apri la richiesta più lenta, {ms}",
   "sites_timing_slowestCaptureOff": "Attiva la cattura di debug per registrare i dettagli di questa richiesta",
-  "sites_timing_slowestEvicted": "Eventi più recenti hanno spinto questa richiesta fuori dal buffer di debug",
+  "sites_timing_slowestNotKept": "Di questa richiesta non è rimasto nulla. Inviala di nuovo per registrarne i dettagli",
   "sites_timing_captureOffHint": "La cattura di debug è spenta.",
   "sites_timing_captureTurnOn": "Attiva",
   "sites_timing_nothingCaptured": "La cattura di debug non ha nulla per questa richiesta: era spenta oppure eventi più recenti l'hanno spinta fuori dal buffer.",

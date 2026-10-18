@@ -411,9 +411,9 @@
                 {@render slowRow(r, true)}
               </button>
             {:else if r.slowest}
-              <!-- Nothing of the request is left to open, so say why instead. -->
-              {@const why = $debugCaptureEnabled ? m.sites_timing_slowestEvicted() : m.sites_timing_slowestCaptureOff()}
-              <div class={slowRowClass} use:tooltip={why} aria-label={why}>{@render slowRow(r, false)}</div>
+              <!-- Nothing of the request is left to open, so say why instead; a button so keyboard focus reaches the tooltip. -->
+              {@const why = $debugCaptureEnabled ? m.sites_timing_slowestNotKept() : m.sites_timing_slowestCaptureOff()}
+              <button type="button" aria-disabled="true" class="{slowRowClass} text-left cursor-default" use:tooltip={why} aria-label={why}>{@render slowRow(r, false)}</button>
             {:else}
               <div class={slowRowClass}>{@render slowRow(r, false)}</div>
             {/if}

@@ -1080,7 +1080,7 @@
   "sites_timing_showMore": "Afficher plus",
   "sites_timing_openSlowest": "Ouvrir la requête la plus lente, {ms}",
   "sites_timing_slowestCaptureOff": "Activez la capture de débogage pour garder les détails de cette requête",
-  "sites_timing_slowestEvicted": "Des événements plus récents ont chassé cette requête du tampon de débogage",
+  "sites_timing_slowestNotKept": "Rien de cette requête n'a été gardé. Renvoyez-la pour capturer ses détails",
   "sites_timing_captureOffHint": "La capture de débogage est coupée.",
   "sites_timing_captureTurnOn": "Activer",
   "sites_timing_nothingCaptured": "La capture de débogage ne garde rien pour cette requête : elle était coupée ou des événements plus récents l'ont chassée du tampon.",

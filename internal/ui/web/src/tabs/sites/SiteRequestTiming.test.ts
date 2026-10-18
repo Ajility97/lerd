@@ -181,10 +181,10 @@ describe('SiteRequestTiming slowest request', () => {
     expect(setDebugCapture).toHaveBeenCalledWith(true);
   });
 
-  it('says the request left the buffer when capture is on but nothing of it is kept', async () => {
+  it('says nothing of the request was kept when capture is on', async () => {
     dumpsStatus.set({ enabled: true } as DumpsStatus);
     const { findByLabelText, queryByRole } = render(SiteRequestTiming, { props: { site } });
-    expect(await findByLabelText(m.sites_timing_slowestEvicted())).toBeTruthy();
+    expect(await findByLabelText(m.sites_timing_slowestNotKept())).toBeTruthy();
     expect(queryByRole('button', { name: m.sites_timing_openSlowest({ ms: '900 ms' }) })).toBeNull();
     expect(queryByRole('button', { name: m.sites_timing_captureTurnOn() })).toBeNull();
     dumpsStatus.set(null);

@@ -1080,7 +1080,7 @@
   "sites_timing_showMore": "Mostrar mais",
   "sites_timing_openSlowest": "Abrir a requisição mais lenta, {ms}",
   "sites_timing_slowestCaptureOff": "Ative a captura de depuração para guardar os detalhes desta requisição",
-  "sites_timing_slowestEvicted": "Eventos mais novos tiraram esta requisição do buffer de depuração",
+  "sites_timing_slowestNotKept": "Nada desta requisição foi guardado. Envie-a de novo para capturar os detalhes",
   "sites_timing_captureOffHint": "A captura de depuração está desligada.",
   "sites_timing_captureTurnOn": "Ativar",
   "sites_timing_nothingCaptured": "A captura de depuração não guarda nada desta requisição: estava desligada ou eventos mais novos a tiraram do buffer.",

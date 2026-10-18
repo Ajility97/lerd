@@ -1080,7 +1080,7 @@
   "sites_timing_showMore": "Arată mai multe",
   "sites_timing_openSlowest": "Deschide cea mai lentă cerere, {ms}",
   "sites_timing_slowestCaptureOff": "Pornește captura de depanare ca să prinzi detaliile acestei cereri",
-  "sites_timing_slowestEvicted": "Evenimente mai noi au împins această cerere afară din bufferul de depanare",
+  "sites_timing_slowestNotKept": "Nu s-a păstrat nimic din această cerere. Trimite-o din nou ca să-i prinzi detaliile",
   "sites_timing_captureOffHint": "Captura de depanare este oprită.",
   "sites_timing_captureTurnOn": "Pornește",
   "sites_timing_nothingCaptured": "Captura de depanare nu are nimic pentru această cerere: era oprită sau evenimente mai noi au împins-o afară din buffer.",

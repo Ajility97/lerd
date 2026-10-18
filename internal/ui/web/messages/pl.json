@@ -1080,7 +1080,7 @@
   "sites_timing_showMore": "Pokaż więcej",
   "sites_timing_openSlowest": "Otwórz najwolniejsze żądanie, {ms}",
   "sites_timing_slowestCaptureOff": "Włącz przechwytywanie debugowania, aby zapisać szczegóły tego żądania",
-  "sites_timing_slowestEvicted": "Nowsze zdarzenia wypchnęły to żądanie z bufora debugowania",
+  "sites_timing_slowestNotKept": "Z tego żądania nic nie zostało. Wyślij je ponownie, aby zapisać szczegóły",
   "sites_timing_captureOffHint": "Przechwytywanie debugowania jest wyłączone.",
   "sites_timing_captureTurnOn": "Włącz",
   "sites_timing_nothingCaptured": "Przechwytywanie debugowania nie ma nic dla tego żądania: było wyłączone albo nowsze zdarzenia wypchnęły je z bufora.",

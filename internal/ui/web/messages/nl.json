@@ -1080,7 +1080,7 @@
   "sites_timing_showMore": "Meer tonen",
   "sites_timing_openSlowest": "Traagste verzoek openen, {ms}",
   "sites_timing_slowestCaptureOff": "Zet debugvastlegging aan om de details van dit verzoek vast te leggen",
-  "sites_timing_slowestEvicted": "Nieuwere gebeurtenissen duwden dit verzoek uit de debugbuffer",
+  "sites_timing_slowestNotKept": "Van dit verzoek is niets bewaard. Stuur het opnieuw om de details vast te leggen",
   "sites_timing_captureOffHint": "Debugvastlegging staat uit.",
   "sites_timing_captureTurnOn": "Aanzetten",
   "sites_timing_nothingCaptured": "Debugvastlegging heeft niets voor dit verzoek, omdat vastlegging uit stond of nieuwere gebeurtenissen het uit de buffer duwden.",

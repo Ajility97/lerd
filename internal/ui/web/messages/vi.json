@@ -1080,7 +1080,7 @@
   "sites_timing_showMore": "Hiển thị thêm",
   "sites_timing_openSlowest": "Mở yêu cầu chậm nhất, {ms}",
   "sites_timing_slowestCaptureOff": "Bật bộ ghi gỡ lỗi để lưu chi tiết của yêu cầu này",
-  "sites_timing_slowestEvicted": "Các sự kiện mới hơn đã đẩy yêu cầu này ra khỏi bộ đệm gỡ lỗi",
+  "sites_timing_slowestNotKept": "Không còn gì của yêu cầu này. Gửi lại để ghi chi tiết của nó",
   "sites_timing_captureOffHint": "Bộ ghi gỡ lỗi đang tắt.",
   "sites_timing_captureTurnOn": "Bật",
   "sites_timing_nothingCaptured": "Bộ ghi gỡ lỗi không còn gì cho yêu cầu này: việc ghi đã tắt hoặc các sự kiện mới hơn đã đẩy nó ra khỏi bộ đệm.",

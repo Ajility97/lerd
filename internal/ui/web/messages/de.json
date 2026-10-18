@@ -1080,7 +1080,7 @@
   "sites_timing_showMore": "Mehr anzeigen",
   "sites_timing_openSlowest": "Langsamste Anfrage öffnen, {ms}",
   "sites_timing_slowestCaptureOff": "Debug-Erfassung einschalten, um die Details dieser Anfrage festzuhalten",
-  "sites_timing_slowestEvicted": "Neuere Ereignisse haben diese Anfrage aus dem Debug-Puffer verdrängt",
+  "sites_timing_slowestNotKept": "Von dieser Anfrage ist nichts erhalten. Sende sie erneut, um ihre Details festzuhalten",
   "sites_timing_captureOffHint": "Debug-Erfassung ist aus.",
   "sites_timing_captureTurnOn": "Einschalten",
   "sites_timing_nothingCaptured": "Die Debug-Erfassung hat nichts zu dieser Anfrage, weil sie aus war oder neuere Ereignisse sie aus dem Puffer verdrängt haben.",

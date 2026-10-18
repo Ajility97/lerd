@@ -1080,7 +1080,7 @@
   "sites_timing_showMore": "さらに表示",
   "sites_timing_openSlowest": "最も遅いリクエストを開く ({ms})",
   "sites_timing_slowestCaptureOff": "このリクエストの詳細を記録するにはデバッグキャプチャをオンにしてください",
-  "sites_timing_slowestEvicted": "新しいイベントによりこのリクエストはデバッグバッファから押し出されました",
+  "sites_timing_slowestNotKept": "このリクエストの記録は残っていません。詳細を記録するにはもう一度送信してください",
   "sites_timing_captureOffHint": "デバッグキャプチャはオフです。",
   "sites_timing_captureTurnOn": "オンにする",
   "sites_timing_nothingCaptured": "このリクエストのデバッグキャプチャはありません。キャプチャがオフだったか、新しいイベントでバッファから押し出されました。",
