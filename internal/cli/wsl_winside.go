@@ -41,9 +41,10 @@ func installWindowsSide(w io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("lerd.exe is not installed next to %s; reinstall lerd from a release to get it", self)
 	}
-	distro := os.Getenv("WSL_DISTRO_NAME")
+	// Distro falls back from WSL_DISTRO_NAME, which an SSH or systemd session lacks.
+	distro := wsl.Distro()
 	if distro == "" {
-		return fmt.Errorf("WSL_DISTRO_NAME is not set, so lerd.exe would not know which distro to run")
+		return fmt.Errorf("could not tell which distro this is, so lerd.exe would not know which one to run")
 	}
 	local, err := windowsEnvPath("LOCALAPPDATA")
 	if err != nil {
@@ -100,17 +101,44 @@ func installWindowsSide(w io.Writer) error {
 		}
 	}
 
-	if tld == "" {
-		return removeNRPTRule(w)
-	}
-	if out, _ := powershell(nrptPresentScript(tld)); strings.TrimSpace(out) == "yes" {
+	// The admin steps share one prompt: the DNS rule and the LAN firewall rule.
+	var scripts, reasons []string
+	addDNS := false
+	switch {
+	case tld == "":
+		if err := removeNRPTRule(w); err != nil {
+			return err
+		}
+	case nrptPresent(tld):
 		fmt.Fprintf(w, "  - Windows already sends .%s to lerd\n", tld)
+	default:
+		addDNS = true
+		scripts = append(scripts, addNRPTScript(tld))
+		reasons = append(reasons, "routing ."+tld+" to lerd in Windows DNS")
+	}
+	addFirewall := !lanFirewallPresent()
+	if addFirewall {
+		scripts = append(scripts, lanFirewallScript)
+		reasons = append(reasons, "letting the LAN reach lerd's shares")
+	}
+	if len(scripts) == 0 {
 		return nil
 	}
-	if err := addNRPTRule(w, tld); err != nil {
+	if err := runAsAdmin(w, strings.Join(reasons, " and "), strings.Join(scripts, "\n")); err != nil {
 		return err
 	}
-	fmt.Fprintf(w, "  ✓ Windows resolves *.%s through lerd\n", tld)
+	if addDNS {
+		if err := waitForNRPT(tld); err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "  ✓ Windows resolves *.%s through lerd\n", tld)
+	}
+	if addFirewall {
+		if !lanFirewallPresent() {
+			return fmt.Errorf("the Windows firewall rule for lerd's LAN shares did not appear (was the admin prompt declined?)")
+		}
+		fmt.Fprintln(w, "  ✓ the LAN can reach lerd's shares through the WSL firewall")
+	}
 	return nil
 }
 
@@ -262,30 +290,57 @@ func nrptPresentScript(tld string) string {
 	return fmt.Sprintf(`if (Get-DnsClientNrptRule | Where-Object { $_.Namespace -contains '.%s' -and $_.NameServers -contains '127.0.0.1' }) { 'yes' } else { 'no' }`, tld)
 }
 
-// addNRPTRule adds the rule sending tld to the agent, in one call when already
-// elevated; otherwise through UAC, then waiting, since removing an old rule
-// alone can take ten seconds.
-func addNRPTRule(w io.Writer, tld string) error {
-	if out, _ := powershell(isElevatedScript); strings.TrimSpace(out) == "True" {
-		out, err := powershell(addNRPTScript(tld) + "\n" + nrptPresentScript(tld))
-		if err != nil || strings.TrimSpace(out) != "yes" {
-			return fmt.Errorf("adding the Windows DNS rule for .%s failed: %v %s", tld, err, strings.TrimSpace(out))
-		}
-		return nil
+func nrptPresent(tld string) bool {
+	out, _ := powershell(nrptPresentScript(tld))
+	return strings.TrimSpace(out) == "yes"
+}
+
+// runAsAdmin runs script directly when already elevated, otherwise behind a
+// UAC prompt it waits on, saying what the prompt is for.
+func runAsAdmin(w io.Writer, why, script string) error {
+	if out, _ := powershell(isElevatedScript); strings.TrimSpace(out) != "True" {
+		fmt.Fprintf(w, "  → %s, approve the admin prompt on the Windows desktop\n", why)
+		script = elevated(script)
 	}
-	fmt.Fprintf(w, "  → routing .%s to lerd in Windows DNS, approve the admin prompt on the Windows desktop\n", tld)
-	if _, err := powershell(elevated(addNRPTScript(tld))); err != nil {
-		return fmt.Errorf("adding the Windows DNS rule for .%s: %w", tld, err)
+	if _, err := powershell(script); err != nil {
+		return fmt.Errorf("%s: %w", why, err)
 	}
-	var out string
+	return nil
+}
+
+// waitForNRPT waits for the rule, since removing an old one alone can take ten
+// seconds after the elevated script returned.
+func waitForNRPT(tld string) error {
 	for i := 0; i < 30; i++ {
-		out, _ = powershell(nrptPresentScript(tld))
-		if strings.TrimSpace(out) == "yes" {
+		if nrptPresent(tld) {
 			return nil
 		}
 		time.Sleep(time.Second)
 	}
-	return fmt.Errorf("the Windows DNS rule for .%s did not appear (was the admin prompt declined?): %s", tld, strings.TrimSpace(out))
+	return fmt.Errorf("the Windows DNS rule for .%s did not appear (was the admin prompt declined?)", tld)
+}
+
+// wslVMCreator is the id Windows gives WSL's VM in its Hyper-V firewall.
+const wslVMCreator = `{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}`
+
+// lanFirewallScript lets the local network into WSL. Its Hyper-V firewall
+// blocks every inbound connection by default, so lan:share, lan:expose,
+// lan:services and remote control answered only inside the distro. The rule
+// names no ports, since lerd's move when one is taken or changed; what answers
+// is what listens beyond loopback, which lerd does only with a LAN feature on,
+// and only from the local subnet. Windows without that firewall has none to open.
+const lanFirewallScript = `if (Get-Command New-NetFirewallHyperVRule -ErrorAction SilentlyContinue) {
+  Remove-NetFirewallHyperVRule -Name 'lerd-lan' -ErrorAction SilentlyContinue
+  New-NetFirewallHyperVRule -Name 'lerd-lan' -DisplayName 'lerd LAN' -Direction Inbound -VMCreatorId '` + wslVMCreator + `' -RemoteAddresses LocalSubnet -Action Allow | Out-Null
+}`
+
+const removeLANFirewallScript = `Remove-NetFirewallHyperVRule -Name 'lerd-lan' -ErrorAction SilentlyContinue`
+
+// lanFirewallPresent also says yes on a Windows without the Hyper-V firewall,
+// where there is no rule to add.
+func lanFirewallPresent() bool {
+	out, _ := powershell(`if (-not (Get-Command Get-NetFirewallHyperVRule -ErrorAction SilentlyContinue) -or (Get-NetFirewallHyperVRule -Name 'lerd-lan' -ErrorAction SilentlyContinue)) { 'yes' }`)
+	return strings.TrimSpace(out) == "yes"
 }
 
 const isElevatedScript = `([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)`
@@ -405,9 +460,17 @@ func removeWindowsSide() error {
 	if _, err := powershell(removeWindowsSideScript(winBin)); err != nil {
 		return err
 	}
+	// One admin prompt takes back both rules.
+	var admin []string
 	if lerdNRPTRulePresent() {
-		if _, err := powershell(elevated(removeNRPTScript)); err != nil {
-			return fmt.Errorf("removing the Windows DNS rule: %w", err)
+		admin = append(admin, removeNRPTScript)
+	}
+	if out, _ := powershell(`if (Get-Command Get-NetFirewallHyperVRule -ErrorAction SilentlyContinue) { if (Get-NetFirewallHyperVRule -Name 'lerd-lan' -ErrorAction SilentlyContinue) { 'yes' } }`); strings.TrimSpace(out) == "yes" {
+		admin = append(admin, removeLANFirewallScript)
+	}
+	if len(admin) > 0 {
+		if _, err := powershell(elevated(strings.Join(admin, "\n"))); err != nil {
+			return fmt.Errorf("removing lerd's Windows DNS and firewall rules: %w", err)
 		}
 	}
 	// lerd.exe stays locked for a moment after the agent exits.

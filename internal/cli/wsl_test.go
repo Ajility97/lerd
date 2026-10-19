@@ -224,3 +224,19 @@ func TestWindowsSideScriptsQuoteAnApostrophe(t *testing.T) {
 		}
 	}
 }
+
+// The WSL VM's Hyper-V firewall drops inbound connections by default. The rule
+// must name that VM and the local subnet, and no ports, since lerd's move.
+func TestLANFirewallScript(t *testing.T) {
+	for _, want := range []string{wslVMCreator, "-RemoteAddresses LocalSubnet", "Get-Command New-NetFirewallHyperVRule"} {
+		if !strings.Contains(lanFirewallScript, want) {
+			t.Errorf("lanFirewallScript lacks %q", want)
+		}
+	}
+	if strings.Contains(lanFirewallScript, "-LocalPorts") {
+		t.Error("a port list breaks as soon as a port moves")
+	}
+	if !strings.Contains(removeLANFirewallScript, "'lerd-lan'") {
+		t.Errorf("the removal must take the rule: %s", removeLANFirewallScript)
+	}
+}

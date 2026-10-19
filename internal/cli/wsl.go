@@ -205,7 +205,7 @@ func trustCAOnWindows() caResult {
 	if err != nil {
 		return caSkippedNoInterop
 	}
-	if err := exec.Command("certutil.exe", "-addstore", "-user", "-f", "Root", strings.TrimSpace(string(winPath))).Run(); err != nil {
+	if err := exec.Command(wsl.WindowsTool("certutil.exe"), "-addstore", "-user", "-f", "Root", strings.TrimSpace(string(winPath))).Run(); err != nil {
 		return caSkippedNoInterop
 	}
 	return caTrusted
