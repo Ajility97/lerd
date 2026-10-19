@@ -262,7 +262,7 @@ Those calls hand the endpoint the site, and the worktree when the page is a work
 
 ## Access and security
 
-A plugin runs as you, with everything you can do, so install only plugins you trust. Its API endpoints sit behind the same rules as lerd's own: open on the lerd host, closed to the LAN unless [remote control](../reference/commands.md#full-lan-exposure-dns-based) is on and the browser has signed in, and an endpoint marked `loopback_only` stays closed to remote dashboards until `lerd remote-control full-access on`. Only the plugin's `ui/` folder is served over HTTP.
+A plugin runs as you, with everything you can do, so install only plugins you trust. Its API endpoints sit behind the same rules as lerd's own: open on the lerd host, closed to the LAN unless [remote control](../reference/commands.md#full-lan-exposure-dns-based) is on and the browser has signed in, and an endpoint marked `loopback_only` stays closed to remote dashboards until `lerd remote-control full-access on`. Only the plugin's `ui/` folder is served over HTTP, and a link in it that leads outside the folder is not followed.
 
 ---
 

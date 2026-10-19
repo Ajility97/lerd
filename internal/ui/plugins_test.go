@@ -172,6 +172,30 @@ func TestPluginUI_ServesOnlyUIDirSandboxed(t *testing.T) {
 	}
 }
 
+// A link under ui/ must not carry the route outside it: the path check is on
+// text, and the file the link names could be any the user can read.
+func TestPluginUI_RefusesALinkOutOfTheUIDir(t *testing.T) {
+	installAPIPlugin(t)
+	ui := filepath.Join(plugins.Dir(), "echo", plugins.UIDir)
+	secret := filepath.Join(t.TempDir(), "secret")
+	if err := os.WriteFile(secret, []byte("private"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	links := map[string]string{"outside": secret, "manifest": filepath.Join("..", plugins.ManifestFile), "inside": "index.html"}
+	for name, target := range links {
+		if err := os.Symlink(target, filepath.Join(ui, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, want := range map[string]int{"outside": http.StatusNotFound, "manifest": http.StatusNotFound, "inside": http.StatusOK} {
+		rec := httptest.NewRecorder()
+		handlePluginUI(rec, localRequest(http.MethodGet, "/plugins/echo/ui/"+name, ""))
+		if rec.Code != want {
+			t.Errorf("%s = %d, want %d", name, rec.Code, want)
+		}
+	}
+}
+
 // The dashboard at lerd.localhost loads plugin files from lerd-ui's own port,
 // and a CSS mask is a CORS fetch: without the header the rail icon is blank.
 func TestPluginUI_AllowsTheDashboardOrigin(t *testing.T) {
@@ -337,6 +361,33 @@ func TestPluginPages_ServeScriptAndEndpointsToSwitchedOnSites(t *testing.T) {
 		if rec.Code != c.want || !strings.Contains(rec.Body.String(), c.body) {
 			t.Errorf("%s: %d %q, want %d containing %q", c.name, rec.Code, rec.Body, c.want, c.body)
 		}
+	}
+}
+
+// The page script reaches every visitor of the site, so a link out of ui/ is
+// refused there too.
+func TestPluginPages_RefuseAScriptLinkedOutOfTheUIDir(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	installAPIPlugin(t)
+	secret := filepath.Join(t.TempDir(), "secret")
+	if err := os.WriteFile(secret, []byte("private"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(plugins.Dir(), "echo", "ui", "page.js")); err != nil {
+		t.Fatal(err)
+	}
+	manifest := filepath.Join(plugins.Dir(), "echo", plugins.ManifestFile)
+	data, _ := os.ReadFile(manifest)
+	if err := os.WriteFile(manifest, []byte(strings.Replace(string(data), "ui:\n", "ui:\n  page_script: ui/page.js\n", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.AddSite(config.Site{Name: "on", Domains: []string{"on.test"}, Path: t.TempDir(), PagePlugins: []string{"echo"}}); err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	withPluginPages(http.NotFoundHandler()).ServeHTTP(rec, pageRequest(http.MethodGet, "/_lerd/plugins/echo/page.js", "on"))
+	if rec.Code != http.StatusNotFound || strings.Contains(rec.Body.String(), "private") {
+		t.Errorf("linked page script = %d %q, want 404", rec.Code, rec.Body)
 	}
 }
 

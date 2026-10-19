@@ -77,8 +77,15 @@ func handlePluginUI(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// The prefix check above is on text; a link under ui/ can still name any
+	// file the user can read, so the file it resolves to must be in ui/ too.
+	file, ok := resolveWithin(filepath.Join(p.Dir, plugins.UIDir), filepath.Join(p.Dir, filepath.FromSlash(rel)))
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
 	// ServeContent rather than ServeFile, which redirects index.html to its dir.
-	f, err := os.Open(filepath.Join(p.Dir, filepath.FromSlash(rel)))
+	f, err := os.Open(file)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -92,6 +99,24 @@ func handlePluginUI(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Security-Policy", pluginSandboxCSP)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
+}
+
+// resolveWithin follows every link in path and reports the real file, only
+// when it is inside dir once dir's own links are followed too.
+func resolveWithin(dir, path string) (string, bool) {
+	realDir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return "", false
+	}
+	real, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return "", false
+	}
+	rel, err := filepath.Rel(realDir, real)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return real, true
 }
 
 // handlePluginAPI serves /api/plugins/<name>/<path> by running the endpoint's
@@ -206,9 +231,14 @@ func withPluginPages(next http.Handler) http.Handler {
 			return
 		}
 		if sub == "page.js" {
+			file, ok := resolveWithin(filepath.Join(p.Dir, plugins.UIDir), filepath.Join(p.Dir, filepath.FromSlash(p.UI.PageScript)))
+			if !ok {
+				http.NotFound(w, r)
+				return
+			}
 			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-store")
-			http.ServeFile(w, r, filepath.Join(p.Dir, filepath.FromSlash(p.UI.PageScript)))
+			http.ServeFile(w, r, file)
 			return
 		}
 		endpoint, ok := strings.CutPrefix(sub, "api/")
