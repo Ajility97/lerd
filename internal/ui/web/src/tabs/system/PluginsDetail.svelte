@@ -1,6 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import DetailButton from '$components/DetailButton.svelte';
+  import DetailHeader from '$components/DetailHeader.svelte';
+  import IconButton from '$components/IconButton.svelte';
+  import Icon from '$components/Icon.svelte';
   import ConfirmModal from '$components/ConfirmModal.svelte';
   import EmptyState from '$components/EmptyState.svelte';
   import PluginRequirements from '$components/PluginRequirements.svelte';
@@ -21,10 +24,6 @@
   const parts = $derived($routeRest.split('/'));
   const browsing = $derived(parts[1] === 'browse');
   const focus = $derived(browsing ? decodeURIComponent(parts[2] ?? '') : '');
-
-  const tabBtn = (active: boolean) =>
-    'pb-1 text-xs font-medium border-b-2 transition-colors ' +
-    (active ? 'border-lerd-red text-lerd-red' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300');
 
   async function update(name: string) {
     updating = name;
@@ -71,14 +70,19 @@
   }
 </script>
 
-<div class="flex-1 overflow-y-auto">
-  <div class="flex items-center gap-5 px-3 py-1.5 page-header">
-    <span class="font-semibold text-gray-900 dark:text-white text-base">{m.system_plugins_title()}</span>
-    <div class="flex gap-4" role="tablist">
-      <button role="tab" aria-selected={!browsing} class={tabBtn(!browsing)} onclick={() => goToTab('system', 'plugins')}>{m.system_plugins_tabInstalled()}</button>
-      <button role="tab" aria-selected={browsing} class={tabBtn(browsing)} onclick={() => goToTab('system', 'plugins/browse')}>{m.system_plugins_tabBrowse()}</button>
-    </div>
+{#snippet views()}
+  <div class="flex items-center gap-1">
+    <IconButton size="sm" title={m.system_plugins_tabInstalled()} active={!browsing} onclick={() => goToTab('system', 'plugins')}>
+      <Icon name="cube" class="w-4 h-4" />
+    </IconButton>
+    <IconButton size="sm" title={m.system_plugins_tabBrowse()} active={browsing} onclick={() => goToTab('system', 'plugins/browse')}>
+      <Icon name="download" class="w-4 h-4" />
+    </IconButton>
   </div>
+{/snippet}
+
+<div class="flex-1 overflow-y-auto">
+  <DetailHeader title={m.system_plugins_title()} trailing={views} />
 
   <div class="p-3 space-y-3">
     <p class="text-xs text-gray-500 dark:text-gray-400">{m.system_plugins_description()}</p>

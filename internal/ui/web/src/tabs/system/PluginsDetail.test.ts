@@ -64,3 +64,16 @@ it('installs from what was typed and keeps the field when the install fails', as
   expect(JSON.parse(post.body!)).toEqual({ source: 'https://example.test/plugin.git' });
   expect(input.value.trim()).toBe('https://example.test/plugin.git');
 });
+
+// The two views are icon buttons at the header's far end, the current one
+// marked, so the header carries only the title and its actions.
+it('switches between installed and browse with icon buttons in the header', async () => {
+  const { getByRole } = render(PluginsDetail);
+  const installedBtn = getByRole('button', { name: 'Installed' });
+  const browseBtn = getByRole('button', { name: 'Browse' });
+  expect(installedBtn.textContent?.trim()).toBe('');
+  expect(installedBtn.getAttribute('aria-current')).toBe('page');
+  expect(browseBtn.getAttribute('aria-current')).toBeNull();
+  await fireEvent.click(browseBtn);
+  expect(location.hash).toBe('#system/plugins/browse');
+});
