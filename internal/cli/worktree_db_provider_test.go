@@ -120,3 +120,102 @@ func TestApplyWorktreeDBChoice_ReuseReconnectsToThePluginsDatabase(t *testing.T)
 		t.Errorf("env = %q", env)
 	}
 }
+
+// A database kept from a removed worktree belongs to whoever made it. Another
+// plugin in charge now must not branch a new one over its record.
+func TestApplyWorktreeDBChoice_ReuseRefusesADatabaseAnotherPluginMade(t *testing.T) {
+	site, checkout, calls := providerFixture(t, `echo '{"database":"acme_feature_br"}'`+"\n")
+	kept := config.WorktreeDBEntry{Site: "acme", Branch: "feature", Service: "mysql", DBName: "kept_other", Host: "lerd-other", Provider: "other"}
+	if err := config.AddWorktreeDB(kept); err != nil {
+		t.Fatal(err)
+	}
+	err := ApplyWorktreeDBChoice(site, "feature", "reuse", nil)
+	if err == nil || !strings.Contains(err.Error(), "other") {
+		t.Fatalf("err = %v, want the plugin that made it named", err)
+	}
+	if log := readFile(t, calls); log != "" {
+		t.Errorf("the plugin in charge must not be asked for a new database, got %q", log)
+	}
+	if got, ok, _ := config.FindWorktreeDB("acme", "feature"); !ok || got != kept {
+		t.Errorf("the kept entry must stay as it was, got %+v %v", got, ok)
+	}
+	if env := readFile(t, filepath.Join(checkout, ".env")); env != "DB_HOST=lerd-mysql\nDB_DATABASE=acme\n" {
+		t.Errorf("env changed to %q", env)
+	}
+}
+
+// The same holds when the plugin that made the kept database is gone: lerd
+// must not make an empty one of its own and drop the record of the real one.
+func TestApplyWorktreeDBChoice_ReuseRefusesADatabaseOfAGonePlugin(t *testing.T) {
+	site, _, _ := providerFixture(t, "")
+	if err := plugins.Remove("brancher"); err != nil {
+		t.Fatal(err)
+	}
+	kept := config.WorktreeDBEntry{Site: "acme", Branch: "feature", Service: "mysql", DBName: "kept_br", Host: "lerd-brancher", Provider: "brancher"}
+	if err := config.AddWorktreeDB(kept); err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyWorktreeDBChoice(site, "feature", "reuse", nil); err == nil || !strings.Contains(err.Error(), "brancher") {
+		t.Fatalf("err = %v, want the gone plugin named", err)
+	}
+	if got, ok, _ := config.FindWorktreeDB("acme", "feature"); !ok || got != kept {
+		t.Errorf("the kept entry must stay as it was, got %+v %v", got, ok)
+	}
+}
+
+// A database lerd kept before a plugin took charge is still lerd's, so reuse
+// reconnects to it rather than asking the plugin for a new one.
+func TestApplyWorktreeDBChoice_ReuseReconnectsToLerdsOwnDatabase(t *testing.T) {
+	site, checkout, calls := providerFixture(t, `echo '{"database":"acme_feature_br"}'`+"\n")
+	kept := config.WorktreeDBEntry{Site: "acme", Branch: "feature", Service: "mysql", DBName: "acme_feature"}
+	if err := config.AddWorktreeDB(kept); err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyWorktreeDBChoice(site, "feature", "reuse", nil); err != nil {
+		t.Fatal(err)
+	}
+	if log := readFile(t, calls); log != "" {
+		t.Errorf("the plugin must not be asked for a new database, got %q", log)
+	}
+	if got, _, _ := config.FindWorktreeDB("acme", "feature"); got != kept {
+		t.Errorf("entry = %+v, want lerd's kept one", got)
+	}
+	if env := readFile(t, filepath.Join(checkout, ".env")); !strings.Contains(env, "DB_DATABASE=acme_feature\n") {
+		t.Errorf("env = %q", env)
+	}
+}
+
+// A drop the plugin fails leaves the worktree on its own database and the
+// record in place, so nothing is left behind unaccounted for.
+func TestSetWorktreeDBIsolated_FailedDropChangesNothing(t *testing.T) {
+	script := "case \"$1\" in drop) echo 'busy' >&2; exit 1;; esac\necho '{\"host\":\"lerd-brancher\",\"database\":\"acme_feature_br\"}'\n"
+	site, checkout, _ := providerFixture(t, script)
+	if err := SetWorktreeDBIsolated(site, "feature", true, "main"); err != nil {
+		t.Fatalf("isolate: %v", err)
+	}
+	before := readFile(t, filepath.Join(checkout, ".env"))
+
+	err := SetWorktreeDBIsolated(site, "feature", false, "")
+	if err == nil || !strings.Contains(err.Error(), "busy") {
+		t.Fatalf("err = %v, want the plugin's error", err)
+	}
+	if _, ok, _ := config.FindWorktreeDB("acme", "feature"); !ok {
+		t.Error("the record must be kept when the drop failed")
+	}
+	if env := readFile(t, filepath.Join(checkout, ".env")); env != before {
+		t.Errorf("env changed to %q", env)
+	}
+}
+
+// Orphan cleanup forgets a database only once it is actually dropped.
+func TestDropOrphanedWorktreeDBs_KeepsTheRecordWhenTheDropFails(t *testing.T) {
+	site, _, _ := providerFixture(t, "echo 'busy' >&2\nexit 1\n")
+	entry := config.WorktreeDBEntry{Site: "acme", Branch: "gone", Service: "mysql", DBName: "acme_gone_br", Provider: "brancher"}
+	if err := config.AddWorktreeDB(entry); err != nil {
+		t.Fatal(err)
+	}
+	DropOrphanedWorktreeDBs(site)
+	if _, ok, _ := config.FindWorktreeDB("acme", "gone"); !ok {
+		t.Error("the record of a database still out there must be kept")
+	}
+}

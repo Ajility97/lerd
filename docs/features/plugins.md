@@ -152,7 +152,7 @@ The executable runs as `bin/db create` or `bin/db drop`, with the request as JSO
 
 `create` prints a JSON object with the `database` it made and, when it serves that database somewhere other than the parent's service, the `host` to reach it on. Lerd writes both into the worktree's env file under the keys the framework declares, so env stays with the site, and records the plugin as the database's owner. Any other field in the answer is refused by name. Sharing the parent's database again, or removing the worktree, runs `drop` with the database `create` answered.
 
-When `create` fails, the worktree keeps sharing the parent's database and the error carries what the plugin wrote to stderr. Lerd never falls back to a full copy on its own. Lerd's database tools, such as snapshots and the database shell, still work only on databases a lerd service holds.
+When `create` fails, the worktree keeps sharing the parent's database and the error carries what the plugin wrote to stderr. Lerd never falls back to a full copy on its own. When `drop` fails, the worktree stays on its own database and lerd keeps the record of it, so nothing is left behind unaccounted for. A database kept from a removed worktree is reconnected to only through the plugin that made it: with that plugin removed or no longer in charge, reusing it is refused and the record stays, rather than an empty database taking its place. Lerd's database tools, such as snapshots and the database shell, still work only on databases a lerd service holds.
 
 ---
 

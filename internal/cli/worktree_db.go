@@ -29,7 +29,11 @@ func DropOrphanedWorktreeDBs(site *config.Site) {
 		if live[e.Branch] {
 			continue
 		}
-		_ = dropWorktreeDB(e)
+		// A database whose drop failed is still out there, so its record stays
+		// for the next cleanup to retry.
+		if dropWorktreeDB(e) != nil {
+			continue
+		}
 		_, _, _ = config.RemoveWorktreeDB(e.Site, e.Branch)
 	}
 }
@@ -92,7 +96,11 @@ func SetWorktreeDBIsolated(site *config.Site, branch string, isolated bool, sour
 	wtEnv := filepath.Join(wt.Path, binding.File)
 
 	if isolated {
-		if p := plugins.ProviderOf(plugins.JobWorktreeDatabase); p != nil {
+		p := plugins.ProviderOf(plugins.JobWorktreeDatabase)
+		if kept, ok, _ := config.FindWorktreeDB(site.Name, branch); ok && (kept.Provider != "" || p != nil) {
+			return reconnectKeptDB(p, site, wt.Path, kept)
+		}
+		if p != nil {
 			return isolateWithPlugin(p, site, wt.Path, branch, source, service, parentDB, dbName)
 		}
 		if _, err := CreateDatabase(service, dbName); err != nil {
@@ -122,8 +130,13 @@ func SetWorktreeDBIsolated(site *config.Site, branch string, isolated bool, sour
 	}
 
 	restore := map[string]string{binding.NameKey: parentDB}
-	if entry, removed, err := config.RemoveWorktreeDB(site.Name, branch); err == nil && removed {
-		_ = dropWorktreeDB(entry)
+	if entry, ok, err := config.FindWorktreeDB(site.Name, branch); err == nil && ok {
+		if err := dropWorktreeDB(entry); err != nil {
+			return fmt.Errorf("dropping database %q: %w", entry.DBName, err)
+		}
+		if _, _, err := config.RemoveWorktreeDB(site.Name, branch); err != nil {
+			return fmt.Errorf("removing registry entry: %w", err)
+		}
 		if entry.Provider != "" {
 			restore[binding.HostKey] = parentHost
 		}
@@ -150,9 +163,6 @@ type providedDB struct {
 // it. A failure leaves the worktree sharing the parent's database rather than
 // falling back to a full copy, the cost the plugin is there to avoid.
 func isolateWithPlugin(p *plugins.Plugin, site *config.Site, wtPath, branch, source, service, parentDB, dbName string) error {
-	if kept, ok, _ := config.FindWorktreeDB(site.Name, branch); ok && kept.Provider == p.Name {
-		return connectWorktreeDB(site, wtPath, kept)
-	}
 	if source == "" {
 		source = "empty"
 	}
@@ -180,7 +190,17 @@ func isolateWithPlugin(p *plugins.Plugin, site *config.Site, wtPath, branch, sou
 	return connectWorktreeDB(site, wtPath, entry)
 }
 
-// connectWorktreeDB points the worktree at a database a plugin made.
+// reconnectKeptDB points the worktree back at the database kept for it. Only
+// whoever made that database can serve it, so one made by a plugin that is no
+// longer in charge is refused rather than replaced with a new, empty one.
+func reconnectKeptDB(inCharge *plugins.Plugin, site *config.Site, wtPath string, kept config.WorktreeDBEntry) error {
+	if kept.Provider != "" && (inCharge == nil || inCharge.Name != kept.Provider) {
+		return fmt.Errorf("database %q was made by plugin %s, which is not in charge of worktree databases now; reinstall it to reach that database", kept.DBName, kept.Provider)
+	}
+	return connectWorktreeDB(site, wtPath, kept)
+}
+
+// connectWorktreeDB points the worktree at a kept or plugin-made database.
 func connectWorktreeDB(site *config.Site, wtPath string, entry config.WorktreeDBEntry) error {
 	if err := setWorktreeDBIsolatedFlag(site.Path, wtPath, true); err != nil {
 		return err
