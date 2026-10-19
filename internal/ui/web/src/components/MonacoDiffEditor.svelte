@@ -2,6 +2,7 @@
   import { get } from 'svelte/store';
   import { onMount } from 'svelte';
   import { palette, theme } from '$stores/theme';
+  import { diffStats } from '$lib/gitDiff';
   import { applyEditorAccent, loadMonaco, lerdThemeName, type MonacoModule } from '$lib/monaco';
   import type * as Monaco from 'monaco-editor';
 
@@ -41,14 +42,8 @@
         ignoreTrimWhitespace: ignoreSpace
       });
       ed.onDidUpdateDiff(() => {
-        let added = 0;
-        let removed = 0;
-        for (const c of ed.getLineChanges() ?? []) {
-          // An end of 0 means the change has no lines on that side.
-          if (c.modifiedEndLineNumber > 0) added += c.modifiedEndLineNumber - c.modifiedStartLineNumber + 1;
-          if (c.originalEndLineNumber > 0) removed += c.originalEndLineNumber - c.originalStartLineNumber + 1;
-        }
-        onStats?.({ added, removed });
+        const model = ed.getModel();
+        if (model) onStats?.(diffStats(ed.getLineChanges() ?? [], model.original.getValue(), model.modified.getValue()));
       });
       const retheme = () => {
         applyEditorAccent();
