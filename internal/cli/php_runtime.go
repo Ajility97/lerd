@@ -34,7 +34,7 @@ func NewPHPRuntimeCmd() *cobra.Command {
   native     they run on the macOS host instead. Your project is bind-mounted
              into the Podman VM, so a containerised PHP crosses that boundary
              for every file it reads; running on the host removes it.
-             Requires PHP 8.1 or newer. Beta.
+             Requires PHP 8.1 or newer.
 
 No argument prints the current value. The setting is install-wide: the FPM
 container is shared by every site on a PHP version, so sites cannot be moved
