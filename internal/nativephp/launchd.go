@@ -132,9 +132,26 @@ func Ensure(version string) error {
 	// longer on disk and has to be replaced rather than left alone by the
 	// already-loaded check below.
 	if plistChanged || confChanged {
-		_ = exec.Command("launchctl", "bootout", domainTarget(label)).Run()
+		replaceUnitWith(label, bootoutUnit, unitLoaded, time.Sleep)
 	}
 	return bootLaunchdUnit(label, path)
+}
+
+// unloadTimeout bounds the wait for a booted-out job to leave launchd.
+const unloadTimeout = 5 * time.Second
+
+// replaceUnitWith boots a job out and waits for launchd to drop it. bootout
+// returns while the job is still exiting as "SIGTERMed", and loading it again
+// then fails, bootstrap with 5 and kickstart with 37, leaving the pool down.
+func replaceUnitWith(label string, bootout func(string), loaded func(string) bool, tick func(time.Duration)) {
+	bootout(label)
+	for waited := time.Duration(0); loaded(label) && waited < unloadTimeout; waited += reloadSettleInterval {
+		tick(reloadSettleInterval)
+	}
+}
+
+func bootoutUnit(label string) {
+	_ = exec.Command("launchctl", "bootout", domainTarget(label)).Run()
 }
 
 // Stop takes a version's native FPM down and removes its launchd job.

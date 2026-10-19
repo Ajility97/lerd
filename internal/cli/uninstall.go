@@ -12,6 +12,7 @@ import (
 	"github.com/geodro/lerd/internal/desktopapp"
 	"github.com/geodro/lerd/internal/dns"
 	"github.com/geodro/lerd/internal/feedback"
+	"github.com/geodro/lerd/internal/nativephp"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/services"
 	"github.com/spf13/cobra"
@@ -102,6 +103,7 @@ func runUninstall(force, keepData bool) error {
 	{
 		// Use the service manager so this works on both Linux (systemd/quadlet)
 		// and macOS (launchd plists).
+		stopNativePools(nativephp.ListInstalled(), nativephp.Stop)
 		seen := map[string]bool{}
 		for _, unit := range services.Mgr.ListContainerUnits("lerd-*") {
 			seen[unit] = true
@@ -253,6 +255,15 @@ func installedDefaultServices(names []string, installed func(unit string) bool) 
 		}
 	}
 	return out
+}
+
+// stopNativePools takes the native FPM pools down by their own launchd label.
+// The sweep below addresses jobs as com.lerd.<file>, which these are not, so it
+// would delete their plists and leave the pools running.
+func stopNativePools(versions []string, stop func(string) error) {
+	for _, v := range versions {
+		_ = stop(v)
+	}
 }
 
 // removeServiceUnits deletes every lerd unit file and clears the failed state
