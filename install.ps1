@@ -67,13 +67,12 @@
     if (Test-Path $RealWSLExe) { $RealWSLExe } else { Join-Path $env:SystemRoot 'System32\wsl.exe' }
   }
 
-  # Quote escapes $s as one argument for the CommandLineToArgvW rules wsl.exe
-  # parses its command line with. Windows PowerShell 5.1 passes embedded quotes
-  # to native commands unescaped, so command lines are built here by hand.
   # Lit makes $s a single-quoted PowerShell literal, for paths written into the
   # scripts Elevated runs: a profile like O'Brien would otherwise end the string.
   function Lit([string]$s) { "'" + ($s -replace "'", "''") + "'" }
 
+  # Quote escapes $s as one argument for wsl.exe's CommandLineToArgvW parsing;
+  # PowerShell 5.1 passes embedded quotes unescaped, so lines are built by hand.
   function Quote([string]$s) {
     $r = '"'; $n = 0
     foreach ($c in $s.ToCharArray()) {
@@ -87,10 +86,9 @@
     $r + ('\' * $n) + '"'
   }
 
-  # Detached wraps a script so nothing in it can wait on a terminal. The console
-  # gives WSL a pty, where a question read from /dev/tty would wait for an answer
-  # the steps never expect to be asked. In a new session with no controlling
-  # terminal, /dev/tty fails to open and every question takes its default.
+  # Detached runs a script in a new session with no controlling terminal: the
+  # console gives WSL a pty, where a question read from /dev/tty would wait, and
+  # without one every question takes its default.
   function Detached([string]$shell, [string]$body) {
     "--exec setsid -w $shell " + (Quote ("{`n" + $body + "`n} </dev/null"))
   }
@@ -347,10 +345,9 @@
     }
   }
 
-  # EnsureUser gives the distro a sudo user and systemd, and makes that user the
-  # default. The password reaches chpasswd through WSLENV, so it never shows up
-  # on a command line or on disk. Both wsl.conf settings need the distro
-  # restarted, which --terminate does.
+  # EnsureUser gives the distro a default sudo user and systemd. The password
+  # reaches chpasswd through WSLENV, never a command line or the disk, and
+  # --terminate restarts the distro for the wsl.conf settings.
   function EnsureUser {
     $status = "Creating the Linux user $($S.LinuxUser)"
     Step "$status..."
@@ -389,10 +386,9 @@
 
   # ---- desktop app -----------------------------------------------------------
 
-  # On Windows the Lerd desktop app holds lerd's tray icon, raises its
-  # notifications, which lerd-ui hands it while it runs, and keeps lerd's agent
-  # running. It is downloaded from the latest lerd-desktop release and
-  # registered with Windows here; the app has no installer of its own.
+  # The desktop app holds lerd's tray and notifications on Windows and keeps its
+  # agent running. It has no installer of its own, so it is downloaded from the
+  # latest lerd-desktop release and registered here.
 
   # SetShortcutAppID stamps the app id on a shortcut, which ties it to the app's
   # own windows and notifications. WScript.Shell cannot set it.
@@ -440,10 +436,9 @@ namespace LerdSetup {
     [LerdSetup.Lnk]::SetAppID($lnk, $id)
   }
 
-  # RegisterDesktopApp gives the app what Windows needs to treat it as lerd's:
-  # the app id its notifications are posted under, with lerd's name and logo,
-  # the lerd:// scheme that notification clicks open, a Start menu shortcut, and
-  # a start at sign-in, hidden in the tray.
+  # RegisterDesktopApp registers the app as lerd's: the app id its notifications
+  # post under, the lerd:// scheme their clicks open, a Start menu shortcut, and
+  # a hidden start at sign-in.
   function RegisterDesktopApp {
     $exe = "`"$DesktopExe`""
     $key = "HKCU:\Software\Classes\AppUserModelId\$ToastAppID"
@@ -473,11 +468,9 @@ namespace LerdSetup {
     Start-Sleep 1
   }
 
-  # InstallDesktopApp downloads the app and unpacks it under Program Files. It
-  # comes before lerd's wsl:setup, which leaves starting lerd's agent to the app
-  # when it finds it registered, rather than to a Run entry of its own.
-  # LERD_SETUP_LOCAL takes the app from a lerd-desktop-win32-<arch>.zip there
-  # when it holds one; such a zip is unpacked on every run.
+  # InstallDesktopApp unpacks the app under Program Files before wsl:setup, which
+  # then leaves the agent to it. LERD_SETUP_LOCAL's lerd-desktop-win32-<arch>.zip,
+  # when there, is used instead and unpacked on every run.
   function InstallDesktopApp {
     Step 'Installing the Lerd desktop app...'
     $arch = NativeArch
@@ -506,10 +499,9 @@ namespace LerdSetup {
 
     StopDesktopApp
     Info 'Unpacking the desktop app'
-    # Windows' own tar unpacks zips. Its complaints are shown, since a
-    # half-unpacked app opens to a black window. Errors are left to Continue
-    # around it, or Windows PowerShell turns tar's first stderr line into a
-    # terminating error and its exit code is never read.
+    # Windows' own tar unpacks the zip, its complaints shown since a half-unpacked
+    # app opens black. Errors Continue around it, or PowerShell 5.1 turns its
+    # first stderr line into a terminating error before the exit code is read.
     $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
     # A released app is downloaded by the elevated step itself, so what lands
     # in Program Files is never a file the user's other programs could swap.
@@ -553,10 +545,8 @@ namespace LerdSetup {
     $null = Capture (WSLExe) (AsRoot "rm -f $SudoersDropIn")
   }
 
-  # ApplyOptions turns the answers into lerd commands. The installers took the
-  # defaults (.test with HTTPS, lerd-managed Node), so only a change from them
-  # runs anything. It comes before wsl:setup, which reads the DNS mode to decide
-  # whether Windows needs the .test rule.
+  # ApplyOptions turns answers that differ from the installers' defaults into lerd
+  # commands, before wsl:setup reads the DNS mode to decide on the .test rule.
   function ApplyOptions {
     if ($S.LerdInstalled) { return }
     if ($S.DNSLocalhost) {
@@ -569,12 +559,9 @@ namespace LerdSetup {
     }
   }
 
-  # TrustCA imports lerd's root CA into the Windows user's Root store, which
-  # makes Windows ask the user to confirm. wsl:setup does the same, but its
-  # certutil starts deep in a chain of hidden processes and its dialog can open
-  # behind this window. Once the CA is in the store, wsl:setup's import has
-  # nothing left to ask. Declining is not a failure: the sites still work, with
-  # a browser warning.
+  # TrustCA imports lerd's root CA from here, so Windows' confirmation opens in
+  # front rather than behind, as wsl:setup's hidden certutil's can. Declining is
+  # not a failure: the sites work, with a browser warning.
   function TrustCA {
     if (-not $S.LerdInstalled -and $S.DNSLocalhost) { return }
     $crt = Join-Path $env:TEMP 'lerd-rootCA.crt'

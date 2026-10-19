@@ -397,10 +397,8 @@ var shellRCMarkers = []struct {
 	{"# Lerd", 1},
 }
 
-// removeInstalledBinaries deletes the lerd binary and the tray binary and
-// lerd.exe the installer puts beside it. The tray can be launched from a
-// desktop entry without a unit, so leaving it behind outlives the uninstall
-// that removed lerd.
+// removeInstalledBinaries deletes lerd and the tray and lerd.exe beside it; a
+// tray left behind could still be launched from its desktop entry.
 func removeInstalledBinaries(self string) {
 	os.Remove(self) //nolint:errcheck
 	for _, name := range []string{"lerd-tray", "lerd.exe"} {

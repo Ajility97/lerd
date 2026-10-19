@@ -1,9 +1,6 @@
-// Command lerd-windows builds lerd.exe, the Windows side of a WSL install.
-// `lerd <args>` runs lerd inside the distro from the current folder, and the
-// same binary named php.exe, composer.exe and so on runs that shim. `lerd
-// --agent`, started at login by wsl:setup, boots the distro so lerd's services
-// come up without a terminal, then answers DNS for the site TLD on
-// 127.0.0.1:53, where a Windows NRPT rule sends it.
+// Command lerd-windows builds lerd.exe: `lerd <args>` runs lerd in the distro
+// from the current folder, php.exe and the other shim names run that shim, and
+// `lerd --agent` boots the distro at login and answers DNS for the site TLD.
 package main
 
 import (
@@ -82,10 +79,8 @@ func runInDistro(wslArgs []string) int {
 // running, so whoever started it can tell that from a failure.
 const agentRunningExit = 3
 
-// agent boots the distro and answers DNS for the site TLD. It returns once its config file is removed or
-// rewritten, which is how uninstall and a rerun of wsl:setup stop it: the
-// installer may have started it elevated, and an unelevated lerd is not
-// allowed to kill that.
+// agent returns once its config is removed or rewritten, which is how uninstall
+// and a rerun of wsl:setup stop it: an elevated agent cannot be killed unelevated.
 func agent(cfg winshim.Config, confPath string) error {
 	started, err := os.Stat(confPath)
 	if err != nil {

@@ -12,12 +12,9 @@ func redirectStderr(f *os.File) {
 	windows.SetStdHandle(windows.STD_ERROR_HANDLE, windows.Handle(f.Fd())) //nolint:errcheck
 }
 
-// claimAgent takes the agent's named mutex for the rest of the process, and
-// reports false when another agent in this session holds it. The desktop app
-// starts the agent at every login and again whenever it exits, so a second
-// one must step aside rather than fight the first for port 53. An agent
-// started elevated, by the installer, creates the mutex with a DACL an
-// unelevated one cannot open, which also means it is taken.
+// claimAgent reports false when another agent in this session holds the mutex,
+// so a second one, started again by the desktop app, steps aside from port 53.
+// An elevated agent's mutex cannot be opened unelevated, which also means taken.
 func claimAgent() bool {
 	return claimMutex(`Local\lerd-agent`)
 }

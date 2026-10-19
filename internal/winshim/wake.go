@@ -5,11 +5,9 @@ import (
 	"time"
 )
 
-// Waker boots the distro again when a site is looked up while it is down, as
-// after a `wsl --shutdown`, a `wsl --update` or a crash. It acts on demand
-// rather than on a timer so a deliberate shutdown stays down until the user
-// opens a site, and probes at most once per Interval because a page load
-// fires a burst of lookups.
+// Waker boots the distro again when a site is looked up while it is down. On
+// demand, not on a timer, so a deliberate shutdown stays down until a site is
+// opened; at most once per Interval, since one page fires a burst of lookups.
 type Waker struct {
 	Alive    func() bool // reports whether lerd's services answer
 	Boot     func()      // starts the distro, and with it lerd's services

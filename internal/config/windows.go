@@ -23,10 +23,9 @@ func windowsDesktop() Desktop {
 	return Desktop{Theme: windowsTheme(parseRegBinary(out, "AccentPalette"))}
 }
 
-// windowsTheme turns the AccentPalette Windows derives from its accent into a
-// dashboard theme, with the shades WinUI apps use: Dark1 and Dark2 in light
-// mode, Light2 and Light3 in dark. Windows' surfaces are not the user's choice
-// and the built-in Windows palette already offers them.
+// windowsTheme turns Windows' AccentPalette into a theme with the shades WinUI
+// uses, Dark1 and Dark2 in light mode, Light2 and Light3 in dark; the surfaces
+// are not the user's choice and the built-in Windows palette has them.
 func windowsTheme(palette string) *UITheme {
 	b, err := hex.DecodeString(palette)
 	if err != nil || len(b) < 28 {

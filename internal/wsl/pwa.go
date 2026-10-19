@@ -35,10 +35,9 @@ var appIDArg = func() []byte {
 	return b
 }()
 
-// PWAShortcut finds the Start Menu shortcut a Chromium browser (Edge, Chrome,
-// Vivaldi, Brave) makes when the dashboard is installed as an app: a Lerd.lnk
-// launched with --app-id, in a folder named after the browser and translated.
-// explorer.exe hands it to the shell, which outlives the WSL session.
+// PWAShortcut finds the Lerd.lnk with --app-id a Chromium browser puts in the
+// Start Menu when the dashboard is installed as an app; explorer.exe opens it,
+// so the app outlives the WSL session.
 func PWAShortcut() (string, bool) {
 	root := startMenuFn()
 	if root == "" {

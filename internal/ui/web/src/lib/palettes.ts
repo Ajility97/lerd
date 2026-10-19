@@ -72,18 +72,9 @@ export const DEFAULT_PALETTE_ID = 'lerd';
 // built-in #ff2d20 and its #e02419 hover.
 const HOVER_STEP = 0.12;
 
-// lerd, muted and Ocean are the dashboard's own, and the desktop ones follow
-// lerd's straight away since they are the likeliest pick after it. The editor
-// schemes are their published palettes. The desktop ones are read from what
-// those desktops actually ship, not from memory of them: Breeze from
-// Plasma 6.7's BreezeDark.colors, Adwaita from libadwaita 1.9's named colours,
-// macOS from Apple's documented system blue and window background. All three
-// have been darkened since the values most write-ups still quote. Windows takes
-// its surfaces from WinUI's Common_themeresources_any.xaml, flattened onto the
-// dark base, and the accents the way WinUI uses Windows 11's default palette:
-// its Dark1 in light mode, Light2 in dark. Their light chrome is the tone each
-// desktop tints its own sidebar with, Breeze's window colour and libadwaita's
-// sidebar_bg_color.
+// lerd, muted and Ocean are the dashboard's own, the desktop ones follow lerd's
+// as its likeliest successors, read from what those desktops ship (sources in
+// docs/features/dashboard-themes.md), and the editor schemes are their own.
 export const BUILTIN_PALETTES: Palette[] = [
   {
     id: 'lerd',
@@ -262,12 +253,9 @@ export const BUILTIN_PALETTES: Palette[] = [
 
 const DEFAULT_PALETTE = BUILTIN_PALETTES[0];
 
-// The built-in each desktop's own entry stands in for. A machine running that
-// desktop has the real thing, live and on whichever scheme it happens to be
-// wearing, and the built-in beside it is a snapshot of one of them.
-// macOS and Windows are in here against their own names: the built-in each
-// replaces already carries that name, and the entry still wants that palette's
-// surfaces under the accent the machine in front of you is set to.
+// The built-in each desktop's live entry stands in for. macOS and Windows map to
+// their own names: the entry keeps that palette's surfaces under the accent the
+// machine is set to.
 const DESKTOP_STANDS_IN_FOR: Record<string, string> = {
   plasma: 'breeze',
   gnome: 'adwaita',

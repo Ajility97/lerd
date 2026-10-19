@@ -36,11 +36,9 @@ func wslHandoverNameservers() []string {
 	return wsl.GeneratedNameservers(string(b))
 }
 
-// handResolvConfToResolved points resolv.conf at systemd-resolved's stub on a WSL
-// distro. WSL writes its own resolv.conf aimed straight at its DNS proxy, which
-// bypasses resolved and every .test route lerd gives it, so the usual resolved
-// path finds nothing to hook into. WSL's proxy stays the upstream, and
-// generateResolvConf=false stops WSL rewriting the file on the next boot.
+// handResolvConfToResolved points resolv.conf at systemd-resolved's stub: WSL's
+// own file goes straight to its DNS proxy, past every .test route lerd sets.
+// The proxy stays upstream, and generateResolvConf=false keeps WSL off the file.
 func handResolvConfToResolved() error {
 	ns := wslHandoverNameservers()
 	if ns == nil {

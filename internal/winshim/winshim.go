@@ -1,7 +1,6 @@
-// Package winshim is the platform-neutral logic behind lerd.exe, the Windows
-// side of a WSL install: the command shim that runs lerd inside the distro, and
-// the DNS answers its login-time agent gives Windows for the site TLD. It is
-// kept apart from cmd/lerd-windows so it is tested on Linux like the rest.
+// Package winshim is the platform-neutral logic behind lerd.exe, the command
+// shim and the agent's DNS answers, kept apart from cmd/lerd-windows so it is
+// tested on Linux like the rest.
 package winshim
 
 import (
@@ -127,10 +126,9 @@ var (
 	shimName  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 )
 
-// ArgToLinux turns an argument that is a Windows path, on a drive or inside
-// this distro, into the path lerd sees, so an IDE passing the file it acts on
-// reaches the right one. A --flag=path value is translated the same way, and
-// anything else, a PHP namespace included, is left as it is.
+// ArgToLinux turns a Windows path argument, or the path in a --flag=path, into
+// the one lerd sees, so a file an IDE passes reaches it; anything else, a PHP
+// namespace included, is left as it is.
 func ArgToLinux(c Config, arg string) string {
 	if flag, val, ok := strings.Cut(arg, "="); ok && strings.HasPrefix(flag, "-") {
 		return flag + "=" + ArgToLinux(c, val)

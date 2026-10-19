@@ -1,10 +1,6 @@
-# Clicks through the Lerd installer (Install-Lerd.exe) in the signed-in desktop session, the way a
-# person would. run.sh starts it as an interactive scheduled task; every
-# action and the outcome go to the log it is given. Inno Setup's controls show
-# to UI Automation as plain panes, so they are found by class and driven with
-# the window messages a click or typing sends. With -Uninstall it runs the
-# uninstaller instead and answers its questions, keeping the distro unless
-# -DeleteDistro.
+# Clicks through Install-Lerd.exe, or with -Uninstall its uninstaller, in the
+# signed-in desktop session for run.sh. Inno's controls show to UI Automation as
+# plain panes, so they are found by class and clicked with window messages.
 param(
 	[string] $Setup = '',
 	[string] $Uninstall = '',

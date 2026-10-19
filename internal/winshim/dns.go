@@ -6,10 +6,9 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 )
 
-// Answer builds the reply to one DNS query: every name under tld is loopback,
-// which is where lerd's nginx listens through WSL's mirrored networking, and
-// anything else is refused. Wildcards come for free, which is the reason for
-// answering DNS at all instead of writing hosts file lines per site.
+// Answer replies to one DNS query: every name under tld is loopback, where nginx
+// listens through mirrored networking, and anything else is refused. Answering
+// DNS rather than writing hosts lines gives wildcards for free.
 func Answer(query []byte, tld string) ([]byte, error) {
 	var p dnsmessage.Parser
 	h, err := p.Start(query)

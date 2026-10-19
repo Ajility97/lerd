@@ -293,11 +293,9 @@ func dnsItem(snap *Snapshot) MenuItem {
 	}
 }
 
-// workersItem renders the worker line and reports whether it should show at
-// all. A stopped worker is normal on a paused or idle-suspended site, so the
-// alarm comes from the health endpoint's verdict, never from a raw count; with
-// nothing running and nothing broken the line stays hidden rather than
-// standing permanently red.
+// workersItem renders the worker line and whether to show it. A stopped worker
+// is normal on a paused site, so the alarm is the health verdict, not a count,
+// and with nothing running or broken the line hides rather than staying red.
 func workersItem(snap *Snapshot) (MenuItem, bool) {
 	switch down := len(snap.WorkersDown); {
 	case down == 1:

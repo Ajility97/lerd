@@ -77,13 +77,9 @@ func installWindowsSide(w io.Writer) error {
 	}
 	fmt.Fprintf(w, "  ✓ lerd.exe installed in %s and on your Windows PATH\n", winDir)
 
-	// With the Lerd desktop app registered as the lerd:// handler, the app
-	// starts the agent at login, itself started from Program Files. An
-	// unsigned exe registered under Run from PowerShell and started through a
-	// headless conhost reads to Windows Defender as malware making itself
-	// persistent, and it has quarantined lerd.exe for exactly that. The running
-	// agent exits on its own now that the config is rewritten, and the app
-	// starts it again.
+	// The desktop app starts the agent when installed: an unsigned exe put under
+	// Run from PowerShell reads to Defender as malware making itself persistent,
+	// and it quarantined lerd.exe for that. The old agent exits on the new config.
 	if desktopnotify.AppInstalled() {
 		if _, err := powershell(agentHandOverScript()); err != nil {
 			return fmt.Errorf("handing the lerd agent to the desktop app: %w", err)
@@ -224,10 +220,9 @@ func nrptPresentScript(tld string) string {
 	return fmt.Sprintf(`if (Get-DnsClientNrptRule | Where-Object { $_.Namespace -contains '.%s' -and $_.NameServers -contains '127.0.0.1' }) { 'yes' } else { 'no' }`, tld)
 }
 
-// addNRPTRule adds the rule sending tld to the agent. Run from an elevated
-// process (the installer) it adds and checks in one call; otherwise it goes
-// through UAC and waits for the rule, since removing an old one alone can take
-// ten seconds.
+// addNRPTRule adds the rule sending tld to the agent, in one call when already
+// elevated; otherwise through UAC, then waiting, since removing an old rule
+// alone can take ten seconds.
 func addNRPTRule(w io.Writer, tld string) error {
 	if out, _ := powershell(isElevatedScript); strings.TrimSpace(out) == "True" {
 		out, err := powershell(addNRPTScript(tld) + "\n" + nrptPresentScript(tld))
@@ -253,8 +248,6 @@ func addNRPTRule(w io.Writer, tld string) error {
 
 const isElevatedScript = `([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)`
 
-// addNRPTScript replaces rather than adds, so a rerun after a rule that landed
-// late (or a changed TLD) never leaves duplicates behind.
 // removeNRPTScript takes back lerd's rule, found by its comment, and the
 // answers Windows cached through it.
 const removeNRPTScript = `Get-DnsClientNrptRule | Where-Object { $_.Comment -eq 'lerd' } | Remove-DnsClientNrptRule -Force; Clear-DnsClientCache`
@@ -282,6 +275,8 @@ func removeNRPTRule(w io.Writer) error {
 	return nil
 }
 
+// addNRPTScript replaces rather than adds, so a rerun after a rule that landed
+// late, or a changed TLD, never leaves duplicates behind.
 func addNRPTScript(tld string) string {
 	return fmt.Sprintf(`Get-DnsClientNrptRule | Where-Object { $_.Comment -eq 'lerd' } | Remove-DnsClientNrptRule -Force
 Add-DnsClientNrptRule -Namespace '.%s' -NameServers '127.0.0.1' -Comment 'lerd'
@@ -349,11 +344,9 @@ func windowsShimNames(dir string) []string {
 	return names
 }
 
-// writeShimExes puts php.exe and its siblings beside lerd.exe, which runs the
-// shim its own name says. They are hard links to lerd.exe, or copies where the
-// disk refuses one, and a .cmd would not do: cmd.exe will not start in a
-// \\wsl.localhost folder and falls back to C:\Windows. Shims lerd no longer
-// has are dropped, and a running one is renamed away as replaceRunningExe does.
+// writeShimExes links php.exe and its siblings to lerd.exe, or copies where the
+// disk refuses; a .cmd would not do, cmd.exe refuses a \\wsl.localhost folder.
+// Shims lerd dropped go, a running one renamed away as replaceRunningExe does.
 func writeShimExes(dir string, names []string) error {
 	lerdExe := filepath.Join(dir, "lerd.exe")
 	stale, _ := filepath.Glob(filepath.Join(dir, "*.cmd"))

@@ -71,12 +71,9 @@ func call(obj dbus.BusObject, method string, args ...any) *dbus.Call {
 	return obj.CallWithContext(ctx, method, 0, args...)
 }
 
-// Supported reports whether native notifications can be delivered on this host.
-// True when a daemon already owns the well-known name (GNOME, KDE, which run it
-// as part of the session) or when the name is D-Bus activatable (mako, dunst,
-// xfce4-notifyd, which auto-start on the first Notify). False on a headless host
-// with no session bus and no daemon, so callers fall back to the browser sink.
-// Inside WSL the desktop is Windows, so notifications are Windows toasts.
+// Supported reports whether a notification daemon owns or can activate the
+// D-Bus name, or the host is WSL, where they are Windows toasts. Without either,
+// callers fall back to the browser sink.
 func Supported() bool {
 	if wsl.IsWSL() {
 		return toastSupported()

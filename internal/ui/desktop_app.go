@@ -9,18 +9,9 @@ import (
 	"github.com/geodro/lerd/internal/desktopnotify"
 )
 
-// The Lerd desktop app shows lerd's desktop notifications itself while it
-// runs. On Windows that keeps them under the app, which can open the dashboard
-// at a notification's route in its own window, rather than PowerShell toasts
-// raised from inside WSL. It listens on /api/desktop/ws, a socket of its own
-// rather than the dashboard's /api/ws: that one counts every connection as an
-// open page, which speeds up container polling and rebuilds snapshots for it,
-// and the app's listener is no page.
-//
-// lerd still decides what is raised. dispatchNotification applies the global
-// toggle, the kind preferences and the focus rule first, and only what would
-// have reached the desktop goes to the app. With no app listening, the native
-// emitter takes it as before.
+// The desktop app raises lerd's notifications itself while it listens on
+// /api/desktop/ws, its own socket, since /api/ws counts every connection as an
+// open page. dispatchNotification still filters first; with no app, native does.
 
 // desktopNotification is one notification as the app receives it.
 type desktopNotification struct {
