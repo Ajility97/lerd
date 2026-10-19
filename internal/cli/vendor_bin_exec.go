@@ -11,7 +11,6 @@ import (
 	"github.com/geodro/lerd/internal/envpass"
 	"github.com/geodro/lerd/internal/nativephp"
 	"github.com/geodro/lerd/internal/podman"
-	"golang.org/x/term"
 )
 
 // vendorBinIsPHP reports whether a composer binary should be handed to `php`.
@@ -122,7 +121,7 @@ func runVendorBinDirect(cwd, rel string, args []string) error {
 	}
 	podman.EnsurePathMounted(cwd, version)
 
-	cmd := podman.Cmd(vendorBinExecArgs(cwd, container, rel, args, term.IsTerminal(int(os.Stdin.Fd())))...)
+	cmd := podman.Cmd(vendorBinExecArgs(cwd, container, rel, args, interactiveTTY())...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	return runAndPropagate(cmd)
 }

@@ -14,7 +14,6 @@ import (
 	phpDet "github.com/geodro/lerd/internal/php"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 // NewPhpCmd returns the php command — runs PHP in the appropriate FPM container.
@@ -158,7 +157,9 @@ func RunPHPVersionCaptureEnv(cwd, version string, args []string, extraEnv []stri
 	// to /dev/stdin silently breaks is_file() checks and any script taking more
 	// than one file (issue #949).
 	var stdinReader io.Reader = os.Stdin
-	useTTY := term.IsTerminal(int(os.Stdin.Fd()))
+	// A pty only when stdout is a terminal too: a pipe would get colour codes
+	// and the pty's CRLF line endings.
+	useTTY := interactiveTTY()
 	if i := phpScriptArgIndex(args); i >= 0 && i < len(args) {
 		arg := args[i]
 		if filepath.IsAbs(arg) && !strings.HasPrefix(arg, home+"/") && arg != home && !podman.PathVisible(arg, version) {
