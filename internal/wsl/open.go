@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -120,10 +121,11 @@ func terminalDirArgs(distro, dir string) []string {
 }
 
 // terminalScriptArgs runs script through `lerd wsl:term` in a new tab on the
-// distro's own profile. wt.exe splits its command line on ';' and mangles
-// quotes, so the script travels as base64, which has neither.
-func terminalScriptArgs(distro, lerdBin, script string) []string {
-	return []string{"-w", "0", "nt", "-p", distro, "wsl.exe", "-d", distro, "--exec", lerdBin, "wsl:term", base64.RawURLEncoding.EncodeToString([]byte(script))}
+// distro's own profile, as lerd's user rather than the distro's default one.
+// wt.exe splits its command line on ';' and mangles quotes, so the script
+// travels as base64, which has neither.
+func terminalScriptArgs(distro, user, lerdBin, script string) []string {
+	return []string{"-w", "0", "nt", "-p", distro, "wsl.exe", "-d", distro, "-u", user, "--exec", lerdBin, "wsl:term", base64.RawURLEncoding.EncodeToString([]byte(script))}
 }
 
 // DecodeTerminalScript reverses the encoding terminalScriptArgs applies.
@@ -149,5 +151,9 @@ func TerminalScript(lerdBin, script string) (bin string, args []string, ok bool)
 	if err != nil {
 		return "", nil, false
 	}
-	return wt, terminalScriptArgs(Distro(), lerdBin, script), true
+	u, err := user.Current()
+	if err != nil {
+		return "", nil, false
+	}
+	return wt, terminalScriptArgs(Distro(), u.Username, lerdBin, script), true
 }

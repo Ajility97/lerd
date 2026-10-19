@@ -118,8 +118,8 @@ func TestTerminalArgs_opensATabOnTheDistroAtDir(t *testing.T) {
 // rides as base64 and comes back intact.
 func TestTerminalScriptArgs_carriesTheScriptAsBase64(t *testing.T) {
 	script := `lerd update; echo; read -rp "Press Enter" x`
-	got := terminalScriptArgs("Ubuntu", "/home/me/.local/bin/lerd", script)
-	want := []string{"-w", "0", "nt", "-p", "Ubuntu", "wsl.exe", "-d", "Ubuntu", "--exec", "/home/me/.local/bin/lerd", "wsl:term"}
+	got := terminalScriptArgs("Ubuntu", "me", "/home/me/.local/bin/lerd", script)
+	want := []string{"-w", "0", "nt", "-p", "Ubuntu", "wsl.exe", "-d", "Ubuntu", "-u", "me", "--exec", "/home/me/.local/bin/lerd", "wsl:term"}
 	if !reflect.DeepEqual(got[:len(want)], want) || len(got) != len(want)+1 {
 		t.Fatalf("terminalScriptArgs = %q", got)
 	}
