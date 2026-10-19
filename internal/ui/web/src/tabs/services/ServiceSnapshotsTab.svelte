@@ -24,8 +24,10 @@
 
   interface Props {
     svc: Service;
+    // A site to open filtered to, from a link on its page.
+    site?: string;
   }
-  let { svc }: Props = $props();
+  let { svc, site = '' }: Props = $props();
 
   onMount(loadAutoSnapshot);
   // The snapshots ride along with the engine's databases, so the tab reads the
@@ -40,7 +42,8 @@
 
   let error = $state('');
   let busy = $state('');
-  let siteFilter = $state('');
+  // svelte-ignore state_referenced_locally
+  let siteFilter = $state(site);
   let timeFilter = $state('');
   let page = $state(0);
   let showSettings = $state(false);
@@ -106,7 +109,9 @@
 
   const siteOptions = $derived([
     { value: '', label: m.snapshots_filterAllSites() },
-    ...[...new Set(rows.map((r) => r.site).filter(Boolean))].sort().map((s) => ({ value: s, label: s }))
+    ...[...new Set([...rows.map((r) => r.site), siteFilter].filter(Boolean))]
+      .sort()
+      .map((s) => ({ value: s, label: s }))
   ]);
   const timeOptions = [
     { value: '', label: m.snapshots_filterAnyTime() },
@@ -123,8 +128,17 @@
     return timeFilter === 'older' ? days > 30 : days <= Number(timeFilter);
   }
 
+  // Sites can share one database, and the Site column names only one of them,
+  // so the filter matches any site that owns the row's database.
+  function ownedBy(row: Row, site: string): boolean {
+    if (row.site === site) return true;
+    return $autoSnapshot.sites.some(
+      (s) => s.service === svc.name && s.database === row.database && s.site === site
+    );
+  }
+
   const filtered = $derived(
-    rows.filter((r) => (!siteFilter || r.site === siteFilter) && withinFilter(r.at))
+    rows.filter((r) => (!siteFilter || ownedBy(r, siteFilter)) && withinFilter(r.at))
   );
   const selectedRows = $derived(filtered.filter((r) => selected.has(r.key)));
 

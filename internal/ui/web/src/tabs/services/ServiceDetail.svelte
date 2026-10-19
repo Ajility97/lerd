@@ -14,6 +14,7 @@
   import PresetSuggestionBanner from './PresetSuggestionBanner.svelte';
   import { isServiceWorker, type Service } from '$stores/services';
   import { accessMode } from '$stores/accessMode';
+  import { routeRest } from '$stores/route';
   import { m } from '../../paraglide/messages.js';
 
   interface Props {
@@ -62,12 +63,16 @@
   // the user's tab choice sticks, falling back off any tab hidden for it. What
   // a service holds (databases, buckets) is the primary thing to look at, so
   // it beats logs as the landing tab.
+  // A route naming a tab (#services/<name>/snapshots/<site>) wins over the
+  // default, so a link from a site card lands where it points.
+  const routeParts = $derived($routeRest.split('/'));
+  const routeTab = $derived(tabs.some((t) => t.id === routeParts[1]) ? (routeParts[1] as TabId) : null);
+  const routeSite = $derived(routeTab === 'snapshots' ? decodeURIComponent(routeParts[2] ?? '') : '');
   $effect(() => {
     const fallback: TabId = hasDatabases ? 'databases' : hasEntities ? 'entities' : 'logs';
     if (svc.name !== shownService) {
       shownService = svc.name;
-      active = fallback;
-      return;
+      active = routeTab ?? fallback;
     }
     if (active === 'databases' && !hasDatabases) active = fallback;
     if (active === 'snapshots' && !hasSnapshots) active = fallback;
@@ -107,7 +112,7 @@
   {#if active === 'databases'}
     <ServiceDatabasesTab {svc} />
   {:else if active === 'snapshots'}
-    <ServiceSnapshotsTab {svc} />
+    <ServiceSnapshotsTab {svc} site={routeSite} />
   {:else if active === 'entities'}
     <ServiceEntitiesTab {svc} />
   {:else if active === 'logs'}
