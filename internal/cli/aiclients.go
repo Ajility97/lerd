@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/plugins"
 )
 
@@ -47,6 +48,7 @@ type ctxFile struct {
 	Project string
 	Global  string
 	Format  ctxFormat
+	Plugin  string // the plugin a skill belongs to, recorded when it is written
 	Content func() string
 }
 
@@ -81,6 +83,7 @@ func clientContexts(c aiClient) []ctxFile {
 			Project: path,
 			Global:  path,
 			Format:  ctxOverwrite,
+			Plugin:  p.Name,
 			Content: func() string {
 				data, _ := os.ReadFile(skill)
 				return string(data)
@@ -88,6 +91,68 @@ func clientContexts(c aiClient) []ctxFile {
 		})
 	}
 	return out
+}
+
+// staleSkillContexts is the skill of every plugin lerd wrote one for that is
+// no longer installed, so eject and refresh can still find it. Nil when the
+// installed plugins cannot be read, so a read error never removes a skill.
+func staleSkillContexts(c aiClient) []ctxFile {
+	if c.SkillsDir == "" {
+		return nil
+	}
+	list, err := plugins.Load()
+	if err != nil {
+		return nil
+	}
+	installed := map[string]bool{}
+	for _, p := range list {
+		installed[p.Name] = true
+	}
+	var out []ctxFile
+	for _, name := range writtenPluginSkills() {
+		if installed[name] {
+			continue
+		}
+		path := filepath.Join(c.SkillsDir, "lerd-"+name, "SKILL.md")
+		out = append(out, ctxFile{Project: path, Global: path, Format: ctxOverwrite, Plugin: name})
+	}
+	return out
+}
+
+// removableContexts is everything eject removes for a client: what lerd
+// writes now plus the skills of plugins removed since.
+func removableContexts(c aiClient) []ctxFile {
+	return append(clientContexts(c), staleSkillContexts(c)...)
+}
+
+// pluginSkillsFile records every plugin lerd has written a skill for. A
+// plugin's skill outlives the plugin in each project it was written to, and
+// only this record can name it once the plugin is gone.
+func pluginSkillsFile() string { return filepath.Join(config.DataDir(), "plugin-skills.json") }
+
+func writtenPluginSkills() []string {
+	var names []string
+	if data, err := os.ReadFile(pluginSkillsFile()); err == nil {
+		_ = json.Unmarshal(data, &names)
+	}
+	return names
+}
+
+func recordPluginSkill(name string) error {
+	names := writtenPluginSkills()
+	for _, n := range names {
+		if n == name {
+			return nil
+		}
+	}
+	data, err := json.Marshal(append(names, name))
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(pluginSkillsFile()), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(pluginSkillsFile(), data, 0o644)
 }
 
 // aiClients is the single source of truth for every assistant lerd integrates
@@ -312,6 +377,11 @@ func writeClientContext(path string, cx ctxFile) error {
 	}
 	if cx.Format == ctxSentinel {
 		return mergeSentinelSection(path, cx.Content())
+	}
+	if cx.Plugin != "" {
+		if err := recordPluginSkill(cx.Plugin); err != nil {
+			return fmt.Errorf("recording the %s skill: %w", cx.Plugin, err)
+		}
 	}
 	return writeIfChanged(path, []byte(cx.Content()))
 }

@@ -184,6 +184,11 @@ func writeProjectArtefacts(abs string, verbose, createMissing bool) error {
 				log("  wrote   " + cx.Project)
 			}
 		}
+		for _, cx := range staleSkillContexts(c) {
+			if changed, _ := removeClientContext(filepath.Join(abs, cx.Project), cx); changed {
+				log("  removed " + cx.Project)
+			}
+		}
 	}
 
 	if sweepLegacySharedAIMCP(abs) {
@@ -393,6 +398,12 @@ func writeGlobalContexts(home string, verbose, createMissing bool) error {
 				feedback.Note("wrote " + full)
 			}
 		}
+		for _, cx := range staleSkillContexts(c) {
+			full := globalContextPath(home, cx.Global)
+			if changed, _ := removeClientContext(full, cx); changed && verbose {
+				feedback.Note("removed " + full)
+			}
+		}
 	}
 	return nil
 }
@@ -539,7 +550,7 @@ func RemoveGlobalAISkills(home string, verbose bool) error {
 				log("  cleaned " + resolveClientConfigPath(full))
 			}
 		}
-		for _, cx := range clientContexts(c) {
+		for _, cx := range removableContexts(c) {
 			if cx.Global == "" {
 				continue
 			}
@@ -576,7 +587,7 @@ func RemoveProjectAISkills(abs string, verbose bool) error {
 				log("  cleaned " + resolveClientConfigPath(full))
 			}
 		}
-		for _, cx := range clientContexts(c) {
+		for _, cx := range removableContexts(c) {
 			if cx.Project == "" {
 				continue
 			}

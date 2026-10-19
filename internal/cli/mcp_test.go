@@ -335,6 +335,54 @@ func TestWriteProjectAISkills_writesAndRemovesPluginSkills(t *testing.T) {
 	}
 }
 
+// Eject runs after the plugin may be gone, so it cannot learn the skill to
+// remove from the plugins installed now.
+func TestRemoveProjectAISkills_removesTheSkillOfAPluginSinceRemoved(t *testing.T) {
+	isolatePlugins(t)
+	if err := plugins.Scaffold("hello", filepath.Join(plugins.Dir(), "hello")); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := WriteProjectAISkills(dir, false); err != nil {
+		t.Fatalf("WriteProjectAISkills: %v", err)
+	}
+	if err := plugins.Remove("hello"); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveProjectAISkills(dir, false); err != nil {
+		t.Fatalf("RemoveProjectAISkills: %v", err)
+	}
+	skill := filepath.Join(dir, ".claude", "skills", "lerd-hello", "SKILL.md")
+	if _, err := os.Stat(skill); !os.IsNotExist(err) {
+		t.Errorf("a removed plugin's skill must go on eject, err=%v", err)
+	}
+}
+
+// A refresh drops the skill of a plugin removed since it was written, so the
+// assistant is not told about tools that no longer exist.
+func TestWriteProjectAISkills_dropsTheSkillOfAPluginSinceRemoved(t *testing.T) {
+	isolatePlugins(t)
+	if err := plugins.Scaffold("hello", filepath.Join(plugins.Dir(), "hello")); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := WriteProjectAISkills(dir, false); err != nil {
+		t.Fatalf("WriteProjectAISkills: %v", err)
+	}
+	if err := plugins.Remove("hello"); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteProjectAISkills(dir, false); err != nil {
+		t.Fatalf("WriteProjectAISkills: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills", "lerd-hello")); !os.IsNotExist(err) {
+		t.Errorf("a removed plugin's skill must go on refresh, err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills", "lerd", "SKILL.md")); err != nil {
+		t.Errorf("lerd's own skill must stay: %v", err)
+	}
+}
+
 func TestWriteProjectAISkills_skipsUnchangedFiles(t *testing.T) {
 	dir := t.TempDir()
 	if err := WriteProjectAISkills(dir, false); err != nil {
