@@ -539,9 +539,10 @@ func BackupBinaryFile() string {
 	return filepath.Join(DataDir(), "lerd.bak")
 }
 
-// BackupTrayFile returns the path to the backup lerd-tray binary used for rollback.
-func BackupTrayFile() string {
-	return filepath.Join(DataDir(), "lerd-tray.bak")
+// BackupCompanionFile returns the rollback backup of a binary shipped beside
+// lerd, such as lerd-tray.
+func BackupCompanionFile(name string) string {
+	return filepath.Join(DataDir(), name+".bak")
 }
 
 // BackupVersionFile returns the path to the file storing the pre-update version string.

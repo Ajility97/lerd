@@ -75,6 +75,11 @@ func LinuxPath(winPath, distro string) (string, bool) {
 	return "", false
 }
 
+// UNCPath is the \\wsl.localhost path Windows reaches a distro's path by.
+func UNCPath(distro, linuxPath string) string {
+	return `\\wsl.localhost\` + distro + strings.ReplaceAll(linuxPath, "/", `\`)
+}
+
 // WSLArgs builds wsl.exe's arguments to run lerd in cwd. A folder inside the
 // distro is translated here rather than trusting wsl.exe to map a UNC path; a
 // drive path is left for wsl.exe, which maps C:\ to /mnt/c itself.
@@ -105,7 +110,27 @@ func ShimArgs(c Config, cwd, name string, args []string) ([]string, error) {
 	return wslArgs(c, cwd, path.Join(c.Shims, name), args), nil
 }
 
+// DriveShare names the share a drive letter such as "Z:" is mapped to, "" for
+// a local drive. cmd's pushd maps one to enter a \\wsl.localhost folder,
+// which cmd cannot sit in; lerd.exe sets it from the Windows API.
+var DriveShare = func(drive string) string { return "" }
+
+// unmapDrive turns a path on a mapped drive back into the share path, which
+// wsl.exe can translate and the mapped drive it cannot.
+func unmapDrive(p string) string {
+	m := drivePath.FindStringSubmatch(p)
+	if m == nil {
+		return p
+	}
+	share := DriveShare(strings.ToUpper(m[1]) + ":")
+	if share == "" {
+		return p
+	}
+	return strings.TrimRight(share, `\`) + `\` + p[3:]
+}
+
 func wslArgs(c Config, cwd, exe string, args []string) []string {
+	cwd = unmapDrive(cwd)
 	if p, ok := LinuxPath(cwd, c.Distro); ok {
 		cwd = p
 	}
@@ -133,6 +158,7 @@ func ArgToLinux(c Config, arg string) string {
 	if flag, val, ok := strings.Cut(arg, "="); ok && strings.HasPrefix(flag, "-") {
 		return flag + "=" + ArgToLinux(c, val)
 	}
+	arg = unmapDrive(arg)
 	if p, ok := LinuxPath(arg, c.Distro); ok {
 		return p
 	}

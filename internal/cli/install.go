@@ -3,6 +3,7 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"github.com/geodro/lerd/internal/wsl"
 	"io"
 	"os"
 	"os/exec"
@@ -1025,6 +1026,11 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 	if err := shims.Reconcile(clientShimPrompter()); err != nil {
 		fmt.Printf("    WARN: %v\n", err)
+	}
+	if wsl.IsWSL() {
+		if err := refreshWindowsSide(); err != nil {
+			fmt.Printf("    WARN: Windows side: %v\n", err)
+		}
 	}
 	ok()
 	noteShadowedComposer()

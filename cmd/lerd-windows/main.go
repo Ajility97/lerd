@@ -35,6 +35,7 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
+	winshim.DriveShare = driveShare
 	if shim != "" {
 		args, err := winshim.ShimArgs(cfg, cwd, shim, os.Args[1:])
 		if err != nil {
@@ -98,6 +99,7 @@ func agent(cfg winshim.Config, confPath string) error {
 		}
 	}
 	go boot()
+	go mirrorShims(cfg, filepath.Dir(confPath))
 	// Another program can hold port 53 for a while; the agent keeps trying
 	// rather than staying alive and silent, which the desktop app would not
 	// restart since the process has not exited.
@@ -120,17 +122,42 @@ func agent(cfg winshim.Config, confPath string) error {
 	}
 }
 
+// lerdUp reports lerd-ui answering, which means the distro is running.
+func lerdUp() bool {
+	c, err := net.DialTimeout("tcp", "127.0.0.1:7073", 500*time.Millisecond)
+	if err == nil {
+		c.Close()
+	}
+	return err == nil
+}
+
+// mirrorShims keeps a .exe twin beside lerd.exe for each of lerd's shims, so a
+// client tool a service adds later, psql say, runs from Windows too. It reads
+// them only while lerd is up, so it never boots the distro itself.
+func mirrorShims(cfg winshim.Config, dir string) {
+	if cfg.Shims == "" {
+		return
+	}
+	src := winshim.UNCPath(cfg.Distro, cfg.Shims)
+	for {
+		if lerdUp() {
+			names, err := winshim.ShimNames(src)
+			if err == nil {
+				err = winshim.SyncTwins(dir, names)
+			}
+			if err != nil {
+				log.Printf("mirroring shims: %v", err)
+			}
+		}
+		time.Sleep(30 * time.Second)
+	}
+}
+
 // serveDNS answers *.<tld> on 127.0.0.1:53, where the NRPT rule sends it, and
 // boots the distro again when a site is looked up while lerd is down.
 func serveDNS(cfg winshim.Config, boot func()) error {
 	waker := &winshim.Waker{
-		Alive: func() bool {
-			c, err := net.DialTimeout("tcp", "127.0.0.1:7073", 500*time.Millisecond)
-			if err == nil {
-				c.Close()
-			}
-			return err == nil
-		},
+		Alive: lerdUp,
 		Boot: func() {
 			log.Printf("a site was looked up while lerd was down, booting %s", cfg.Distro)
 			boot()

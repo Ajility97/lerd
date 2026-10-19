@@ -9,3 +9,5 @@ import "os"
 func redirectStderr(*os.File) {}
 
 func claimAgent() bool { return true }
+
+func driveShare(string) string { return "" }

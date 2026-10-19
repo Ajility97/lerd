@@ -211,3 +211,33 @@ func TestWSLArgs_RunsAsTheSetupUser(t *testing.T) {
 		t.Errorf("user= did not round-trip: %+v %v", parsed, err)
 	}
 }
+
+// cmd cannot sit in a \\wsl.localhost folder, so its pushd maps a drive letter
+// to the share; lerd.exe must reach the distro folder behind it.
+func TestWSLArgs_MappedDriveFromPushd(t *testing.T) {
+	prev := DriveShare
+	DriveShare = func(drive string) string {
+		if drive == "Z:" {
+			return `\\wsl.localhost\Ubuntu-24.04`
+		}
+		return ""
+	}
+	t.Cleanup(func() { DriveShare = prev })
+	c := Config{Distro: "Ubuntu-24.04", Lerd: "/home/me/.local/bin/lerd"}
+
+	got := WSLArgs(c, `Z:\home\me\app`, []string{`z:\home\me\app\t.php`, `C:\t.php`})
+	want := []string{"-d", "Ubuntu-24.04", "--cd", "/home/me/app", "--exec", "/home/me/.local/bin/lerd", "/home/me/app/t.php", "/mnt/c/t.php"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("WSLArgs = %q, want %q", got, want)
+	}
+}
+
+func TestUNCPath_RoundTrips(t *testing.T) {
+	got := UNCPath("Ubuntu-24.04", "/home/me/.local/share/lerd/bin")
+	if got != `\\wsl.localhost\Ubuntu-24.04\home\me\.local\share\lerd\bin` {
+		t.Fatalf("UNCPath = %q", got)
+	}
+	if back, ok := LinuxPath(got, "Ubuntu-24.04"); !ok || back != "/home/me/.local/share/lerd/bin" {
+		t.Errorf("LinuxPath(UNCPath) = %q, %v", back, ok)
+	}
+}

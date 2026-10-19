@@ -65,7 +65,7 @@ func installWindowsSide(w io.Writer) error {
 	if err := os.WriteFile(filepath.Join(dir, winshim.ConfigName), []byte(cfg.String()), 0o644); err != nil {
 		return err
 	}
-	if err := writeShimExes(dir, windowsShimNames(config.BinDir())); err != nil {
+	if err := syncShimTwins(dir); err != nil {
 		return err
 	}
 	winDir, err := windowsPath(dir)
@@ -137,10 +137,16 @@ func parkedWindowsPaths() []string {
 // quickAccess is Explorer's Quick access folder, where pintohome puts a pin.
 const quickAccess = `shell:::{679f85cb-0220-4080-b29b-5540cc05aab6}`
 
+// psQuote is s as a PowerShell single-quoted literal, so a profile folder
+// such as C:\Users\O'Brien cannot end the string early.
+func psQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
+
 func psList(items []string) string {
 	quoted := make([]string, len(items))
 	for i, it := range items {
-		quoted[i] = "'" + strings.ReplaceAll(it, "'", "''") + "'"
+		quoted[i] = psQuote(it)
 	}
 	return "@(" + strings.Join(quoted, ",") + ")"
 }
@@ -162,6 +168,42 @@ foreach ($d in %s) {
 func unpinFoldersScript(dirs []string) string {
 	return fmt.Sprintf(`$sh = New-Object -ComObject Shell.Application
 $sh.Namespace('%s').Items() | Where-Object { %s -contains $_.Path } | ForEach-Object { $_.InvokeVerb('unpinfromhome') }`, quickAccess, psList(dirs))
+}
+
+// syncShimTwins gives each of lerd's shims a .exe twin in dir, the Windows
+// side's bin folder.
+func syncShimTwins(dir string) error {
+	names, err := winshim.ShimNames(config.BinDir())
+	if err != nil {
+		return err
+	}
+	return winshim.SyncTwins(dir, names)
+}
+
+// refreshWindowsSide brings a Windows side wsl:setup installed up to this lerd,
+// for an update or a reinstall: its lerd.exe and the shims' twins. The config
+// stays, since rewriting it stops the agent and only wsl:setup starts it again.
+func refreshWindowsSide() error {
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	exe, err := os.ReadFile(filepath.Join(filepath.Dir(self), "lerd.exe"))
+	if err != nil {
+		return nil // a build without its Windows side; wsl:setup says so
+	}
+	local, err := windowsEnvPath("LOCALAPPDATA")
+	if err != nil {
+		return err
+	}
+	dir := filepath.Join(local, "lerd", "bin")
+	if _, err := os.Stat(filepath.Join(dir, winshim.ConfigName)); err != nil {
+		return nil // never set up
+	}
+	if err := replaceRunningExe(filepath.Join(dir, "lerd.exe"), exe); err != nil {
+		return err
+	}
+	return syncShimTwins(dir)
 }
 
 // replaceRunningExe writes exe to path even while the old one runs: Windows
@@ -198,22 +240,22 @@ func agentScript(winDir string) string {
 	return fmt.Sprintf(`$ErrorActionPreference = 'Stop'
 $k = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 if (-not (Test-Path $k)) { New-Item -Path $k | Out-Null }
-Set-ItemProperty -Path $k -Name 'lerd' -Value '%s'
+Set-ItemProperty -Path $k -Name 'lerd' -Value %s
 # The config was just rewritten, which makes a running agent exit within
 # seconds; wait for it so the new one can take port 53.
 for ($i = 0; $i -lt 10; $i++) {
   if (-not (Get-CimInstance Win32_Process -Filter "name='lerd.exe'" | Where-Object { $_.CommandLine -like '*--agent*' })) { break }
   Start-Sleep 1
 }
-Start-Process conhost.exe -ArgumentList '--headless','"%s\lerd.exe"','--agent' -WindowStyle Hidden`, agentRunValue(winDir), winDir)
+Start-Process conhost.exe -ArgumentList '--headless',%s,'--agent' -WindowStyle Hidden`, psQuote(agentRunValue(winDir)), psQuote(`"`+winDir+`\lerd.exe"`))
 }
 
 func addToUserPathScript(winDir string) string {
-	return fmt.Sprintf(`$d = '%s'
+	return fmt.Sprintf(`$d = %s
 $p = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (($p -split ';') -notcontains $d) {
   [Environment]::SetEnvironmentVariable('Path', (($p.TrimEnd(';'), $d) -join ';').TrimStart(';'), 'User')
-}`, winDir)
+}`, psQuote(winDir))
 }
 
 func nrptPresentScript(tld string) string {
@@ -293,8 +335,13 @@ func elevated(script string) string {
 // progress ("Preparing modules for first use") as CLIXML on stderr, which
 // would otherwise land in the middle of an answer like "yes".
 func powershell(script string) (string, error) {
+	// By its path: a systemd unit or an SSH session has no Windows PATH.
+	ps := wsl.PowerShell()
+	if ps == "" {
+		return "", fmt.Errorf("powershell.exe not found")
+	}
 	var stderr bytes.Buffer
-	cmd := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand",
+	cmd := exec.Command(ps, "-NoProfile", "-NonInteractive", "-EncodedCommand",
 		wsl.EncodePowerShell("$ProgressPreference = 'SilentlyContinue'\n"+script))
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
@@ -319,63 +366,6 @@ func windowsEnvPath(name string) (string, error) {
 		return "", fmt.Errorf("wslpath: %w", err)
 	}
 	return strings.TrimSpace(string(p)), nil
-}
-
-// windowsShimNames lists the shims in dir that get a .exe twin on Windows: the
-// shell scripts lerd writes, not the binaries and version stamps beside them.
-func windowsShimNames(dir string) []string {
-	entries, _ := os.ReadDir(dir)
-	var names []string
-	for _, e := range entries {
-		if e.IsDir() || strings.Contains(e.Name(), ".") {
-			continue
-		}
-		f, err := os.Open(filepath.Join(dir, e.Name()))
-		if err != nil {
-			continue
-		}
-		head := make([]byte, 2)
-		n, _ := f.Read(head)
-		f.Close()
-		if string(head[:n]) == "#!" {
-			names = append(names, e.Name())
-		}
-	}
-	return names
-}
-
-// writeShimExes links php.exe and its siblings to lerd.exe, or copies where the
-// disk refuses; a .cmd would not do, cmd.exe refuses a \\wsl.localhost folder.
-// Shims lerd dropped go, a running one renamed away as replaceRunningExe does.
-func writeShimExes(dir string, names []string) error {
-	lerdExe := filepath.Join(dir, "lerd.exe")
-	stale, _ := filepath.Glob(filepath.Join(dir, "*.cmd"))
-	exes, _ := filepath.Glob(filepath.Join(dir, "*.exe"))
-	for _, f := range exes {
-		if f != lerdExe {
-			stale = append(stale, f)
-		}
-	}
-	for _, f := range stale {
-		if os.Remove(f) != nil {
-			os.Remove(f + ".old")  //nolint:errcheck
-			os.Rename(f, f+".old") //nolint:errcheck // still running; the next setup clears it
-		}
-	}
-	for _, name := range names {
-		dst := filepath.Join(dir, name+".exe")
-		if os.Link(lerdExe, dst) == nil {
-			continue
-		}
-		b, err := os.ReadFile(lerdExe)
-		if err != nil {
-			return err
-		}
-		if err := os.WriteFile(dst, b, 0o755); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // mountRoot is where WSL mounts Windows drives, given wslpath's answer for C:\.
@@ -437,7 +427,7 @@ Get-Process -Name lerd-desktop -ErrorAction SilentlyContinue | Stop-Process -For
 Remove-Item -Path 'HKCU:\Software\Classes\lerd' -Recurse -ErrorAction SilentlyContinue
 Remove-Item -Path (Join-Path ([Environment]::GetFolderPath('Programs')) 'Lerd.lnk') -ErrorAction SilentlyContinue
 Remove-Item -Path 'HKCU:\Software\Classes\AppUserModelId\%s' -Recurse -ErrorAction SilentlyContinue
-$d = '%s'
+$d = %s
 $p = [Environment]::GetEnvironmentVariable('Path', 'User')
-[Environment]::SetEnvironmentVariable('Path', (($p -split ';') | Where-Object { $_ -and $_ -ne $d }) -join ';', 'User')`, desktopnotify.ToastAppID, winBin)
+[Environment]::SetEnvironmentVariable('Path', (($p -split ';') | Where-Object { $_ -and $_ -ne $d }) -join ';', 'User')`, desktopnotify.ToastAppID, psQuote(winBin))
 }
