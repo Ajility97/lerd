@@ -19,6 +19,7 @@ type stubTray struct {
 	mu      sync.Mutex
 	ran     [][]string
 	updates int
+	fresh   bool
 	toasts  []desktopnotify.Request
 	err     error
 }
@@ -26,7 +27,7 @@ type stubTray struct {
 func useStubTray(t *testing.T, snap *tray.Snapshot) *stubTray {
 	t.Helper()
 	s := &stubTray{}
-	prevMenu, prevRun, prevUpdate := readTrayMenu, runTrayCommand, openTrayUpdate
+	prevMenu, prevRun, prevUpdate, prevAvailable := readTrayMenu, runTrayCommand, openTrayUpdate, trayUpdateAvailable
 	prevEmit, prevSupported := emitDesktopNotification, desktopSupported
 	readTrayMenu = func() tray.Menu { return tray.BuildMenu(snap, tray.MenuOptions{LANToggle: true}) }
 	runTrayCommand = func(args []string) (string, error) {
@@ -39,6 +40,7 @@ func useStubTray(t *testing.T, snap *tray.Snapshot) *stubTray {
 		return "", nil
 	}
 	openTrayUpdate = func() error { s.updates++; return nil }
+	trayUpdateAvailable = func() bool { return s.fresh }
 	emitDesktopNotification = func(r desktopnotify.Request) (uint32, error) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -47,7 +49,7 @@ func useStubTray(t *testing.T, snap *tray.Snapshot) *stubTray {
 	}
 	desktopSupported = func() bool { return true }
 	t.Cleanup(func() {
-		readTrayMenu, runTrayCommand, openTrayUpdate = prevMenu, prevRun, prevUpdate
+		readTrayMenu, runTrayCommand, openTrayUpdate, trayUpdateAvailable = prevMenu, prevRun, prevUpdate, prevAvailable
 		emitDesktopNotification, desktopSupported = prevEmit, prevSupported
 	})
 	return s
@@ -168,6 +170,16 @@ func TestHandleTrayAction_UpToDateOnlySaysSo(t *testing.T) {
 	resp := decodeTrayAction(t, postTrayAction(tray.ActionUpdate))
 	if s.updates != 0 || !resp.OK || resp.Title != "Lerd is up to date" {
 		t.Errorf("updates = %d, response = %+v", s.updates, resp)
+	}
+}
+
+func TestHandleTrayAction_UpdateAsksPastTheCachedAnswer(t *testing.T) {
+	s := useStubTray(t, trayTestSnapshot())
+	s.fresh = true
+
+	postTrayAction(tray.ActionUpdate)
+	if s.updates != 1 {
+		t.Errorf("updates = %d; a release the cached menu missed must still open the update", s.updates)
 	}
 }
 

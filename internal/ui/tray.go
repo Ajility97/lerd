@@ -13,6 +13,8 @@ import (
 	"github.com/geodro/lerd/internal/cli"
 	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/tray"
+	lerdUpdate "github.com/geodro/lerd/internal/update"
+	"github.com/geodro/lerd/internal/version"
 )
 
 // trayGet answers the tray's API reads in process, from the handlers a tray
@@ -47,6 +49,11 @@ var (
 			self = "lerd"
 		}
 		return openTerminalCommand(buildUpdateScript(self))
+	}
+	// The menu's answer is up to a day old, and the user asked for a live one.
+	trayUpdateAvailable = func() bool {
+		info, _ := lerdUpdate.ForceUpdateCheck(version.Version)
+		return info != nil
 	}
 )
 
@@ -92,7 +99,7 @@ func handleTrayAction(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if item.Action == tray.ActionUpdate {
-		if menu.LatestVersion == "" {
+		if menu.LatestVersion == "" && !trayUpdateAvailable() {
 			writeJSON(w, trayActionResult{OK: true, Title: "Lerd is up to date"})
 			return
 		}
