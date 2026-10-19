@@ -336,6 +336,12 @@ func jsPackageManager(projectPath string) (name string, args []string) {
 	return jsManagerFor(func(f string) bool { return hasFile(projectPath, f) })
 }
 
+// LookJSBin finds a JS package manager's binary, including the install dirs a
+// daemon's restricted PATH leaves out.
+func LookJSBin(name string) (string, bool) {
+	return lookJSBin(name)
+}
+
 // jsManagerFor picks the manager from which lockfiles has reports present.
 // Preference order mirrors each manager's lockfile being definitive:
 // pnpm-lock.yaml ▸ yarn.lock ▸ bun.lock(b) ▸ npm lockfile ▸ npm as fallback.
@@ -469,7 +475,9 @@ func lookJSBin(name string) (string, bool) {
 	if p, err := exec.LookPath(name); err == nil {
 		return p, true
 	}
-	for _, dir := range osToolDirs() {
+	// lerd's bin dir holds the shims for npm globals, pnpm and yarn among them,
+	// and is not on a daemon's PATH.
+	for _, dir := range append([]string{config.BinDir()}, osToolDirs()...) {
 		candidate := filepath.Join(dir, name)
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
 			return candidate, true

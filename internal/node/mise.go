@@ -66,8 +66,9 @@ func (m miseManager) Available() bool { return m.bin != "" }
 
 // tool is the mise selector for a Node version: "node@22", or bare "node" when
 // there is no usable pin, so mise resolves what its own config asks for.
+// "default" is fnm's alias and names no version mise has.
 func miseTool(version string) string {
-	if v := SafeVersion(version); v != "" {
+	if v := SafeVersion(version); v != "" && v != "default" {
 		return "node@" + v
 	}
 	return "node"

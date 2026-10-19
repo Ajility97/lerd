@@ -1,6 +1,6 @@
 # Lerd
 
-> Open-source Herd-like local PHP development environment for Linux and macOS,
+> Open-source local PHP development environment for Linux and macOS,
 > with Windows supported via WSL2 (beta). Podman-native, rootless, with a
 > built-in Web UI.
 
@@ -12,6 +12,10 @@
 [![Reddit](https://img.shields.io/badge/Reddit-r%2Flerd-ff2d20?logo=reddit)](https://reddit.com/r/lerd)
 [![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/5JK54s7xCC)
 
+**Sponsored by**
+
+<a href="https://www.jetbrains.com/phpstorm/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/lerd-env/lerd/main/docs/public/assets/sponsors/phpstorm-dark.svg"><img src="https://raw.githubusercontent.com/lerd-env/lerd/main/docs/public/assets/sponsors/phpstorm.svg" height="48" alt="JetBrains PhpStorm"></picture></a>
+
 https://github.com/user-attachments/assets/707ca4cc-7eef-4285-b7bf-fdeb37f61458
 
 Lerd runs Nginx, PHP-FPM, and your services as rootless [Podman](https://podman.io) containers,
@@ -19,9 +23,9 @@ designed for PHP developers on Linux and macOS, and on Windows through WSL2 (bet
 No Docker. No sudo. No system pollution. Just `lerd link` and your project
 is live at `project.test` with HTTPS.
 
-## Built for Linux PHP developers
+## Built for PHP developers on Linux and macOS
 
-Lerd is built for PHP developers on Linux who want frictionless local development: automatic `.test` domains, per-project PHP versions, one-click HTTPS, zero Docker. Works with Laravel, Symfony, WordPress, Drupal, Magento, CakePHP, Statamic, Yii, and any custom PHP framework.
+Lerd is built for PHP developers who want frictionless local development, on a Linux desktop, a Mac, or Windows through WSL2 (beta): automatic `.test` domains, per-project PHP versions, one-click HTTPS, zero Docker. Works with Laravel, Symfony, WordPress, Drupal, Magento, CakePHP, Statamic, Yii, and any custom PHP framework.
 
 ## Features
 
@@ -42,7 +46,7 @@ Lerd is built for PHP developers on Linux who want frictionless local developmen
 ### PHP, Node and runtimes
 
 - 🐘 **Per-project PHP version.** 8.1 to 8.5, a frozen 7.4 / 8.0 legacy tier and 8.6 as a prerelease nothing picks for you, switched with one click. Custom extensions and Alpine packages are declared once for every image lerd builds, and the ODBC stack ships in all of them.
-- ⚡ **PHP on the host, on macOS** (beta). A native runtime runs PHP-FPM, the CLI, composer and the workers on the host, removing the bind-mount boundary a Mac pays on every file PHP reads: a Laravel app with Horizon and Filament went from 62 requests per second to 238. Containers stay the default.
+- ⚡ **PHP on the host, on macOS**. A native runtime runs PHP-FPM, the CLI, composer and the workers on the host, removing the bind-mount boundary a Mac pays on every file PHP reads: a Laravel app with Horizon and Filament went from 62 requests per second to 238. Containers stay the default.
 
 - ⚡ **FrankenPHP runtime.** Per site, as an alternative to shared PHP-FPM, with Laravel Octane and Symfony Runtime worker mode.
 
@@ -139,16 +143,21 @@ Twelve grouped tools, each driven by an `action`: `site`, `service`, `db`, `env`
 
 ## Why Lerd?
 
-|                    | Lerd | DDEV | Lando | Laravel Herd | Laragon |
-|--------------------|------|------|-------|--------------|---------|
-| Podman-native      | ✅   | 🟡   | ❌    | ❌           | ❌      |
-| Rootless           | ✅   | ❌   | ❌    | ✅           | ❌      |
-| Web UI             | ✅   | ❌   | ❌    | ✅           | ❌      |
-| Terminal dashboard | ✅   | ❌   | ❌    | ❌           | ❌      |
-| Linux              | ✅   | ✅   | ✅    | ❌           | ❌      |
-| macOS              | ✅   | ✅   | ✅    | ✅           | ❌      |
-| Windows            | 🧪   | ✅   | ✅    | ✅           | ✅      |
-| MCP server         | ✅   | ❌   | ❌    | ✅           | ❌      |
+|                         | Lerd | Laravel Herd | Laragon | DDEV | Lando | Sail |
+|-------------------------|------|--------------|---------|------|-------|------|
+| Linux                   | ✅   | ❌           | ❌      | ✅   | ✅    | ✅   |
+| macOS                   | ✅   | ✅           | ❌      | ✅   | ✅    | ✅   |
+| Windows                 | 🧪   | ✅           | ✅      | ✅   | ✅    | ✅   |
+| Podman-native           | ✅   | ❌           | ❌      | 🟡   | ❌    | ❌   |
+| Rootless                | ✅   | ✅           | ❌      | ❌   | ❌    | ❌   |
+| Open source             | ✅   | ❌           | ❌      | ✅   | ✅    | ✅   |
+| Free, no paid tier      | ✅   | ❌           | ❌      | ✅   | ✅    | ✅   |
+| Zero per-project config | ✅   | ✅           | ✅      | ❌   | ❌    | ❌   |
+| Git worktrees as sites  | ✅   | ❌           | ❌      | ❌   | ❌    | ❌   |
+| Web UI                  | ✅   | ✅           | ❌      | ❌   | ❌    | ❌   |
+| Terminal dashboard      | ✅   | ❌           | ❌      | ❌   | ❌    | ❌   |
+| Profiler & debug window | ✅   | ✅           | ❌      | ❌   | ❌    | ❌   |
+| MCP server              | ✅   | ✅           | ❌      | ❌   | ❌    | ❌   |
 
 🟡 DDEV runs on Docker by default and can also use Podman as an alternative runtime; Lerd is built exclusively for rootless Podman.
 
@@ -322,7 +331,11 @@ lerd service preset pgadmin             # install a store-only preset
 
 Lerd is free and open source, kept going by the people and companies who sponsor it. [Become a sponsor](https://github.com/sponsors/geodro).
 
+Using Lerd across a team? Commercial support is available, covering onboarding, priority fixes and help with your stack. Get in touch at [george@dumitres.co](mailto:george@dumitres.co).
+
 ### Companies
+
+<a href="https://www.jetbrains.com/phpstorm/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/lerd-env/lerd/main/docs/public/assets/sponsors/phpstorm-dark.svg"><img src="https://raw.githubusercontent.com/lerd-env/lerd/main/docs/public/assets/sponsors/phpstorm.svg" height="48" alt="JetBrains PhpStorm"></picture></a>
 
 <a href="https://www.motional.io"><img src="https://avatars.githubusercontent.com/u/34476080?s=120&v=4" width="60" alt="Motional"></a>
 

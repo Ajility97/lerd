@@ -14,7 +14,7 @@ const SOFTWARE_VERSION = readFileSync(VERSION_GO, 'utf8').match(/Version\s*=\s*"
 
 export default defineConfig({
   title: 'Lerd',
-  description: 'Open-source, Herd-like local PHP development for Linux and macOS. Automatic .test domains, HTTPS, per-project PHP and Node, rootless Podman, no Docker daemon.',
+  description: 'Open-source local PHP development for Linux, macOS and Windows (WSL2). Automatic .test domains, HTTPS, per-project PHP and Node, rootless Podman, no Docker daemon.',
   base: '/',
   lang: 'en-US',
   cleanUrls: true,
@@ -34,10 +34,10 @@ export default defineConfig({
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/assets/logo.svg' }],
 
-    // Display fonts for the home page hero (Archivo + JetBrains Mono)
+    // Instrument Sans and JetBrains Mono, the landing page's and the docs' type
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
-    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap' }],
+    ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap' }],
 
     ['meta', { name: 'theme-color', content: '#FF2D20' }],
 
@@ -67,9 +67,9 @@ export default defineConfig({
             '@type': 'SoftwareApplication',
             name: 'Lerd',
             applicationCategory: 'DeveloperApplication',
-            operatingSystem: 'Linux, macOS',
+            operatingSystem: 'Linux, macOS, Windows (WSL2)',
             description:
-              'Open-source, Herd-like local PHP development environment for Linux and macOS: automatic .test domains and HTTPS, per-project PHP 7.4–8.5 and Node, rootless Podman, a built-in Web UI, and an MCP server for AI agents. No Docker daemon, no sudo.',
+              'Open-source local PHP development environment for Linux, macOS and Windows (WSL2): automatic .test domains and HTTPS, per-project PHP 7.4–8.5 and Node, rootless Podman, a built-in Web UI, and an MCP server for AI agents. No Docker daemon, no sudo.',
             keywords:
               'local PHP development, Laravel Herd for Linux, Laragon for Linux, Laragon alternative Linux, .test domains, rootless Podman, PHP-FPM, local development environment',
             url: SITE_URL,
@@ -85,7 +85,7 @@ export default defineConfig({
             name: 'Lerd',
             url: SITE_URL,
             description:
-              'Documentation and downloads for Lerd, the open-source local PHP development environment for Linux and macOS.',
+              'Documentation and downloads for Lerd, the open-source local PHP development environment for Linux, macOS and Windows (WSL2).',
           },
         ],
       }),

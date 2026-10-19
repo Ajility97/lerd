@@ -10,6 +10,7 @@ import (
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/envfile"
+	"github.com/geodro/lerd/internal/node"
 )
 
 func writeEnv(t *testing.T, dir, name, body string) {
@@ -502,6 +503,179 @@ func TestParseNpmAudit(t *testing.T) {
 	// Finding #10: a warning line after the JSON payload must still parse.
 	if n := parseNpmAudit("{\"metadata\":{\"vulnerabilities\":{\"total\":2}}}\nnpm warn deprecated foo\n"); n != 2 {
 		t.Errorf("trailing warning after JSON: got %d, want 2", n)
+	}
+}
+
+// bun audit maps each vulnerable package to its advisories, and bun prints its
+// .env line on stderr, which runCapture folds in ahead of the payload.
+func TestParseBunAudit(t *testing.T) {
+	two := "[4.80ms] \".env\"\n" + `{"lodash":[{"id":1,"severity":"high"},{"id":2,"severity":"moderate"}],"minimist":[{"id":3,"severity":"critical"}]}`
+	if n := parseBunAudit(two); n != 2 {
+		t.Errorf("two vulnerable packages: got %d, want 2", n)
+	}
+	if n := parseBunAudit("{}"); n != 0 {
+		t.Errorf("clean: got %d, want 0", n)
+	}
+	if n := parseBunAudit("error: No lockfile was found"); n != -1 {
+		t.Errorf("no lockfile: got %d, want -1, a 0 would be a false all-clear", n)
+	}
+}
+
+// pnpm lists advisories, several per package; it is the packages that count.
+// Without its metadata block the audit never ran, as with no lockfile.
+func TestParsePnpmAudit(t *testing.T) {
+	two := `{"actions":[],"advisories":{"1":{"module_name":"minimist"},"2":{"module_name":"lodash"},"3":{"module_name":"lodash"}},"muted":[],"metadata":{"vulnerabilities":{"moderate":2,"critical":1}}}`
+	if n := parsePnpmAudit(two, 1); n != 2 {
+		t.Errorf("two vulnerable packages: got %d, want 2", n)
+	}
+	if n := parsePnpmAudit(`{"actions":[],"advisories":{},"muted":[],"metadata":{"vulnerabilities":{"info":0}}}`, 0); n != 0 {
+		t.Errorf("clean: got %d, want 0", n)
+	}
+	if n := parsePnpmAudit(`{"error":{"code":"ERR_PNPM_AUDIT_NO_LOCKFILE"}}`, 1); n != -1 {
+		t.Errorf("no lockfile: got %d, want -1", n)
+	}
+}
+
+// Yarn 1 prints a line per advisory and closes with a summary; no summary means
+// the audit did not finish.
+func TestParseYarnClassicAudit(t *testing.T) {
+	two := `{"type":"auditAdvisory","data":{"advisory":{"module_name":"minimist"}}}
+{"type":"auditAdvisory","data":{"advisory":{"module_name":"lodash"}}}
+{"type":"auditAdvisory","data":{"advisory":{"module_name":"lodash"}}}
+{"type":"auditSummary","data":{"vulnerabilities":{"critical":1}}}`
+	if n := parseYarnClassicAudit(two, 28); n != 2 {
+		t.Errorf("two vulnerable packages: got %d, want 2", n)
+	}
+	if n := parseYarnClassicAudit(`{"type":"auditSummary","data":{"vulnerabilities":{"info":0}}}`, 0); n != 0 {
+		t.Errorf("clean: got %d, want 0", n)
+	}
+	if n := parseYarnClassicAudit(`{"type":"error","data":"Couldn't reach the registry"}`, 1); n != -1 {
+		t.Errorf("no summary: got %d, want -1", n)
+	}
+}
+
+// Yarn 2 and later print a line per advisory and nothing at all when clean, so
+// only a successful exit makes an empty answer a clean one.
+func TestParseYarnBerryAudit(t *testing.T) {
+	two := `{"value":"lodash","children":{"ID":1,"Severity":"high"}}
+{"value":"lodash","children":{"ID":2,"Severity":"moderate"}}
+{"value":"minimist","children":{"ID":3,"Severity":"critical"}}`
+	if n := parseYarnBerryAudit(two, 1); n != 2 {
+		t.Errorf("two vulnerable packages: got %d, want 2", n)
+	}
+	if n := parseYarnBerryAudit("", 0); n != 0 {
+		t.Errorf("clean: got %d, want 0", n)
+	}
+	if n := parseYarnBerryAudit("➤ YN0035: The remote server failed to provide the requested resource", 1); n != -1 {
+		t.Errorf("failed run: got %d, want -1", n)
+	}
+}
+
+// Each project is audited by the manager its lockfile belongs to, the same one
+// lerd installs it with.
+func TestNodeAuditorFor(t *testing.T) {
+	cases := []struct {
+		files      map[string]string
+		tool, args string
+	}{
+		{map[string]string{"pnpm-lock.yaml": "lockfileVersion: '9.0'"}, "pnpm", "audit --json"},
+		{map[string]string{"yarn.lock": "# yarn lockfile v1\n"}, "yarn", "audit --json"},
+		{map[string]string{"yarn.lock": "__metadata:\n  version: 8\n"}, "yarn", "npm audit --all --recursive --json"},
+		{map[string]string{"package-lock.json": "{}"}, "", ""},
+		{map[string]string{"package.json": `{"packageManager":"pnpm@10.0.0"}`}, "pnpm", "audit --json"},
+	}
+	for _, c := range cases {
+		dir := t.TempDir()
+		if _, ok := c.files["package.json"]; !ok {
+			c.files["package.json"] = "{}"
+		}
+		for name, body := range c.files {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		a := nodeAuditorFor(dir)
+		if a.tool != c.tool || a.args != c.args {
+			t.Errorf("%v: got %q %q, want %q %q", c.files, a.tool, a.args, c.tool, c.args)
+		}
+	}
+}
+
+// fakeNode stands in for the active Node manager; only what the corepack route
+// reads is filled in.
+type fakeNode struct{ node.Manager }
+
+func (fakeNode) Available() bool                  { return true }
+func (fakeNode) ExecPrefix(version string) string { return "fnm exec --using=" + version + " --" }
+
+// With no pnpm or yarn binary around, the audit runs through corepack under the
+// project's Node, the way lerd installs and runs those projects.
+func TestManagerAuditCommand_fallsBackToCorepack(t *testing.T) {
+	origLook, origNode := lookJSBin, activeNode
+	t.Cleanup(func() { lookJSBin, activeNode = origLook, origNode })
+	lookJSBin = func(string) (string, bool) { return "", false }
+	activeNode = func() node.Manager { return fakeNode{} }
+
+	site := t.TempDir()
+	if err := os.WriteFile(filepath.Join(site, ".nvmrc"), []byte("22\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := managerAuditCommand(nodeAuditor{tool: "pnpm", args: "audit --json"}, site)
+	want := "COREPACK_ENABLE_DOWNLOAD_PROMPT=0 fnm exec --using=22 -- corepack pnpm audit --json"
+	if !ok || got != want {
+		t.Fatalf("got %q, %v\nwant %q", got, ok, want)
+	}
+	if _, ok := managerAuditCommand(nodeAuditor{tool: "bun", args: "audit --json"}, site); ok {
+		t.Error("bun has no corepack route, want none")
+	}
+}
+
+// A pnpm project whose manager is installed gets a real answer from it.
+func TestCheckNodeAudit_pnpmProjectIsAuditedByPnpm(t *testing.T) {
+	bin := t.TempDir()
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	script := "#!/bin/sh\n[ \"$1 $2\" = \"audit --json\" ] || exit 9\n" +
+		`echo '{"advisories":{"1":{"module_name":"lodash"}},"metadata":{"vulnerabilities":{"high":1}}}'` + "\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(bin, "pnpm"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	site := t.TempDir()
+	for _, f := range []string{"package.json", "pnpm-lock.yaml"} {
+		if err := os.WriteFile(filepath.Join(site, f), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	c := checkNodeAudit(context.Background(), site)
+	if c.Status != StatusWarn || !strings.Contains(c.Detail, "1 node package with") || !strings.Contains(c.Detail, "pnpm update") {
+		t.Fatalf("got %+v, want a warning for one package that names pnpm update", c)
+	}
+}
+
+// A bun project has no package-lock.json for npm audit to read, so its audit
+// goes to bun, found in ~/.bun/bin the way the installer puts it there.
+func TestCheckNodeAudit_bunProjectIsAuditedByBun(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	bin := filepath.Join(home, ".bun", "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "#!/bin/sh\n[ \"$1 $2\" = \"audit --json\" ] || exit 9\necho '{\"lodash\":[{\"id\":1}]}'\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(bin, "bun"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	site := t.TempDir()
+	for _, f := range []string{"package.json", "bun.lock"} {
+		if err := os.WriteFile(filepath.Join(site, f), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	c := checkNodeAudit(context.Background(), site)
+	if c.Status != StatusWarn || !strings.Contains(c.Detail, "bun update") {
+		t.Fatalf("got %+v, want a warning that names bun update", c)
+	}
+	if c.Fix != "" {
+		t.Errorf("fix = %q, npm audit fix would not touch a bun lockfile", c.Fix)
 	}
 }
 

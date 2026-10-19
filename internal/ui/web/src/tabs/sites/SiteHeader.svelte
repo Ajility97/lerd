@@ -35,6 +35,7 @@
     openBranchSwitchModal,
     openWorktreeRemoveModal
   } from '$stores/modals';
+  import GitChangesButton from '$components/GitChangesButton.svelte';
   import Icon from '$components/Icon.svelte';
   import { tooltip } from '$lib/tooltip';
   import { accessMode } from '$stores/accessMode';
@@ -54,7 +55,7 @@
   import BrowserLogsSiteToggle from '$components/BrowserLogsSiteToggle.svelte';
   import PagePluginsMenu from '$components/PagePluginsMenu.svelte';
   import { debugCaptureEnabled } from '$stores/queries';
-  import { loadGitStatus, checkoutFor, type GitCheckout } from '$lib/gitStatus';
+  import { loadGitStatus, checkoutFor, gitDirty, type GitCheckout } from '$lib/gitStatus';
   import { marquee } from '$lib/marquee';
   import { m } from '../../paraglide/messages.js';
 
@@ -349,7 +350,7 @@
 <div class="border-b border-gray-100 dark:border-lerd-border shrink-0 @container flex flex-col">
   {#if showWorktreeTabs}
     <div class="flex items-center page-header">
-      <div class="flex items-center gap-1 px-3 overflow-x-auto flex-1 min-w-0">
+      <div class="flex items-center gap-1 px-3 py-1 -my-1 overflow-x-auto flex-1 min-w-0">
       {#if !$isDesktop}<BackButton />{/if}
       {#each tabEntries as e (e.isMain ? '__main__' : e.branch)}
         {@const isActive = e.isMain ? activeWorktreeBranch === '' : e.branch === activeWorktreeBranch}
@@ -445,15 +446,22 @@
       </div>
       {#if activeEntry}
         {@const git = checkoutFor(gitCheckouts, activeEntry)}
-        {#if (git?.upstream || git?.publishable) && $accessMode.localControl}
-          <div class="shrink-0 mr-3">
-            <GitSync
-              domain={site.domain}
-              branch={activeEntry.isMain ? '' : activeEntry.branch}
-              branchLabel={activeEntry.branch}
-              status={git}
-              onDone={refreshGit}
-            />
+        {@const syncs = git?.upstream || git?.publishable}
+        {#if git && (syncs || gitDirty(git)) && $accessMode.localControl}
+          <div class="shrink-0 mr-3 flex items-center gap-0.5">
+            {#if gitDirty(git)}
+              <GitChangesButton domain={site.domain} path={git.path} branchLabel={activeEntry.branch} />
+            {/if}
+            {#if syncs}
+              <GitSync
+                domain={site.domain}
+                branch={activeEntry.isMain ? '' : activeEntry.branch}
+                branchLabel={activeEntry.branch}
+                path={git.path}
+                status={git}
+                onDone={refreshGit}
+              />
+            {/if}
           </div>
         {/if}
       {/if}

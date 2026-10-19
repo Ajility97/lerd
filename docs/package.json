@@ -2,7 +2,7 @@
   "name": "lerd",
   "version": "1.0.0",
   "type": "module",
-  "description": "> Open-source Herd-like local PHP development environment for Linux. > Podman-native, rootless, with a built-in Web UI.",
+  "description": "> Open-source local PHP development environment for Linux, macOS and Windows (WSL2). > Podman-native, rootless, with a built-in Web UI.",
   "main": "index.js",
   "directories": {
     "doc": "docs",
@@ -22,8 +22,5 @@
     "postcss": "^8.5.10",
     "seroval": "^1.6.3",
     "seroval-plugins": "^1.6.3"
-  },
-  "dependencies": {
-    "asciinema-player": "^3.16.0"
   }
 }

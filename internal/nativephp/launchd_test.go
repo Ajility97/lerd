@@ -3,6 +3,7 @@ package nativephp
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPlistCarriesEnvAndArgs(t *testing.T) {
@@ -129,5 +130,33 @@ func TestReloadRestartsARunningListener(t *testing.T) {
 	}
 	if len(kicked) != 1 {
 		t.Errorf("a running listener must be restarted, got %v", kicked)
+	}
+}
+
+// bootout returns while launchd still holds the job, SIGTERMed and exiting.
+// Booting it back in that window fails (bootstrap 5, kickstart 37) and left a
+// reinstall with no FPM and every site on 502, so replacing waits it out.
+func TestReplaceWaitsForTheOldJobToLeave(t *testing.T) {
+	var bootedOut []string
+	polls := 0
+	replaceUnitWith("lerd-native-php84",
+		func(label string) { bootedOut = append(bootedOut, label) },
+		func(string) bool { polls++; return polls < 3 }, // gone on the third look
+		func(time.Duration) {})
+	if len(bootedOut) != 1 {
+		t.Errorf("the old job must be booted out once, got %v", bootedOut)
+	}
+	if polls != 3 {
+		t.Errorf("replace must wait until the job is gone, looked %d times", polls)
+	}
+}
+
+func TestReplaceGivesUpOnAJobThatNeverLeaves(t *testing.T) {
+	var waited time.Duration
+	replaceUnitWith("lerd-native-php84", func(string) {},
+		func(string) bool { return true },
+		func(d time.Duration) { waited += d })
+	if waited < unloadTimeout {
+		t.Errorf("replace must wait the whole budget before going on, waited %v", waited)
 	}
 }

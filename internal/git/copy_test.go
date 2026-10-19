@@ -551,3 +551,21 @@ func TestInstallDependencies_unwritableLerdMarkerIsReported(t *testing.T) {
 		t.Error("a marker that could not be written must surface as an error")
 	}
 }
+
+// npm globals such as pnpm and yarn get their shims in lerd's bin dir, which
+// the dashboard and watcher daemons don't carry on their PATH.
+func TestLookJSBin_findsAGlobalShimInLerdsBinDir(t *testing.T) {
+	data := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", data)
+	t.Setenv("PATH", t.TempDir())
+	bin := filepath.Join(data, "lerd", "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bin, "pnpm"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, ok := lookJSBin("pnpm"); !ok || got != filepath.Join(bin, "pnpm") {
+		t.Fatalf("lookJSBin(pnpm) = %q, %v", got, ok)
+	}
+}
