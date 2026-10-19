@@ -133,6 +133,28 @@ func TestUpdateListed_MovesToTheNewApprovedCommit(t *testing.T) {
 	}
 }
 
+// A plugin installed from a folder is the user's own code, and a catalog
+// listing that happens to share its name must not replace it.
+func TestUpdateListed_RefusesAPluginNotFromTheCatalog(t *testing.T) {
+	isolate(t)
+	repo, approved := gitRepo(t, "hello")
+	serveIndex(t, Listing{Name: "hello", Repo: "file://" + repo, Commit: approved})
+	local := filepath.Join(t.TempDir(), "hello")
+	if err := Scaffold("hello", local); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Install(local); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := UpdateListed("hello"); err == nil || !strings.Contains(err.Error(), "not installed from the plugin catalog") {
+		t.Fatalf("err = %v, want a refusal", err)
+	}
+	if _, ok := InstalledSource("hello"); ok {
+		t.Error("the local plugin must not have been replaced by the listing")
+	}
+}
+
 func TestPendingUpdate(t *testing.T) {
 	isolate(t)
 	repo, approved := gitRepo(t, "hello")

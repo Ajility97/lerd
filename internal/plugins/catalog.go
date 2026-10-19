@@ -195,6 +195,9 @@ func UpdateListed(name string) error {
 	if _, err := os.Stat(filepath.Join(Dir(), name, ManifestFile)); err != nil {
 		return fmt.Errorf("plugin %s is not installed", name)
 	}
+	if _, ok := InstalledSource(name); !ok {
+		return fmt.Errorf("plugin %s was not installed from the plugin catalog, so it has no catalog update", name)
+	}
 	_, err := installListing(name, true)
 	return err
 }
