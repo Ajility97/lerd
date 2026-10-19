@@ -237,6 +237,11 @@
         Warn "$u is already a system user in Ubuntu; choose another name."
       } else { break }
     }
+    $S.LinuxUser = $u
+    AskPassword
+  }
+
+  function AskPassword {
     while ($true) {
       $p1 = Plain (Read-Host '  ?   Password' -AsSecureString)
       if (-not $p1) { Warn 'Choose a password.'; continue }
@@ -244,8 +249,14 @@
       if ($p1 -ceq $p2) { break }
       Warn 'The passwords do not match.'
     }
-    $S.LinuxUser = $u
     $S.Password = $p1
+  }
+
+  # UserHasPassword reports whether $user has a usable password: an install
+  # stopped between useradd and chpasswd leaves the user without one.
+  function UserHasPassword([string]$user) {
+    $r = Capture (WSLExe) "-d $Distro -u root --exec passwd -S $user"
+    ($r.Code -eq 0) -and ($r.Lines.Count -gt 0) -and (($r.Lines[0] -split '\s+')[1] -eq 'P')
   }
 
   # AskOptions asks up front what lerd's installers would ask along the way,
@@ -345,6 +356,9 @@
     Step "$status..."
     if (-not $S.UserExists) {
       Run $status (WSLExe) (AsRoot "useradd -m -s /bin/bash -G sudo $($S.LinuxUser)")
+      $S.UserExists = $true
+    }
+    if ($S.Password) {
       $wslenv = $env:WSLENV
       $env:LERD_SETUP_PW = $S.Password
       $env:WSLENV = if ($wslenv) { "${wslenv}:LERD_SETUP_PW" } else { 'LERD_SETUP_PW' }
@@ -355,7 +369,6 @@
         $env:WSLENV = $wslenv
         $S.Password = $null
       }
-      $S.UserExists = $true
     }
     Run $status (WSLExe) (AsRoot ("f=/etc/wsl.conf; touch `$f`n" +
         "grep -q '^systemd=true' `$f || printf '\n[boot]\nsystemd=true\n' >> `$f`n" +
@@ -642,7 +655,14 @@ namespace LerdSetup {
   $S.UserExists = [bool]$S.LinuxUser
   $S.LerdInstalled = $S.UserExists -and (LerdInstalledFor $S.LinuxUser)
 
-  if ($S.UserExists) { Info "Using the existing Linux user $($S.LinuxUser)" } else { AskUser }
+  if (-not $S.UserExists) {
+    AskUser
+  } elseif (-not (UserHasPassword $S.LinuxUser)) {
+    Info "The Linux user $($S.LinuxUser) has no password yet; choose one, sudo asks for it inside Linux."
+    AskPassword
+  } else {
+    Info "Using the existing Linux user $($S.LinuxUser)"
+  }
   if (-not $S.LerdInstalled) { AskOptions }
 
   try {
