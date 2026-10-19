@@ -249,3 +249,20 @@ func TestRemoveNRPTScript_OnlyLerdsRule(t *testing.T) {
 		t.Errorf("leaves cached answers for the old suffix: %s", s)
 	}
 }
+
+// install.ps1 registers the desktop app for the user and has no uninstaller of
+// its own, so lerd uninstall stops the app from starting at every login after
+// lerd is gone, and takes back its shortcut and lerd:// handler.
+func TestRemoveWindowsSideScript_UnregistersTheDesktopApp(t *testing.T) {
+	got := removeWindowsSideScript(`C:\x`)
+	for _, want := range []string{
+		`-Name 'lerd-desktop'`,
+		`Remove-Item -Path 'HKCU:\Software\Classes\lerd' -Recurse`,
+		`'Lerd.lnk'`,
+		`Get-Process -Name lerd-desktop`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s:\n%s", want, got)
+		}
+	}
+}

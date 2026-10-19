@@ -401,9 +401,9 @@ func windowsPath(p string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// removeWindowsSide undoes installWindowsSide, so no agent is left booting a
-// distro with no lerd in it at every login. lerd's CA stays in the Windows
-// trust store: removing it raises a dialog a script cannot answer.
+// removeWindowsSide undoes installWindowsSide and the desktop app's sign-in
+// entry, shortcut and lerd:// handler, so nothing starts lerd after it is gone.
+// The CA stays trusted: removing it raises a dialog a script cannot answer.
 func removeWindowsSide() error {
 	local, err := windowsEnvPath("LOCALAPPDATA")
 	if err != nil {
@@ -439,6 +439,10 @@ func removeWindowsSide() error {
 
 func removeWindowsSideScript(winBin string) string {
 	return fmt.Sprintf(`Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'lerd' -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'lerd-desktop' -ErrorAction SilentlyContinue
+Get-Process -Name lerd-desktop -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Remove-Item -Path 'HKCU:\Software\Classes\lerd' -Recurse -ErrorAction SilentlyContinue
+Remove-Item -Path (Join-Path ([Environment]::GetFolderPath('Programs')) 'Lerd.lnk') -ErrorAction SilentlyContinue
 Remove-Item -Path 'HKCU:\Software\Classes\AppUserModelId\%s' -Recurse -ErrorAction SilentlyContinue
 $d = '%s'
 $p = [Environment]::GetEnvironmentVariable('Path', 'User')
