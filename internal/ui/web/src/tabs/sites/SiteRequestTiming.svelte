@@ -17,7 +17,7 @@
   import ProfilerIcon from '$components/ProfilerIcon.svelte';
   import { profileRoute as profileRouteRequest } from '$lib/profileRoute';
   import { openProfiler } from '$stores/dashboard';
-  import { debugCaptureEnabled } from '$stores/queries';
+  import { debugCaptureEnabled, setDebugCapture } from '$stores/queries';
   import { debugLens, debugSearch } from '$stores/debugLens';
   import { goToTab } from '$stores/route';
   import { activeWorktreeDomain, type Site } from '$stores/sites';
@@ -156,6 +156,9 @@
     [...(data?.routes ?? [])].sort((a, b) => recentP95(b) - recentP95(a)).slice(0, 5)
   );
   const histMax = $derived(Math.max(1, ...(data?.distribution ?? []).map((b) => b.count)));
+  // Offer the capture switch here, where a dead bar is noticed, since the Debug
+  // window's own toggle may be on another tab or behind a hidden site list.
+  const offerCapture = $derived(!$debugCaptureEnabled && slowest.some((r) => r.slowest && !r.slowest.rid && !r.slowest.profile_key));
   const routeMax = $derived(Math.max(1, ...(data?.routes ?? []).map((r) => r.p95_millis)));
   const slowMax = $derived(Math.max(1, ...slowest.map((r) => recentP95(r))));
 
@@ -388,17 +391,29 @@
 
     <!-- slowest routes -->
     <div class="mt-3 rounded-lg border border-gray-200/80 dark:border-lerd-border bg-white dark:bg-lerd-card p-3">
-      <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2.5">{m.sites_timing_slowest()}</div>
+      <div class="flex items-center justify-between gap-2 mb-2.5">
+        <div class="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{m.sites_timing_slowest()}</div>
+        {#if offerCapture}
+          <div role="status" class="text-[11px] text-gray-500 dark:text-gray-400 text-right">
+            {m.sites_timing_captureOffHint()}
+            <button type="button" onclick={() => setDebugCapture(true)} class="ml-1 font-medium text-lerd-red hover:underline">{m.sites_timing_captureTurnOn()}</button>
+          </div>
+        {/if}
+      </div>
       <div class="flex flex-col gap-2">
         {#each slowest as r (r.method + r.route)}
           <div class="flex items-center gap-2">
-            {#if r.slowest}
+            {#if r.slowest?.rid || r.slowest?.profile_key}
               {@const slow = r.slowest}
               <button type="button" onclick={() => (inspecting = { ...slow, method: r.method, route: r.route, cold: false })}
                 use:tooltip={m.sites_timing_openSlowest({ ms: fmtMs(slow.millis) })} aria-label={m.sites_timing_openSlowest({ ms: fmtMs(slow.millis) })}
                 class="{slowRowClass} text-left group">
                 {@render slowRow(r, true)}
               </button>
+            {:else if r.slowest}
+              <!-- Nothing of the request is left to open, so say why instead; a button so keyboard focus reaches the tooltip. -->
+              {@const why = $debugCaptureEnabled ? m.sites_timing_slowestNotKept() : m.sites_timing_slowestCaptureOff()}
+              <button type="button" aria-disabled="true" class="{slowRowClass} text-left cursor-default" use:tooltip={why} aria-label={why}>{@render slowRow(r, false)}</button>
             {:else}
               <div class={slowRowClass}>{@render slowRow(r, false)}</div>
             {/if}
