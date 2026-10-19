@@ -223,3 +223,17 @@ func TestMountRoot(t *testing.T) {
 		}
 	}
 }
+
+// The Windows installer restarts WSL itself right after wsl:setup, so telling
+// its user to do it by hand would be wrong; it says so through the env.
+func TestWSLSetupDoneNote(t *testing.T) {
+	if got := wslSetupDoneNote(false, false); got != "Done. No reboot needed.\n" {
+		t.Errorf("nothing to restart: %q", got)
+	}
+	if got := wslSetupDoneNote(true, false); !strings.Contains(got, "wsl --shutdown") {
+		t.Errorf("a person running it is told to restart WSL: %q", got)
+	}
+	if got := wslSetupDoneNote(true, true); strings.Contains(got, "wsl --shutdown") || !strings.Contains(got, "restarts WSL") {
+		t.Errorf("a caller that restarts WSL is not given a manual step: %q", got)
+	}
+}

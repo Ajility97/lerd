@@ -585,7 +585,7 @@ namespace LerdSetup {
     ApplyOptions
     TrustCA
     Step 'Connecting lerd with Windows...'
-    Run 'Connecting lerd with Windows' (WSLExe) (AsUser '~/.local/bin/lerd wsl:setup')
+    Run 'Connecting lerd with Windows' (WSLExe) (AsUser 'LERD_WSL_RESTART_HANDLED=1 ~/.local/bin/lerd wsl:setup')
     # The desktop app only receives lerd's notifications from the native sink;
     # the browser sink, lerd's default, sends them to dashboard pages.
     Step "Handing lerd's notifications to the desktop app..."

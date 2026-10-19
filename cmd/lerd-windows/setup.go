@@ -197,7 +197,7 @@ func installLerd() error {
 }
 
 func runWSLSetup() error {
-	return run("wsl.exe", "-d", setupDistro, "--cd", "~", "--exec", "bash", "-lc", "~/.local/bin/lerd wsl:setup")
+	return run("wsl.exe", "-d", setupDistro, "--cd", "~", "--exec", "bash", "-lc", "LERD_WSL_RESTART_HANDLED=1 ~/.local/bin/lerd wsl:setup")
 }
 
 // startLerd restarts WSL so mirrored networking and the resolver handover take

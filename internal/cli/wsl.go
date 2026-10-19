@@ -100,14 +100,23 @@ func runWSLSetup(cmd *cobra.Command, _ []string) error {
 	}
 
 	fmt.Fprintln(w)
-	if needShutdown {
-		fmt.Fprintln(w, "Done. One manual step left, from a Windows PowerShell or CMD prompt run:")
-		fmt.Fprintln(w, "    wsl --shutdown")
-		fmt.Fprintln(w, "then reopen your distro so the systemd / networking changes take effect.")
-	} else {
-		fmt.Fprintln(w, "Done. No reboot needed.")
-	}
+	fmt.Fprint(w, wslSetupDoneNote(needShutdown, os.Getenv("LERD_WSL_RESTART_HANDLED") == "1"))
 	return nil
+}
+
+// wslSetupDoneNote is wsl:setup's last line. The Windows installer restarts WSL
+// itself straight after, and says so with LERD_WSL_RESTART_HANDLED=1, an env
+// var rather than a flag so an older lerd ignores it instead of failing.
+func wslSetupDoneNote(needShutdown, callerRestarts bool) string {
+	switch {
+	case !needShutdown:
+		return "Done. No reboot needed.\n"
+	case callerRestarts:
+		return "Done. The installer restarts WSL next, so the systemd / networking changes take effect.\n"
+	}
+	return "Done. One manual step left, from a Windows PowerShell or CMD prompt run:\n" +
+		"    wsl --shutdown\n" +
+		"then reopen your distro so the systemd / networking changes take effect.\n"
 }
 
 // patchUserFile reads path (treating absence as empty), runs patch, and writes
