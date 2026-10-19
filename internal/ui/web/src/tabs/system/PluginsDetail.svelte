@@ -72,10 +72,10 @@
 
 {#snippet views()}
   <div class="flex items-center gap-1">
-    <IconButton size="sm" title={m.system_plugins_tabInstalled()} active={!browsing} onclick={() => goToTab('system', 'plugins')}>
+    <IconButton size="sm" placement="bottom" title={m.system_plugins_tabInstalled()} active={!browsing} onclick={() => goToTab('system', 'plugins')}>
       <Icon name="cube" class="w-4 h-4" />
     </IconButton>
-    <IconButton size="sm" title={m.system_plugins_tabBrowse()} active={browsing} onclick={() => goToTab('system', 'plugins/browse')}>
+    <IconButton size="sm" placement="bottom" title={m.system_plugins_tabBrowse()} active={browsing} onclick={() => goToTab('system', 'plugins/browse')}>
       <Icon name="download" class="w-4 h-4" />
     </IconButton>
   </div>
