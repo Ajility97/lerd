@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"sync/atomic"
+	"syscall"
 	"time"
 )
 
@@ -57,18 +58,19 @@ func checkLimit(raw string, ceiling time.Duration) error {
 }
 
 // RunWithin runs cmd and stops it once limit passes, every surface but the
-// CLI going through it. A script's own children
-// can keep its output open after it is killed, so the wait gives up on them
-// shortly after rather than hanging on a pipe.
+// CLI going through it. The script runs in its own process group so the stop
+// reaches whatever it started too, and the wait still gives up shortly after
+// on a child that left the group holding the output open.
 func RunWithin(cmd *exec.Cmd, limit time.Duration) error {
 	cmd.WaitDelay = time.Second
+	OwnProcessGroup(cmd)
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 	var timedOut atomic.Bool
 	timer := time.AfterFunc(limit, func() {
 		timedOut.Store(true)
-		_ = cmd.Process.Kill()
+		KillProcessGroup(cmd)
 	})
 	err := cmd.Wait()
 	timer.Stop()
@@ -76,4 +78,19 @@ func RunWithin(cmd *exec.Cmd, limit time.Duration) error {
 		return fmt.Errorf("timed out after %s", limit)
 	}
 	return err
+}
+
+// OwnProcessGroup makes cmd the leader of a new process group, so
+// KillProcessGroup can stop it together with everything it spawns.
+func OwnProcessGroup(cmd *exec.Cmd) {
+	if cmd.SysProcAttr == nil {
+		cmd.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	cmd.SysProcAttr.Setpgid = true
+}
+
+// KillProcessGroup kills the group a started cmd leads. The group id is the
+// leader's pid because OwnProcessGroup asked for a new group.
+func KillProcessGroup(cmd *exec.Cmd) {
+	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 }

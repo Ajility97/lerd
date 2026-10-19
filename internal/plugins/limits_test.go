@@ -1,8 +1,12 @@
 package plugins
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -76,5 +80,26 @@ func TestEmit_HookThatOverrunsIsStoppedAndRecorded(t *testing.T) {
 	Emit(EventSiteLinked, map[string]string{"site": "shop"})
 	if f, ok := LastFailure("slow"); !ok || !strings.Contains(f.Error, "timed out") {
 		t.Errorf("recorded %+v %v", f, ok)
+	}
+}
+
+func TestRunWithin_StopsWhatTheScriptStarted(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "child.pid")
+	cmd := exec.Command("sh", "-c", "sleep 30 & echo $! > "+pidFile+"; wait")
+	if err := RunWithin(cmd, 200*time.Millisecond); err == nil {
+		t.Fatal("want a timeout")
+	}
+	raw, err := os.ReadFile(pidFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, _ := strconv.Atoi(strings.TrimSpace(string(raw)))
+	deadline := time.Now().Add(2 * time.Second)
+	for syscall.Kill(pid, 0) == nil {
+		if time.Now().After(deadline) {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+			t.Fatal("the script's child must be stopped with it")
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

@@ -180,7 +180,7 @@ Per surface:
 
 ### How long it may run
 
-Every surface but the CLI stops an executable that runs past its limit and records it as a failure, so a stuck script never holds up the dashboard, an assistant or the operation that fired a hook. A CLI command has no limit, since it runs in your terminal where Ctrl-C is yours.
+Every surface but the CLI stops an executable that runs past its limit, together with everything it started, and records it as a failure, so a stuck script never holds up the dashboard, an assistant or the operation that fired a hook. A CLI command has no limit, since it runs in your terminal where Ctrl-C is yours.
 
 | Surface | Default | `timeout:` up to |
 |---|---|---|

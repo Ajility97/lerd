@@ -379,12 +379,15 @@ func streamRun(w http.ResponseWriter, ctx context.Context, cmd *exec.Cmd, captur
 		return 0
 	}
 
+	// A child the command left running keeps the pipes open, so the stop has to
+	// reach the whole group or the readers below never return.
+	plugins.OwnProcessGroup(cmd)
 	start := time.Now()
 	if err := cmd.Start(); err != nil {
 		send("error", "start: "+err.Error())
 		return 0
 	}
-	defer context.AfterFunc(ctx, func() { _ = cmd.Process.Kill() })()
+	defer context.AfterFunc(ctx, func() { plugins.KillProcessGroup(cmd) })()
 
 	// capturedMu guards the builder across the two pipe-reader goroutines;
 	// strings.Builder is not safe for concurrent use. The frame writes are
