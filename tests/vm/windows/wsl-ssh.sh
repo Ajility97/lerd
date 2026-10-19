@@ -43,6 +43,8 @@ echo ready"
 "${SSH[@]}" "powershell -NoProfile -Command \"if (-not (Get-NetFirewallRule -Name lerd-vm-wsl-ssh -ErrorAction SilentlyContinue)) { New-NetFirewallRule -Name lerd-vm-wsl-ssh -DisplayName 'lerd vm: WSL ssh' -Direction Inbound -Protocol TCP -LocalPort $PORT -Action Allow | Out-Null }; if (-not (Get-NetFirewallHyperVRule -Name lerd-vm-wsl-ssh -ErrorAction SilentlyContinue)) { New-NetFirewallHyperVRule -Name lerd-vm-wsl-ssh -DisplayName 'lerd vm: WSL ssh' -Direction Inbound -VMCreatorId '{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}' -Protocol TCP -LocalPorts $PORT -Action Allow | Out-Null }\"" >/dev/null 2>&1
 
 host=${G#*@}
+# Every run builds a new distro with a new host key, so the last one's is dropped.
+ssh-keygen -R "[$host]:$PORT" >/dev/null 2>&1
 if ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new -p $PORT "$user@$host" true 2>/dev/null; then
 	echo "ssh -p $PORT $user@$host reaches $DISTRO"
 else
