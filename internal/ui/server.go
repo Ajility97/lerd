@@ -6730,12 +6730,8 @@ func handleSiteGitStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"checkouts": checkouts})
 }
 
-// handleSiteGitDiff answers GET /api/sites/git-diff?domain=...&path=... with
-// the files a checkout has changed, or with both versions of one file when
-// section and file are given. commits=incoming|outgoing lists what a pull or
-// push would move instead, commit=<hash> reads one of those commits the same
-// way, and upto=<hash> compares HEAD with the commit a pull plan stops at.
-// path must be one of the site's own checkouts.
+// handleSiteGitDiff lists the changed files, or one file's two versions, of a
+// site's own checkout, for uncommitted work, a single commit, or a pull or push.
 func handleSiteGitDiff(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.NotFound(w, r)
