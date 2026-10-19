@@ -399,6 +399,7 @@
   "link_waitingOutput": "Çıktı bekleniyor...",
   "logs_filter_allLevels": "Tüm seviyeler",
   "machine_memory_banner_dismiss": "Kapat",
+  "machine_memory_banner_failed": "Yeniden başlatma tamamlanmadı: {error}",
   "machine_memory_banner_killed": "Sonlandırılanlar: {processes}",
   "machine_memory_banner_noRoom": "Bu Mac'in verebileceği başka bellek yok. Kullanmadığın siteleri veya worker'ları durdur.",
   "machine_memory_banner_restart": "{gb} GB ile yeniden başlat",

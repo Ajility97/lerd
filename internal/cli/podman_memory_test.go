@@ -1,6 +1,9 @@
 package cli
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestRecommendedVMMemoryMiB(t *testing.T) {
 	cases := []struct {
@@ -55,5 +58,13 @@ func TestRaisedVMMemoryMiB(t *testing.T) {
 		if got := raisedVMMemoryMiB(c.current, c.hostGiB); got != c.want {
 			t.Errorf("raisedVMMemoryMiB(%d, %d) = %d, want %d", c.current, c.hostGiB, got, c.want)
 		}
+	}
+}
+
+// A failed size lookup must not read as "this Mac has no memory to give".
+func TestMachineMemoryHintWhenTheSizeIsUnknown(t *testing.T) {
+	st := MachineMemory{Kills: []string{"mysqld"}}
+	if got := st.Hint(); !strings.Contains(got, "could not read") {
+		t.Errorf("Hint() = %q, want the unknown-size advice", got)
 	}
 }

@@ -399,6 +399,7 @@
   "link_waitingOutput": "Se așteaptă rezultatul...",
   "logs_filter_allLevels": "Toate nivelurile",
   "machine_memory_banner_dismiss": "Închide",
+  "machine_memory_banner_failed": "Repornirea nu s-a încheiat: {error}",
   "machine_memory_banner_killed": "Oprite: {processes}",
   "machine_memory_banner_noRoom": "Acest Mac nu mai are memorie de oferit. Oprește site-urile sau workerii pe care nu îi folosești.",
   "machine_memory_banner_restart": "Repornește cu {gb} GB",

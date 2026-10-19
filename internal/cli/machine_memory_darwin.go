@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -67,10 +68,13 @@ func ResizeMachineMemory(mib int64, emit func(StartEvent), skip ...string) error
 		emit(StartEvent{Phase: "step", Step: "machine"})
 	}
 	_ = runMachineStreaming(machineStopTimeout, "machine", "stop", name)
-	err = runMachineStreaming(machineQueryTimeout, "machine", "set", "--memory", strconv.FormatInt(mib, 10), name)
+	setErr := runMachineStreaming(machineQueryTimeout, "machine", "set", "--memory", strconv.FormatInt(mib, 10), name)
 	release()
-	if err != nil {
-		return fmt.Errorf("podman machine set --memory: %w", err)
+	// Start even when the set failed: the VM is already down, and leaving it
+	// there takes every site with it.
+	startErr := RunStart(emit, skip...)
+	if setErr != nil {
+		return errors.Join(fmt.Errorf("podman machine set --memory: %w", setErr), startErr)
 	}
-	return RunStart(emit, skip...)
+	return startErr
 }

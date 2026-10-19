@@ -399,6 +399,7 @@
   "link_waitingOutput": "Wachten op uitvoer...",
   "logs_filter_allLevels": "Alle niveaus",
   "machine_memory_banner_dismiss": "Sluiten",
+  "machine_memory_banner_failed": "De herstart is niet voltooid: {error}",
   "machine_memory_banner_killed": "Beëindigd: {processes}",
   "machine_memory_banner_noRoom": "Deze Mac heeft geen geheugen meer over. Stop sites of workers die je niet gebruikt.",
   "machine_memory_banner_restart": "Herstarten met {gb} GB",

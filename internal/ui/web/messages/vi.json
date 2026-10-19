@@ -399,6 +399,7 @@
   "link_waitingOutput": "Đang chờ kết quả...",
   "logs_filter_allLevels": "Tất cả cấp độ",
   "machine_memory_banner_dismiss": "Bỏ qua",
+  "machine_memory_banner_failed": "Khởi động lại chưa hoàn tất: {error}",
   "machine_memory_banner_killed": "Đã dừng: {processes}",
   "machine_memory_banner_noRoom": "Máy Mac này không còn bộ nhớ để cấp thêm. Hãy dừng các site hoặc worker không dùng.",
   "machine_memory_banner_restart": "Khởi động lại với {gb} GB",

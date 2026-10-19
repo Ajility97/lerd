@@ -23,6 +23,8 @@ export const lerdStartStep = writable<string>('');
 export const lerdStartUnit = writable<string>('');
 export const lerdStartDone = writable<number>(0);
 export const lerdStartTotal = writable<number>(0);
+// Why the last start stream failed, kept after it ends so the caller can say so.
+export const lerdStartError = writable<string>('');
 
 function resetStartProgress() {
   lerdStartStep.set('');
@@ -47,11 +49,15 @@ export function lerdResizeMachine(mib: number): Promise<boolean> {
 async function streamStart(url: string, init: RequestInit): Promise<boolean> {
   lerdStarting.set(true);
   resetStartProgress();
+  lerdStartError.set('');
   let done = 0;
   let ok = true;
   try {
     const res = await apiFetch(url, init);
-    if (!res.ok || !res.body) return false;
+    if (!res.ok || !res.body) {
+      lerdStartError.set((await res.text()).trim() || res.statusText);
+      return false;
+    }
     await readNDJSON<StartEvent>(res.body, (evt) => {
       switch (evt.phase) {
         case 'step':
@@ -65,12 +71,14 @@ async function streamStart(url: string, init: RequestInit): Promise<boolean> {
           break;
         case 'failed':
           ok = false;
+          lerdStartError.set(evt.error ?? '');
           break;
       }
     });
     if (ok) await handOverToVhost();
     return ok;
-  } catch {
+  } catch (e) {
+    lerdStartError.set(e instanceof Error ? e.message : String(e));
     return false;
   } finally {
     lerdStarting.set(false);

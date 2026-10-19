@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/svelte';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import MachineMemoryBanner from './MachineMemoryBanner.svelte';
 import { accessMode } from '$stores/accessMode';
+import { lerdStarting } from '$stores/lerdLifecycle';
 
 let status: object;
 
@@ -14,6 +15,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  lerdStarting.set(false);
   vi.unstubAllGlobals();
 });
 
@@ -38,5 +40,38 @@ describe('MachineMemoryBanner', () => {
     render(MachineMemoryBanner);
     expect(await screen.findByText(/no more memory to give/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Restart with/ })).not.toBeInTheDocument();
+  });
+
+  it('offers no restart while another start is running', async () => {
+    status = { kills: ['mysqld'], current_mib: 4096, suggested_mib: 6144 };
+    lerdStarting.set(true);
+    render(MachineMemoryBanner);
+    expect(await screen.findByText(/ran out of memory/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Restart with/ })).not.toBeInTheDocument();
+  });
+
+  it('does not claim the Mac is full when the size could not be read', async () => {
+    status = { kills: ['mysqld'] };
+    render(MachineMemoryBanner);
+    expect(await screen.findByText('Killed: mysqld')).toBeInTheDocument();
+    expect(screen.queryByText(/no more memory to give/)).not.toBeInTheDocument();
+  });
+
+  it('says why a restart failed', async () => {
+    status = { kills: ['mysqld'], current_mib: 4096, suggested_mib: 6144 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) =>
+        init?.method === 'POST'
+          ? new Response('{"phase":"failed","error":"podman machine set --memory: exit status 125"}\n', { status: 200 })
+          : new Response(JSON.stringify(status), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      )
+    );
+    render(MachineMemoryBanner);
+    (await screen.findByRole('button', { name: 'Restart with 6 GB' })).click();
+    await screen.findByText('Restart the Podman Machine?');
+    const confirm = screen.getAllByRole('button', { name: 'Restart with 6 GB' });
+    confirm[confirm.length - 1].click();
+    expect(await screen.findByText(/did not finish: podman machine set --memory: exit status 125/)).toBeInTheDocument();
   });
 });

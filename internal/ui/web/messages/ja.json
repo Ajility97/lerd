@@ -399,6 +399,7 @@
   "link_waitingOutput": "出力を待機中...",
   "logs_filter_allLevels": "すべてのレベル",
   "machine_memory_banner_dismiss": "閉じる",
+  "machine_memory_banner_failed": "再起動が完了しませんでした: {error}",
   "machine_memory_banner_killed": "終了: {processes}",
   "machine_memory_banner_noRoom": "この Mac にはこれ以上割り当てられるメモリがありません。使っていないサイトやワーカーを停止してください。",
   "machine_memory_banner_restart": "{gb} GB で再起動",

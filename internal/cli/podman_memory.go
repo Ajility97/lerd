@@ -66,6 +66,9 @@ func (st MachineMemory) Summary() string {
 // Hint is the command that gives the VM more memory, or what to do instead
 // when the host has none left to give.
 func (st MachineMemory) Hint() string {
+	if st.CurrentMiB == 0 {
+		return "could not read the VM's memory size; run `lerd machine memory` again"
+	}
 	if st.SuggestedMiB == 0 {
 		return "this Mac has no more memory to give it; stop sites or workers you are not using"
 	}

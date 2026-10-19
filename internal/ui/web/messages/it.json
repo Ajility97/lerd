@@ -399,6 +399,7 @@
   "link_waitingOutput": "In attesa di output...",
   "logs_filter_allLevels": "Tutti i livelli",
   "machine_memory_banner_dismiss": "Ignora",
+  "machine_memory_banner_failed": "Il riavvio non è terminato: {error}",
   "machine_memory_banner_killed": "Terminati: {processes}",
   "machine_memory_banner_noRoom": "Questo Mac non ha altra memoria da darle. Ferma i siti o i worker che non usi.",
   "machine_memory_banner_restart": "Riavvia con {gb} GB",

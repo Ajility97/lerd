@@ -399,6 +399,7 @@
   "link_waitingOutput": "Oczekiwanie na wynik...",
   "logs_filter_allLevels": "Wszystkie poziomy",
   "machine_memory_banner_dismiss": "Zamknij",
+  "machine_memory_banner_failed": "Ponowne uruchomienie nie powiodło się: {error}",
   "machine_memory_banner_killed": "Zakończone: {processes}",
   "machine_memory_banner_noRoom": "Ten Mac nie ma więcej pamięci do przydzielenia. Zatrzymaj nieużywane strony lub workery.",
   "machine_memory_banner_restart": "Uruchom ponownie z {gb} GB",

@@ -399,6 +399,7 @@
   "link_waitingOutput": "等待输出...",
   "logs_filter_allLevels": "所有级别",
   "machine_memory_banner_dismiss": "关闭",
+  "machine_memory_banner_failed": "重启未完成：{error}",
   "machine_memory_banner_killed": "已终止：{processes}",
   "machine_memory_banner_noRoom": "这台 Mac 没有更多内存可分配。请停止不用的站点或 worker。",
   "machine_memory_banner_restart": "以 {gb} GB 重启",

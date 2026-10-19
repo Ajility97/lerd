@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -46,6 +47,7 @@ func TestMachineMemoryResizeSkipsTheUIUnit(t *testing.T) {
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/machine/memory", strings.NewReader(`{"mib":6144}`))
+	req.RemoteAddr = "127.0.0.1:54321"
 	handleMachineMemory(rec, req)
 
 	if gotMiB != 6144 || len(gotSkip) != 1 || gotSkip[0] != uiUnit {
@@ -53,5 +55,25 @@ func TestMachineMemoryResizeSkipsTheUIUnit(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), `"phase":"done"`) {
 		t.Errorf("stream = %q, want the start events", rec.Body.String())
+	}
+}
+
+// The resize stops every container, so a remote session without full access
+// may read the finding but not act on it.
+func TestMachineMemoryResizeRefusesRemoteWithoutFullAccess(t *testing.T) {
+	setupConfigDirFullAccess(t, "alice", "s3cret", false)
+	called := false
+	withMachineMemorySeams(t, cli.MachineMemory{}, func(int64, func(cli.StartEvent), ...string) error {
+		called = true
+		return nil
+	})
+
+	req := remoteRequest(http.MethodPost, "/api/machine/memory")
+	req.Body = io.NopCloser(strings.NewReader(`{"mib":6144}`))
+	rec := httptest.NewRecorder()
+	withRemoteControlGate(http.HandlerFunc(handleMachineMemory)).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden || called {
+		t.Errorf("status = %d, resized = %v, want 403 and no resize", rec.Code, called)
 	}
 }

@@ -20,6 +20,10 @@ func handleMachineMemory(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		writeJSON(w, machineMemoryStatusFn())
 	case http.MethodPost:
+		if !hasHostActionAuthority(r) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		var body struct {
 			MiB int64 `json:"mib"`
 		}

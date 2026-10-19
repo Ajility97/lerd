@@ -399,6 +399,7 @@
   "link_waitingOutput": "Warte auf Ausgabe...",
   "logs_filter_allLevels": "Alle Level",
   "machine_memory_banner_dismiss": "Ausblenden",
+  "machine_memory_banner_failed": "Der Neustart wurde nicht abgeschlossen: {error}",
   "machine_memory_banner_killed": "Beendet: {processes}",
   "machine_memory_banner_noRoom": "Dieser Mac hat keinen Speicher mehr übrig. Stoppe Sites oder Worker, die du nicht nutzt.",
   "machine_memory_banner_restart": "Mit {gb} GB neu starten",

@@ -399,6 +399,7 @@
   "link_waitingOutput": "En attente de sortie...",
   "logs_filter_allLevels": "Tous les niveaux",
   "machine_memory_banner_dismiss": "Ignorer",
+  "machine_memory_banner_failed": "Le redémarrage n'a pas abouti : {error}",
   "machine_memory_banner_killed": "Arrêtés : {processes}",
   "machine_memory_banner_noRoom": "Ce Mac n'a plus de mémoire à lui donner. Arrêtez les sites ou workers inutilisés.",
   "machine_memory_banner_restart": "Redémarrer avec {gb} Go",

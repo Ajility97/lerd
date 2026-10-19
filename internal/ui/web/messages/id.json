@@ -399,6 +399,7 @@
   "link_waitingOutput": "Menunggu keluaran...",
   "logs_filter_allLevels": "Semua level",
   "machine_memory_banner_dismiss": "Tutup",
+  "machine_memory_banner_failed": "Mulai ulang tidak selesai: {error}",
   "machine_memory_banner_killed": "Dihentikan: {processes}",
   "machine_memory_banner_noRoom": "Mac ini tidak punya memori lagi untuk diberikan. Hentikan situs atau worker yang tidak dipakai.",
   "machine_memory_banner_restart": "Mulai ulang dengan {gb} GB",

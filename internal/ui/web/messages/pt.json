@@ -399,6 +399,7 @@
   "link_waitingOutput": "Aguardando saída...",
   "logs_filter_allLevels": "Todos os níveis",
   "machine_memory_banner_dismiss": "Dispensar",
+  "machine_memory_banner_failed": "O reinício não terminou: {error}",
   "machine_memory_banner_killed": "Encerrados: {processes}",
   "machine_memory_banner_noRoom": "Este Mac não tem mais memória para dar. Pare os sites ou workers que não está usando.",
   "machine_memory_banner_restart": "Reiniciar com {gb} GB",

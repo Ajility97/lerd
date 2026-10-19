@@ -399,6 +399,7 @@
   "link_waitingOutput": "Waiting for output...",
   "logs_filter_allLevels": "All levels",
   "machine_memory_banner_dismiss": "Dismiss",
+  "machine_memory_banner_failed": "The restart did not finish: {error}",
   "machine_memory_banner_killed": "Killed: {processes}",
   "machine_memory_banner_noRoom": "This Mac has no more memory to give it. Stop sites or workers you are not using.",
   "machine_memory_banner_restart": "Restart with {gb} GB",
