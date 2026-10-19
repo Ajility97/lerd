@@ -1437,6 +1437,7 @@
   "system_plugins_installConfirmTitle": "Instalezi {name}?",
   "system_plugins_installedBadge": "Instalat",
   "system_plugins_needsLerd": "Necesită Lerd {constraint}",
+  "system_plugins_platformOnly": "Doar {list}",
   "system_plugins_lastFailure": "Ultimul eșec în {what}",
   "system_plugins_report": "Raportează autorului",
   "notify_plugin_failed_title": "Pluginul {plugin} a eșuat",

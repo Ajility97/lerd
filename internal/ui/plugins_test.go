@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -465,6 +466,30 @@ func TestPluginManager_CatalogMarksWhatNeedsANewerLerd(t *testing.T) {
 	if len(got) != 2 || !got[0].Compatible || got[1].Compatible {
 		t.Errorf("got %+v", got)
 	}
+}
+
+func TestPluginManager_CatalogMarksWhatRunsElsewhere(t *testing.T) {
+	installAPIPlugin(t)
+	serveCatalog(t,
+		plugins.Listing{Name: "both", Repo: "https://github.com/x/both", Commit: strings.Repeat("a", 40)},
+		plugins.Listing{Name: "elsewhere", Repo: "https://github.com/x/elsewhere", Commit: strings.Repeat("b", 40), Platforms: []string{otherPlatform()}},
+	)
+	rec := httptest.NewRecorder()
+	handlePluginManager(rec, localRequest(http.MethodGet, "/api/plugin-manager/catalog", ""))
+	var got []catalogEntry
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("%v: %s", err, rec.Body)
+	}
+	if len(got) != 2 || !got[0].RunsHere || got[1].RunsHere {
+		t.Errorf("got %+v", got)
+	}
+}
+
+func otherPlatform() string {
+	if runtime.GOOS == "darwin" {
+		return "linux"
+	}
+	return "macos"
 }
 
 // An unreachable catalog answers 502 with the reason rather than an empty

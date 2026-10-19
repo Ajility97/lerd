@@ -10,6 +10,10 @@
   import { notifyLocalFailure, notifyLocalInfo } from '$lib/notify';
   import { m } from '../../paraglide/messages.js';
 
+  // Product names, not the manifest's ids.
+  const PLATFORM_NAMES: Record<string, string> = { linux: 'Linux', macos: 'macOS' };
+  const platformNames = (list: string[] = []) => list.map((p) => PLATFORM_NAMES[p] ?? p).join(', ');
+
   interface Props {
     // A plugin to bring into view, from a plugins.lerd.sh "Install in Lerd" link.
     focus?: string;
@@ -128,6 +132,8 @@
               <span class="text-xs text-gray-400 tabular-nums">{e.stars ? '★ ' + e.stars.toLocaleString() : ''}</span>
               {#if e.installed}
                 <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">{m.system_plugins_installedBadge()}</span>
+              {:else if e.runs_here === false}
+                <span class="text-xs text-gray-500 dark:text-gray-400">{m.system_plugins_platformOnly({ list: platformNames(e.platforms) })}</span>
               {:else if !e.compatible}
                 <span class="text-xs text-gray-500 dark:text-gray-400">{m.system_plugins_needsLerd({ constraint: e.lerd ?? '' })}</span>
               {:else if e.missing?.length}

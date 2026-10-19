@@ -1437,6 +1437,7 @@
   "system_plugins_installConfirmTitle": "Cài {name}?",
   "system_plugins_installedBadge": "Đã cài",
   "system_plugins_needsLerd": "Cần Lerd {constraint}",
+  "system_plugins_platformOnly": "Chỉ {list}",
   "system_plugins_lastFailure": "Lỗi gần nhất ở {what}",
   "system_plugins_report": "Báo cho tác giả",
   "notify_plugin_failed_title": "Plugin {plugin} bị lỗi",

@@ -351,6 +351,8 @@ type catalogEntry struct {
 	plugins.Listing
 	Installed  bool `json:"installed"`
 	Compatible bool `json:"compatible"`
+	// RunsHere is false when the plugin lists platforms and this is not one.
+	RunsHere bool `json:"runs_here"`
 	// Missing is what the plugin requires that this machine lacks.
 	Missing []string `json:"missing,omitempty"`
 }
@@ -444,7 +446,7 @@ func catalogEntries() ([]catalogEntry, error) {
 	out := make([]catalogEntry, 0, len(c.Plugins))
 	for _, l := range c.Plugins {
 		_, err := os.Stat(filepath.Join(plugins.Dir(), l.Name, plugins.ManifestFile))
-		out = append(out, catalogEntry{Listing: l, Installed: err == nil, Compatible: plugins.Compatible(l.Lerd), Missing: plugins.Missing(l.Requires)})
+		out = append(out, catalogEntry{Listing: l, Installed: err == nil, Compatible: plugins.Compatible(l.Lerd), RunsHere: plugins.RunsHere(l.Platforms), Missing: plugins.Missing(l.Requires)})
 	}
 	return out, nil
 }

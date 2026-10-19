@@ -1437,6 +1437,7 @@
   "system_plugins_installConfirmTitle": "{name} kurulsun mu?",
   "system_plugins_installedBadge": "Kurulu",
   "system_plugins_needsLerd": "Lerd {constraint} gerekir",
+  "system_plugins_platformOnly": "Yalnızca {list}",
   "system_plugins_lastFailure": "{what} içinde son hata",
   "system_plugins_report": "Yazara bildir",
   "notify_plugin_failed_title": "{plugin} eklentisi başarısız oldu",

@@ -1437,6 +1437,7 @@
   "system_plugins_installConfirmTitle": "{name} installeren?",
   "system_plugins_installedBadge": "Geïnstalleerd",
   "system_plugins_needsLerd": "Vereist Lerd {constraint}",
+  "system_plugins_platformOnly": "Alleen {list}",
   "system_plugins_lastFailure": "Laatste fout in {what}",
   "system_plugins_report": "Melden aan de auteur",
   "notify_plugin_failed_title": "Plugin {plugin} is mislukt",

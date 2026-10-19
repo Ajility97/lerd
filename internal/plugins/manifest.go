@@ -41,6 +41,8 @@ type Manifest struct {
 	// Requires names the commands the plugin's scripts call beyond their own
 	// interpreters, which lerd reads from each script's first line.
 	Requires []string `yaml:"requires,omitempty" json:"requires,omitempty"`
+	// Platforms lists where the plugin runs, linux or macos; empty means both.
+	Platforms []string `yaml:"platforms,omitempty" json:"platforms,omitempty"`
 }
 
 // Command is a CLI command, invoked as `lerd <plugin>:<name>`.
@@ -141,6 +143,9 @@ func (p *Plugin) validate() error {
 	}
 	if !Compatible(p.Lerd) {
 		return fmt.Errorf("needs lerd %s (this is %s)", p.Lerd, runningVersion)
+	}
+	if err := p.checkPlatforms(); err != nil {
+		return err
 	}
 	if !nameRe.MatchString(p.Name) {
 		return fmt.Errorf("name %q must be lowercase letters, digits and dashes", p.Name)

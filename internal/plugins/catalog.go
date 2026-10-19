@@ -42,6 +42,8 @@ type Listing struct {
 	// Requires is what the approved commit needs on the machine, as
 	// Plugin.Requirements reads it.
 	Requires []string `json:"requires,omitempty"`
+	// Platforms is the approved commit's own `platforms`, empty for both.
+	Platforms []string `json:"platforms,omitempty"`
 	// Images are copied by the registry at the approved commit and published
 	// beside the index, the first one being the preview. The index lists them
 	// relative to itself; LoadCatalog hands them out as absolute URLs.
@@ -264,7 +266,7 @@ func PendingUpdate(name string) (*Listing, bool) {
 		return nil, false
 	}
 	l, err := FindListing(name)
-	if err != nil || l.Commit == src.Commit || !Compatible(l.Lerd) {
+	if err != nil || l.Commit == src.Commit || !Compatible(l.Lerd) || !RunsHere(l.Platforms) {
 		return nil, false
 	}
 	return l, true

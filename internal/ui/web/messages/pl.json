@@ -1437,6 +1437,7 @@
   "system_plugins_installConfirmTitle": "Zainstalować {name}?",
   "system_plugins_installedBadge": "Zainstalowana",
   "system_plugins_needsLerd": "Wymaga Lerd {constraint}",
+  "system_plugins_platformOnly": "Tylko {list}",
   "system_plugins_lastFailure": "Ostatni błąd w {what}",
   "system_plugins_report": "Zgłoś autorowi",
   "notify_plugin_failed_title": "Wtyczka {plugin} zawiodła",

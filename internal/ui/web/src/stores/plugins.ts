@@ -91,11 +91,13 @@ export interface CatalogEntry {
   images?: string[];
   lerd?: string;
   requires?: string[];
+  platforms?: string[];
   added_at?: string;
   updated_at?: string;
   stars?: number;
   installed: boolean;
   compatible: boolean;
+  runs_here?: boolean;
   missing?: string[];
 }
 

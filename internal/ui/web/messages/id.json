@@ -1437,6 +1437,7 @@
   "system_plugins_installConfirmTitle": "Pasang {name}?",
   "system_plugins_installedBadge": "Terpasang",
   "system_plugins_needsLerd": "Memerlukan Lerd {constraint}",
+  "system_plugins_platformOnly": "Hanya {list}",
   "system_plugins_lastFailure": "Kegagalan terakhir di {what}",
   "system_plugins_report": "Laporkan ke pembuat",
   "notify_plugin_failed_title": "Plugin {plugin} gagal",

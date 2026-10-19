@@ -1437,6 +1437,7 @@
   "system_plugins_installConfirmTitle": "Installare {name}?",
   "system_plugins_installedBadge": "Installato",
   "system_plugins_needsLerd": "Richiede Lerd {constraint}",
+  "system_plugins_platformOnly": "Solo {list}",
   "system_plugins_lastFailure": "Ultimo errore in {what}",
   "system_plugins_report": "Segnala all'autore",
   "notify_plugin_failed_title": "Il plugin {plugin} non è riuscito",

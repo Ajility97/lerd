@@ -1437,6 +1437,7 @@
   "system_plugins_installConfirmTitle": "安装 {name}？",
   "system_plugins_installedBadge": "已安装",
   "system_plugins_needsLerd": "需要 Lerd {constraint}",
+  "system_plugins_platformOnly": "仅限 {list}",
   "system_plugins_lastFailure": "{what} 最近一次失败",
   "system_plugins_report": "报告给作者",
   "notify_plugin_failed_title": "插件 {plugin} 失败",

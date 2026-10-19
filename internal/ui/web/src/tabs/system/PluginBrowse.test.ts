@@ -54,6 +54,14 @@ it('names the lerd a plugin needs instead of offering to install it', async () =
   expect(queryByRole('button', { name: 'Install' })).toBeNull();
 });
 
+// A plugin for the other platform would be refused at install, so say where it runs.
+it('names the platform a plugin runs on instead of offering to install it', async () => {
+  catalog = [{ name: 'linuxy', repo: 'r', commit: A, installed: false, compatible: true, runs_here: false, platforms: ['linux'] }];
+  const { findByText, queryByRole } = render(PluginBrowse);
+  await findByText('Linux only');
+  expect(queryByRole('button', { name: 'Install' })).toBeNull();
+});
+
 // Installing would only end in lerd refusing it, so say what is missing first.
 it('lists what a plugin requires and offers no install while something is missing', async () => {
   catalog = [{ name: 'needy', repo: 'r', commit: A, installed: false, compatible: true, requires: ['python3', 'jq'], missing: ['jq'] }];

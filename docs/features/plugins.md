@@ -48,6 +48,7 @@ Every key except `api_version` and `name` is optional. Paths are relative to the
 api_version: 1
 name: hello                 # lowercase letters, digits and dashes; must match the folder name
 lerd: ">=1.37"              # the oldest lerd it runs on; lerd plugin new fills in the one that wrote it
+platforms: [linux, macos]   # where it runs; both when omitted
 version: 0.1.0
 description: A starting point for a lerd plugin
 
@@ -109,6 +110,10 @@ A manifest written for a newer lerd still loads as long as its `api_version` is 
 `lerd` names the oldest release the plugin needs, compared on major and minor. Give it a lower bound only, never an upper one: every later lerd keeps loading the plugin, so it never needs a new version just because lerd shipped one. A lerd older than the bound refuses to install or load it and says which release it needs, and the Browse tab shows the requirement in place of the Install button. An approved update that needs a newer lerd than yours is not offered until you update lerd.
 
 A change that would break existing plugins raises `api_version` instead, which is the one thing that can make a plugin stop loading on a newer lerd.
+
+### Which platforms a plugin runs on
+
+`platforms` lists where the plugin runs, `linux`, `macos` or both, and a plugin that leaves it out runs on both. Set it when a script depends on one of them, such as GNU `sed -i` or a tool only Linux has. On Windows lerd runs inside WSL, so plugins there run on `linux`. On a platform the plugin doesn't list, lerd refuses to install or load it and says where it runs, the Browse tab shows that in place of the Install button, and an update is not offered. Any value other than `linux` or `macos` is refused by name.
 
 ---
 

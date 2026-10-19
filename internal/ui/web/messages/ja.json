@@ -1437,6 +1437,7 @@
   "system_plugins_installConfirmTitle": "{name} をインストールしますか？",
   "system_plugins_installedBadge": "インストール済み",
   "system_plugins_needsLerd": "Lerd {constraint} が必要",
+  "system_plugins_platformOnly": "{list} のみ",
   "system_plugins_lastFailure": "{what} で直近の失敗",
   "system_plugins_report": "作者に報告",
   "notify_plugin_failed_title": "プラグイン {plugin} が失敗しました",
