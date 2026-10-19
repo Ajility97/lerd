@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/geodro/lerd/internal/config"
 	"os"
 	"path/filepath"
 	"testing"
@@ -54,5 +55,28 @@ func TestStartServicesForSite_noticesStayOffStdout(t *testing.T) {
 	out := captureStdout(t, func() { startServicesForSiteNoticed(dir, "demo") })
 	if out != "" {
 		t.Errorf("stdout = %q, want empty (paused notice and warnings belong on stderr)", out)
+	}
+}
+
+// A service removed with `lerd service remove` is not started again, and not
+// warned about on every command, just because the site's .env still names it.
+func TestStartServicesForSite_skipsARemovedService(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	var tried []string
+	prev := ensureServiceRunningFn
+	ensureServiceRunningFn = func(name string) error { tried = append(tried, name); return nil }
+	t.Cleanup(func() { ensureServiceRunningFn = prev })
+	if err := config.SetServiceRemoved("mailpit", true); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("DB_HOST=lerd-mysql\nMAIL_HOST=lerd-mailpit\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	startServicesForSiteNoticed(dir, "")
+	if len(tried) != 1 || tried[0] != "mysql" {
+		t.Errorf("started %q, want only mysql", tried)
 	}
 }

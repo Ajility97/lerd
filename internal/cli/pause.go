@@ -359,7 +359,9 @@ func startServicesForSiteNoticed(sitePath, siteName string) {
 
 	headerPrinted := false
 	for _, name := range candidates {
-		if !envfile.ReferencesContainer(envContent, name) {
+		// A service the user removed stays removed: the dashboard offers it back,
+		// and warning about it on every php or composer run is only noise.
+		if !envfile.ReferencesContainer(envContent, name) || config.ServiceIsRemoved(name) {
 			continue
 		}
 		if siteName != "" && !headerPrinted {
