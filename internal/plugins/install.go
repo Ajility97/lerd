@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/git"
@@ -54,6 +55,13 @@ func newStage() (string, error) {
 // catalog listed it under; replace swaps out an installed copy, which is kept
 // until the new one is in place; src records where a catalog install came from.
 func place(stage, staged, want string, replace bool, src *Source) (*Plugin, error) {
+	// The checks below read what is installed, so a second install placing at
+	// the same time, from another tab or the CLI, could pass them too.
+	release, err := git.LockInstall(Dir(), 30*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	name, err := manifestName(staged)
 	if err != nil {
 		return nil, err

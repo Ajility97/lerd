@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -53,6 +54,31 @@ func TestInstall_RefusesASecondPluginForTheSameJob(t *testing.T) {
 	}
 	if _, err := place(stage, staged, "", true, nil); err != nil {
 		t.Fatalf("updating the plugin in charge is not a clash: %v", err)
+	}
+}
+
+// Two installs at once, from two dashboard tabs or the dashboard and the CLI,
+// must not both pass the check and both end up in charge.
+func TestInstall_OneOfTwoConcurrentInstallsForAJobWins(t *testing.T) {
+	for round := 0; round < 20; round++ {
+		isolate(t)
+		srcs := []string{providerPlugin(t, t.TempDir(), "brancher", ""), providerPlugin(t, t.TempDir(), "rival", "")}
+		var wg sync.WaitGroup
+		start := make(chan struct{})
+		errs := make([]error, len(srcs))
+		for i, src := range srcs {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				_, errs[i] = Install(src)
+			}()
+		}
+		close(start)
+		wg.Wait()
+		if (errs[0] == nil) == (errs[1] == nil) {
+			t.Fatalf("round %d: exactly one install must win, got %v and %v", round, errs[0], errs[1])
+		}
 	}
 }
 
