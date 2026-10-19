@@ -414,6 +414,29 @@ func TestHandleSiteGitDiff(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"original":"a\n","modified":"changed\n"`) {
 		t.Fatalf("versions: %d %s", rec.Code, rec.Body.String())
 	}
+	head := strings.TrimSpace(runGitOutput(sitePath, "rev-parse", "HEAD"))
+	rec = get("domain=acme.test&path=" + url.QueryEscape(main) + "&commits=outgoing")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `{"hash":"`+head+`","subject":"init","time":`) {
+		t.Fatalf("commits: %d %s", rec.Code, rec.Body.String())
+	}
+	rec = get("domain=acme.test&path=" + url.QueryEscape(main) + "&commit=" + head)
+	if rec.Code != http.StatusOK || rec.Body.String() != `[{"path":"a.php","status":"A"}]`+"\n" {
+		t.Fatalf("commit files: %d %q", rec.Code, rec.Body.String())
+	}
+	rec = get("domain=acme.test&path=" + url.QueryEscape(main) + "&commit=" + head + "&file=a.php")
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"original":"","modified":"a\n"`) {
+		t.Fatalf("commit versions: %d %s", rec.Code, rec.Body.String())
+	}
+	// HEAD against itself: nothing would come in.
+	rec = get("domain=acme.test&path=" + url.QueryEscape(main) + "&upto=" + head)
+	if rec.Code != http.StatusOK || rec.Body.String() != "[]\n" {
+		t.Fatalf("upto: %d %q", rec.Code, rec.Body.String())
+	}
+	for _, q := range []string{"&commits=HEAD~1..HEAD", "&commit=main", "&upto=main"} {
+		if rec := get("domain=acme.test&path=" + url.QueryEscape(main) + q); rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: got %d", q, rec.Code)
+		}
+	}
 	if rec := get("domain=acme.test&path=" + url.QueryEscape(t.TempDir())); rec.Code != http.StatusBadRequest {
 		t.Errorf("foreign path: got %d", rec.Code)
 	}

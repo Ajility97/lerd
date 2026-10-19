@@ -139,6 +139,11 @@ func FileVersions(dir, section, path string) (Versions, error) {
 		from = side{absent: true}
 		to = side{tree: true}
 	}
+	return compare(dir, path, from, to), nil
+}
+
+// compare reads both sides of path, refusing what an editor cannot show.
+func compare(dir, path string, from, to side) Versions {
 	var original, modified []byte
 	for _, s := range []struct {
 		side side
@@ -146,17 +151,17 @@ func FileVersions(dir, section, path string) (Versions, error) {
 	}{{from, &original}, {to, &modified}} {
 		b, err := s.side.read(dir, path)
 		if errors.Is(err, errTooLarge) {
-			return Versions{TooLarge: true}, nil
+			return Versions{TooLarge: true}
 		}
 		if err != nil {
-			return Versions{Unreadable: true}, nil
+			return Versions{Unreadable: true}
 		}
 		*s.into = b
 	}
 	if bytes.IndexByte(original, 0) >= 0 || bytes.IndexByte(modified, 0) >= 0 {
-		return Versions{Binary: true}, nil
+		return Versions{Binary: true}
 	}
-	return Versions{Original: string(original), Modified: string(modified)}, nil
+	return Versions{Original: string(original), Modified: string(modified)}
 }
 
 var errTooLarge = errors.New("file too large to compare")

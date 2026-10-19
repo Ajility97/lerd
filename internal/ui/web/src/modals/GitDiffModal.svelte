@@ -9,9 +9,14 @@
   import {
     SECTIONS,
     languageFor,
+    loadCommitFiles,
+    loadCommitVersions,
     loadGitChanges,
     loadGitVersions,
-    type GitChanges,
+    loadUptoFiles,
+    loadUptoVersions,
+    type GitChangedFile,
+    type GitCommit,
     type GitDiffSection,
     type GitVersions
   } from '$lib/gitDiff';
@@ -21,11 +26,18 @@
     domain: string;
     path: string;
     branch: string;
+    // Shows what this commit changed instead of the uncommitted work.
+    commit?: GitCommit;
+    // Or what HEAD to this commit changes: everything a pull would bring in.
+    upto?: string;
+    onclose?: () => void;
   }
-  let { domain, path, branch }: Props = $props();
+  let { domain, path, branch, commit, upto, onclose = closeModal }: Props = $props();
 
-  let changes = $state<GitChanges | null>(null);
-  let selected = $state<{ section: GitDiffSection; file: string } | null>(null);
+  // Uncommitted work lists one group per section; a commit or a pull is one unnamed group.
+  type Group = { key: GitDiffSection | 'commit' | 'upto'; label: string; files: GitChangedFile[] };
+  let groups = $state<Group[] | null>(null);
+  let selected = $state<{ group: Group['key']; file: string } | null>(null);
   let versions = $state<GitVersions | null>(null);
   let stats = $state<{ added: number; removed: number } | null>(null);
   let error = $state('');
@@ -36,7 +48,7 @@
   // Escape and the close button leave full screen first, as Tinker's does.
   function close() {
     if (fullscreen) fullscreen = false;
-    else closeModal();
+    else onclose();
   }
 
   const sectionLabel: Record<GitDiffSection, () => string> = {
@@ -51,34 +63,46 @@
     U: 'text-red-600 dark:text-red-400'
   };
 
-  const empty = $derived(!!changes && SECTIONS.every((s) => changes![s].length === 0));
+  const empty = $derived(!!groups && groups.every((g) => g.files.length === 0));
 
   onMount(async () => {
     try {
-      changes = await loadGitChanges(domain, path);
-      const first = SECTIONS.find((s) => changes![s].length > 0);
-      if (first) select(first, changes[first][0].path);
+      if (commit) {
+        groups = [{ key: 'commit', label: '', files: await loadCommitFiles(domain, path, commit.hash) }];
+      } else if (upto) {
+        groups = [{ key: 'upto', label: '', files: await loadUptoFiles(domain, path, upto) }];
+      } else {
+        const changes = await loadGitChanges(domain, path);
+        groups = SECTIONS.map((s) => ({ key: s, label: sectionLabel[s](), files: changes[s] }));
+      }
+      const first = groups.find((g) => g.files.length > 0);
+      if (first) select(first.key, first.files[0].path);
     } catch (e) {
       error = e instanceof Error ? e.message : m.common_failed();
     }
   });
 
-  async function select(section: GitDiffSection, file: string) {
-    selected = { section, file };
+  async function select(group: Group['key'], file: string) {
+    selected = { group, file };
     versions = null;
     stats = null;
     error = '';
     try {
-      const v = await loadGitVersions(domain, path, section, file);
+      const v =
+        group === 'commit'
+          ? await loadCommitVersions(domain, path, commit!.hash, file)
+          : group === 'upto'
+            ? await loadUptoVersions(domain, path, upto!, file)
+            : await loadGitVersions(domain, path, group, file);
       // A slower answer for an earlier click must not replace this one.
-      if (selected?.section === section && selected.file === file) versions = v;
+      if (selected?.group === group && selected.file === file) versions = v;
     } catch (e) {
-      if (selected?.section === section && selected.file === file) error = e instanceof Error ? e.message : m.common_failed();
+      if (selected?.group === group && selected.file === file) error = e instanceof Error ? e.message : m.common_failed();
     }
   }
 </script>
 
-<Modal open size="2xl" tall {fullscreen} title={m.gitDiff_title({ branch })} onclose={close}>
+<Modal open size="2xl" tall {fullscreen} title={commit ? `${commit.hash.slice(0, 7)} ${commit.subject}` : upto ? m.gitDiff_incomingTitle({ branch }) : m.gitDiff_title({ branch })} onclose={close}>
   {#snippet actions()}
     <!-- Same gap and icon size as the modal's own close button beside them. -->
     <div class="flex items-center gap-3">
@@ -104,7 +128,7 @@
     </div>
   {/snippet}
   {#if empty}
-    <p class="px-5 py-6 text-sm text-gray-500 dark:text-gray-400">{m.gitDiff_empty()}</p>
+    <p class="px-5 py-6 text-sm text-gray-500 dark:text-gray-400">{commit ? m.gitDiff_commitEmpty() : m.gitDiff_empty()}</p>
   {:else}
     <div class="flex flex-col md:flex-row min-h-0 flex-1">
       <!-- Width animates like the dashboard's own side panel; the list keeps its
@@ -114,16 +138,18 @@
         class="shrink-0 overflow-hidden md:flex md:transition-[width] md:duration-200 md:ease-out {filesHidden ? 'hidden md:w-0' : 'md:w-72'}"
       >
       <nav class="md:w-72 shrink-0 max-h-48 md:max-h-none md:h-full overflow-y-auto border-b md:border-b-0 md:border-r border-gray-100 dark:border-lerd-border py-2">
-        {#each SECTIONS as section (section)}
-          {#if changes && changes[section].length > 0}
-            <h4 class="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-              {sectionLabel[section]()} · {changes[section].length}
-            </h4>
-            {#each changes[section] as f (f.path)}
-              {@const active = selected?.section === section && selected.file === f.path}
+        {#each groups ?? [] as g (g.key)}
+          {#if g.files.length > 0}
+            {#if g.label}
+              <h4 class="px-4 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                {g.label} · {g.files.length}
+              </h4>
+            {/if}
+            {#each g.files as f (f.path)}
+              {@const active = selected?.group === g.key && selected.file === f.path}
               <button
                 type="button"
-                onclick={() => select(section, f.path)}
+                onclick={() => select(g.key, f.path)}
                 aria-current={active ? 'true' : undefined}
                 class="w-full flex items-center gap-2 px-4 py-1 text-left font-mono text-xs {active
                   ? 'bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white'

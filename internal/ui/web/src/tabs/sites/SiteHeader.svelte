@@ -456,6 +456,7 @@
                 domain={site.domain}
                 branch={activeEntry.isMain ? '' : activeEntry.branch}
                 branchLabel={activeEntry.branch}
+                path={git.path}
                 status={git}
                 onDone={refreshGit}
               />

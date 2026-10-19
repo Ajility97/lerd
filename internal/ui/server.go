@@ -6732,7 +6732,10 @@ func handleSiteGitStatus(w http.ResponseWriter, r *http.Request) {
 
 // handleSiteGitDiff answers GET /api/sites/git-diff?domain=...&path=... with
 // the files a checkout has changed, or with both versions of one file when
-// section and file are given. path must be one of the site's own checkouts.
+// section and file are given. commits=incoming|outgoing lists what a pull or
+// push would move instead, commit=<hash> reads one of those commits the same
+// way, and upto=<hash> compares HEAD with the commit a pull plan stops at.
+// path must be one of the site's own checkouts.
 func handleSiteGitDiff(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.NotFound(w, r)
@@ -6747,6 +6750,35 @@ func handleSiteGitDiff(w http.ResponseWriter, r *http.Request) {
 	dir := q.Get("path")
 	if !isSiteCheckout(site.Path, dir) {
 		http.Error(w, "not a checkout of this site", http.StatusBadRequest)
+		return
+	}
+	if q.Has("commits") {
+		list, err := gitpkg.ReadCommits(dir, q.Get("commits"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, list)
+		return
+	}
+	readFiles, readVersions := gitpkg.CommitFiles, gitpkg.CommitVersions
+	hash := q.Get("commit")
+	if q.Has("upto") {
+		readFiles, readVersions, hash = gitpkg.HeadFiles, gitpkg.HeadVersions, q.Get("upto")
+	}
+	if hash != "" {
+		var v any
+		var err error
+		if q.Get("file") == "" {
+			v, err = readFiles(dir, hash)
+		} else {
+			v, err = readVersions(dir, hash, q.Get("file"))
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, v)
 		return
 	}
 	if q.Get("file") == "" {

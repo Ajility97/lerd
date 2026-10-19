@@ -1,3 +1,9 @@
+<script lang="ts" module>
+  // Open modals, oldest first. A dialog opened over another (a commit's diff
+  // over the push confirmation) must take Escape alone, not close both.
+  const stack: symbol[] = [];
+</script>
+
 <script lang="ts">
   import { onMount, onDestroy, type Snippet } from 'svelte';
   import Icon from './Icon.svelte';
@@ -33,10 +39,17 @@
             : 'max-w-lg'
   );
 
+  const me = Symbol();
+  $effect(() => {
+    if (!open) return;
+    stack.push(me);
+    return () => void stack.splice(stack.indexOf(me), 1);
+  });
+
   // An open modal owns Escape. Marking the event handled lets layers
   // underneath (full-screen editors, hover menus) leave this keypress alone.
   function onKey(e: KeyboardEvent) {
-    if (e.key !== 'Escape' || !open) return;
+    if (e.key !== 'Escape' || !open || stack.at(-1) !== me) return;
     e.preventDefault();
     onclose();
   }
@@ -76,7 +89,8 @@
           <Icon name="close" class="w-5 h-5" />
         </button>
       </div>
-      <div class="min-h-0 overflow-y-auto">{@render children()}</div>
+      <!-- A tall body (an editor) fills the panel and scrolls itself. -->
+      <div class="min-h-0 {tall || fullscreen ? 'flex-1 flex flex-col' : 'overflow-y-auto'}">{@render children()}</div>
       {#if footer}
         <div class="shrink-0 px-5 py-3 border-t border-gray-100 dark:border-lerd-border flex items-center justify-end gap-2">
           {@render footer()}

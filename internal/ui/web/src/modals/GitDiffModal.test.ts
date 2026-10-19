@@ -1,12 +1,14 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const { loadGitChanges, loadGitVersions, closeModal } = vi.hoisted(() => ({
+const { loadGitChanges, loadGitVersions, loadCommitFiles, loadCommitVersions, closeModal } = vi.hoisted(() => ({
   loadGitChanges: vi.fn(),
   loadGitVersions: vi.fn(),
+  loadCommitFiles: vi.fn(),
+  loadCommitVersions: vi.fn(),
   closeModal: vi.fn()
 }));
-vi.mock('$lib/gitDiff', async (orig) => ({ ...(await orig<object>()), loadGitChanges, loadGitVersions }));
+vi.mock('$lib/gitDiff', async (orig) => ({ ...(await orig<object>()), loadGitChanges, loadGitVersions, loadCommitFiles, loadCommitVersions }));
 vi.mock('$stores/modals', () => ({ closeModal }));
 // Monaco does not run under jsdom; the stub shows what the modal hands it.
 vi.mock('$components/MonacoDiffEditor.svelte', async () => ({ default: (await import('./MonacoDiffEditor.stub.svelte')).default }));
@@ -128,5 +130,30 @@ describe('GitDiffModal', () => {
     render(GitDiffModal, { props });
     await waitFor(() => expect(screen.getByText('No uncommitted changes.')).toBeTruthy());
     expect(loadGitVersions).not.toHaveBeenCalled();
+  });
+
+  it('shows a commit as one list and closes through its own handler', async () => {
+    loadCommitFiles.mockResolvedValue([{ path: 'a.php', status: 'M' }, { path: 'b.php', status: 'A' }]);
+    loadCommitVersions.mockImplementation(async (_d: string, _p: string, _h: string, file: string) => text('', file));
+    const onclose = vi.fn();
+    render(GitDiffModal, { props: { ...props, commit: { hash: 'abc1234def', subject: 'feat: x' }, onclose } });
+
+    expect(await screen.findByText('abc1234 feat: x')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('diff').dataset.modified).toBe('a.php'));
+    expect(loadCommitFiles).toHaveBeenCalledWith('acme.test', '/srv/acme', 'abc1234def');
+    expect(screen.queryByText(/Staged|Unstaged|Untracked/)).toBeNull();
+    expect(loadGitChanges).not.toHaveBeenCalled();
+
+    await fireEvent.click(screen.getByText('b.php'));
+    await waitFor(() => expect(screen.getByTestId('diff').dataset.modified).toBe('b.php'));
+    await fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onclose).toHaveBeenCalledOnce();
+    expect(closeModal).not.toHaveBeenCalled();
+  });
+
+  it('says so when a commit changes no files', async () => {
+    loadCommitFiles.mockResolvedValue([]);
+    render(GitDiffModal, { props: { ...props, commit: { hash: 'abc1234def', subject: 'merge' } } });
+    expect(await screen.findByText('This commit changes no files.')).toBeInTheDocument();
   });
 });

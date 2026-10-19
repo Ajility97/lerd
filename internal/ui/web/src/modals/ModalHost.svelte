@@ -59,7 +59,7 @@
 {:else if $modal.kind === 'branchSwitch' && $modal.site}
   <SwitchBranchModal site={$modal.site} />
 {:else if $modal.kind === 'gitPull' && $modal.pull}
-  <PullModal domain={$modal.pull.domain} branch={$modal.pull.branch} branchLabel={$modal.pull.label} onDone={$modal.onSuccess} />
+  <PullModal domain={$modal.pull.domain} branch={$modal.pull.branch} branchLabel={$modal.pull.label} path={$modal.pull.path} onDone={$modal.onSuccess} />
 {:else if $modal.kind === 'gitDiff' && $modal.gitDiff}
   <GitDiffModal domain={$modal.gitDiff.domain} path={$modal.gitDiff.path} branch={$modal.gitDiff.branch} />
 {:else if $modal.kind === 'worktreeRemove' && $modal.site && $modal.branch}
