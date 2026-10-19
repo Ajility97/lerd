@@ -3,6 +3,7 @@ package winshim
 import (
 	"net"
 	"reflect"
+	"slices"
 	"testing"
 
 	"golang.org/x/net/dns/dnsmessage"
@@ -189,5 +190,24 @@ func TestShimFromExe(t *testing.T) {
 		if got := ShimFromExe(in); got != want {
 			t.Errorf("ShimFromExe(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// lerd.exe runs lerd as the Linux user who ran wsl:setup, which need not be the
+// distro's default; a config from before user= ran as the default, and still does.
+func TestWSLArgs_RunsAsTheSetupUser(t *testing.T) {
+	cfg := Config{Distro: "Ubuntu-24.04", Lerd: "/home/dev/.local/bin/lerd", User: "dev"}
+	got := WSLArgs(cfg, `C:\x`, []string{"status"})
+	want := []string{"-d", "Ubuntu-24.04", "-u", "dev", "--cd", `C:\x`, "--exec", "/home/dev/.local/bin/lerd", "status"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	cfg.User = ""
+	if got := WSLArgs(cfg, `C:\x`, nil); slices.Contains(got, "-u") {
+		t.Errorf("an old config without user= gained -u: %q", got)
+	}
+	parsed, err := ParseConfig(Config{Distro: "D", Lerd: "/l", User: "dev"}.String())
+	if err != nil || parsed.User != "dev" {
+		t.Errorf("user= did not round-trip: %+v %v", parsed, err)
 	}
 }

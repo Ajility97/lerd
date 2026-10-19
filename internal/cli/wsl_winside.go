@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/user"
 	"path"
 	"path/filepath"
 	"strings"
@@ -58,6 +59,9 @@ func installWindowsSide(w io.Writer) error {
 	tld := windowsSideTLD()
 	drive, _ := exec.Command("wslpath", "-u", `C:\`).Output()
 	cfg := winshim.Config{Distro: distro, Lerd: self, TLD: tld, Shims: config.BinDir(), Mount: mountRoot(strings.TrimSpace(string(drive)))}
+	if u, err := user.Current(); err == nil {
+		cfg.User = u.Username
+	}
 	if err := os.WriteFile(filepath.Join(dir, winshim.ConfigName), []byte(cfg.String()), 0o644); err != nil {
 		return err
 	}

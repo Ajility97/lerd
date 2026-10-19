@@ -94,7 +94,11 @@ func agent(cfg winshim.Config, confPath string) error {
 	// Starting any process boots the distro, and with it systemd and lerd's
 	// services; instanceIdleTimeout=-1 keeps it up after this one exits.
 	boot := func() {
-		if out, err := exec.Command("wsl.exe", "-d", cfg.Distro, "--exec", "/bin/true").CombinedOutput(); err != nil {
+		args := []string{"-d", cfg.Distro}
+		if cfg.User != "" {
+			args = append(args, "-u", cfg.User)
+		}
+		if out, err := exec.Command("wsl.exe", append(args, "--exec", "/bin/true")...).CombinedOutput(); err != nil {
 			log.Printf("booting %s: %v: %s", cfg.Distro, err, out)
 		}
 	}

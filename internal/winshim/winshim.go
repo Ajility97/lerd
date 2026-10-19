@@ -22,10 +22,11 @@ type Config struct {
 	TLD    string // site TLD the agent answers for; empty when DNS is off
 	Shims  string // lerd's shim directory inside the distro; empty before wsl:setup wrote it
 	Mount  string // where WSL mounts Windows drives, /mnt unless wsl.conf moves it
+	User   string // the Linux user who ran wsl:setup; empty in a config from before it was saved
 }
 
 func (c Config) String() string {
-	return fmt.Sprintf("distro=%s\nlerd=%s\ntld=%s\nshims=%s\nmount=%s\n", c.Distro, c.Lerd, c.TLD, c.Shims, c.Mount)
+	return fmt.Sprintf("distro=%s\nlerd=%s\ntld=%s\nshims=%s\nmount=%s\nuser=%s\n", c.Distro, c.Lerd, c.TLD, c.Shims, c.Mount, c.User)
 }
 
 // ParseConfig reads the key=value file wsl:setup writes. An unknown key is
@@ -48,6 +49,8 @@ func ParseConfig(s string) (Config, error) {
 			c.Shims = v
 		case "mount":
 			c.Mount = v
+		case "user":
+			c.User = v
 		}
 	}
 	if c.Distro == "" || c.Lerd == "" {
@@ -107,7 +110,12 @@ func wslArgs(c Config, cwd, exe string, args []string) []string {
 	if p, ok := LinuxPath(cwd, c.Distro); ok {
 		cwd = p
 	}
-	out := []string{"-d", c.Distro, "--cd", cwd, "--exec", exe}
+	out := []string{"-d", c.Distro}
+	// The distro's default user need not be the one whose lerd this is.
+	if c.User != "" {
+		out = append(out, "-u", c.User)
+	}
+	out = append(out, "--cd", cwd, "--exec", exe)
 	for _, a := range args {
 		out = append(out, ArgToLinux(c, a))
 	}
