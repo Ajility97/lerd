@@ -30,6 +30,12 @@
   let { svc, site = '' }: Props = $props();
 
   onMount(loadAutoSnapshot);
+  // A link from a site page sets the filter, again on each new link while the
+  // tab stays mounted; the dropdown can still change it in between.
+  $effect(() => {
+    siteFilter = site;
+    page = 0;
+  });
   // The snapshots ride along with the engine's databases, so the tab reads the
   // same listing the Databases tab does rather than fetching its own, and skips
   // a service that has no databases for the same reason it does.
@@ -42,8 +48,7 @@
 
   let error = $state('');
   let busy = $state('');
-  // svelte-ignore state_referenced_locally
-  let siteFilter = $state(site);
+  let siteFilter = $state('');
   let timeFilter = $state('');
   let page = $state(0);
   let showSettings = $state(false);

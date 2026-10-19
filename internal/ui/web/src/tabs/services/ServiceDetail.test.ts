@@ -1,5 +1,6 @@
 import { render } from '@testing-library/svelte';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { tick } from 'svelte';
 
 // The children perform I/O on mount; replace them with stubs so these tests
 // stay focused on tab visibility.
@@ -62,6 +63,17 @@ describe('ServiceDetail deep link', () => {
   it('opens on the tab the route names', () => {
     routeRest.set('mysql/snapshots/shop');
     const { getByRole } = render(ServiceDetail, { props: { svc: dbService() } });
+    expect(getByRole('tab', { name: 'Snapshots' })).toHaveAttribute('aria-selected', 'true');
+    routeRest.set('');
+  });
+
+  // Hash navigation keeps the panel mounted while the service stays the same.
+  it('follows a route that names a tab while the service stays open', async () => {
+    routeRest.set('mysql');
+    const { getByRole } = render(ServiceDetail, { props: { svc: dbService() } });
+    expect(getByRole('tab', { name: 'Databases' })).toHaveAttribute('aria-selected', 'true');
+    routeRest.set('mysql/snapshots/shop');
+    await tick();
     expect(getByRole('tab', { name: 'Snapshots' })).toHaveAttribute('aria-selected', 'true');
     routeRest.set('');
   });

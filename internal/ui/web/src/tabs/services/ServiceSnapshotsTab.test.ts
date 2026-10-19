@@ -184,6 +184,13 @@ describe('ServiceSnapshotsTab', () => {
     expect(getAllByTitle('auto-20260720-100000').length).toBe(1);
   });
 
+  it('follows a link to another site while it stays open', async () => {
+    const { queryByText, getByText, rerender } = render(ServiceSnapshotsTab, { props: { svc, site: 'shop' } });
+    expect(queryByText('by-hand')).toBeNull();
+    await rerender({ svc, site: 'blog' });
+    expect(getByText('by-hand')).toBeInTheDocument();
+  });
+
   it('says nothing matches when the linked site has no snapshots', () => {
     const { getByRole, getByText } = render(ServiceSnapshotsTab, { props: { svc, site: 'docs' } });
     expect(getByRole('button', { name: /docs/ })).toBeInTheDocument();

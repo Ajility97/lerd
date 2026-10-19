@@ -29,6 +29,7 @@
   // empty), so switching services always lands on the right tab.
   let active = $state<TabId>('logs');
   let shownService = $state('');
+  let shownRoute = $state('');
 
   const hasEnv = $derived(Boolean(svc.env_vars && Object.keys(svc.env_vars).length > 0));
   const hasTools = $derived(Boolean(svc.client_shims && svc.client_shims.length > 0));
@@ -64,7 +65,8 @@
   // a service holds (databases, buckets) is the primary thing to look at, so
   // it beats logs as the landing tab.
   // A route naming a tab (#services/<name>/snapshots/<site>) wins over the
-  // default, so a link from a site card lands where it points.
+  // default, so a link from a site card lands where it points. Hash navigation
+  // keeps this panel mounted, so a new route is applied even on the same service.
   const routeParts = $derived($routeRest.split('/'));
   const routeTab = $derived(tabs.some((t) => t.id === routeParts[1]) ? (routeParts[1] as TabId) : null);
   const routeSite = $derived(routeTab === 'snapshots' ? decodeURIComponent(routeParts[2] ?? '') : '');
@@ -72,7 +74,11 @@
     const fallback: TabId = hasDatabases ? 'databases' : hasEntities ? 'entities' : 'logs';
     if (svc.name !== shownService) {
       shownService = svc.name;
+      shownRoute = $routeRest;
       active = routeTab ?? fallback;
+    } else if ($routeRest !== shownRoute) {
+      shownRoute = $routeRest;
+      if (routeTab) active = routeTab;
     }
     if (active === 'databases' && !hasDatabases) active = fallback;
     if (active === 'snapshots' && !hasSnapshots) active = fallback;
