@@ -107,24 +107,25 @@ foreach ($c in 'status', 'sites', 'doctor', 'php:list', 'service list', 'env:che
 	Check "C.18 lerd $c" ($LASTEXITCODE -eq 0) "exit $LASTEXITCODE $got"
 }
 
-# --- link and unlink a new site from a distro folder, reached from Windows
-$null = InDistro 'mkdir -p ~/Projects/clitest && echo "<?php echo \"clitest ok\";" > ~/Projects/clitest/index.php'
+# --- link and unlink a new site from a distro folder, reached from Windows;
+# empty stdin, since with a console link asks which framework this is
+$null = InDistro 'mkdir -p ~/Projects/clitest && echo ''<?php echo 40+2, chr(32), 1+1;'' > ~/Projects/clitest/index.php'
 $new = "\\wsl.localhost\$Distro\home\$User\Projects\clitest"
-$got = In $new { lerd link } -All
+$got = In $new { '' | lerd link } -All
 Check 'C.19 lerd link from a distro folder' ($LASTEXITCODE -eq 0) $got
 # link serves plain HTTP; secure issues the cert Windows trusts through the CA.
-$got = In $new { lerd secure } -All
+$got = In $new { '' | lerd secure } -All
 Check 'C.19 lerd secure from the same folder' ($LASTEXITCODE -eq 0) $got
 $body = try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 60 'https://clitest.test/').Content } catch { "$_" }
-Check 'C.19 the new site answers in a Windows browser request' ($body -match 'clitest ok') $body
-$got = In $new { lerd unlink } -All
+Check 'C.19 the new site answers in a Windows browser request' ($body -match '42 2') $body
+$got = In $new { '' | lerd unlink } -All
 Check 'C.19 lerd unlink from the same folder' ($LASTEXITCODE -eq 0 -and (InDistro '~/.local/bin/lerd sites') -notmatch 'clitest') $got
 $null = InDistro 'rm -rf ~/Projects/clitest'
 
 # --- service client shims get a Windows twin
-# Windows PowerShell drops the double quotes inside a native argument, so the
-# listing has none. The agent mirrors a new shim within half a minute.
-$shims = (InDistro 'cd ~/.local/share/lerd/bin && for f in *; do case $f in *.*) ;; *) head -c2 $f | grep -q ^#! && echo $f ;; esac; done') -split "`n" | Where-Object { $_ -match '^[\w-]+$' }
+# Windows PowerShell drops the double quotes inside a native argument, so no
+# InDistro line has any, and its output ends lines with CRLF. The agent mirrors a new shim within half a minute.
+$shims = (InDistro 'cd ~/.local/share/lerd/bin && for f in *; do case $f in *.*) ;; *) head -c2 $f | grep -q ^#! && echo $f ;; esac; done') -split '\r?\n' | Where-Object { $_ -match '^[\w-]+$' }
 Check 'C.20 lerd has shims to mirror' ($shims.Count -gt 0)
 foreach ($s in $shims) {
 	Check "C.20 $s.exe on the Windows PATH" (Test-Path (Join-Path $bin "$s.exe"))
