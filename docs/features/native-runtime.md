@@ -1,4 +1,4 @@
-# Native runtime (beta)
+# Native runtime
 
 On macOS your project lives on the host and is mounted into the Podman VM, so a containerised PHP crosses that boundary for every file it reads. The native runtime removes the boundary: PHP-FPM, the CLI, composer and the workers all run directly on the host, while nginx and the services stay in containers.
 
@@ -11,8 +11,8 @@ Measured on an M-series Mac against a Laravel 11 app with Horizon, Filament and 
 
 Single requests are close because a warmed framework touches few files. The gap opens under concurrency, which is where the mount contention shows. The underlying difference, same PHP process, 2000 files: `stat` costs 108 ms in a container against 4 ms on the host, and `include` 320 ms against 31 ms.
 
-::: warning Beta
-The native runtime is new and macOS only. Container mode is unchanged and remains the default; switching back is a single command.
+::: tip macOS only
+The native runtime is macOS only. Container mode remains the default; switching back is a single command.
 :::
 
 ## Switching
