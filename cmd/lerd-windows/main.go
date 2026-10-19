@@ -99,9 +99,17 @@ func agent(cfg winshim.Config, confPath string) error {
 		}
 	}
 	go boot()
+	// Another program can hold port 53 for a while; the agent keeps trying
+	// rather than staying alive and silent, which the desktop app would not
+	// restart since the process has not exited.
 	go func() {
-		if err := serveDNS(cfg, boot); err != nil {
-			log.Print(err)
+		for {
+			err := serveDNS(cfg, boot)
+			if err == nil {
+				return
+			}
+			log.Printf("%v; retrying in 10s", err)
+			time.Sleep(10 * time.Second)
 		}
 	}()
 	for {
@@ -139,6 +147,7 @@ func serveDNS(cfg winshim.Config, boot func()) error {
 	if err != nil {
 		return fmt.Errorf("listening on 127.0.0.1:53: %w", err)
 	}
+	defer pc.Close()
 	log.Printf("answering *.%s on 127.0.0.1:53", cfg.TLD)
 	buf := make([]byte, 1500)
 	for {
