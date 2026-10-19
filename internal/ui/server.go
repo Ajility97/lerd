@@ -367,6 +367,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/disk", withCORS(handleDisk))
 	mux.HandleFunc("/api/xdebug/", withCORS(publishAfter(handleXdebugAction, eventbus.KindStatus)))
 	mux.HandleFunc("/api/lerd/start", withCORS(handleLerdStart))
+	mux.HandleFunc("/api/machine/memory", withCORS(handleMachineMemory))
 	mux.HandleFunc("/api/lerd/stop", withCORS(handleLerdStop))
 	mux.HandleFunc("/api/lerd/quit", withCORS(handleLerdQuit))
 	mux.HandleFunc("/api/lerd/update-terminal", withCORS(handleLerdUpdateTerminal))

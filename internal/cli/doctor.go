@@ -572,6 +572,17 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	section = "Containers & Images"
 	fmt.Fprintln(w, "\n[Containers & Images]")
 
+	if platform.Current.UsesMachineVM {
+		if st := MachineMemoryStatus(); len(st.Kills) > 0 {
+			fail("Podman Machine memory", st.Summary(), st.Hint())
+			if st.SuggestedMiB > 0 {
+				rep.fixLast(manualFixWith("run `" + st.Hint() + "` (it restarts every container)"))
+			}
+		} else {
+			ok("Podman Machine has not run out of memory")
+		}
+	}
+
 	if detail, hint, healthy := nginxServiceFinding(nginxInstalled, nginxRunning); healthy {
 		ok("lerd-nginx service running")
 	} else {

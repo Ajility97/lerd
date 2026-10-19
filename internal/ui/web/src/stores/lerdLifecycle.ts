@@ -34,13 +34,23 @@ function resetStartProgress() {
 // lerdStart runs the same start as `lerd start` and reads its NDJSON progress
 // stream, so the button reports each stage and unit instead of hanging on a
 // request that can take minutes on a cold Podman machine.
-export async function lerdStart(): Promise<boolean> {
+export function lerdStart(): Promise<boolean> {
+  return streamStart('/api/lerd/start', { method: 'POST' });
+}
+
+// lerdResizeMachine restarts the Podman Machine with mib of memory; the start
+// that follows streams the same progress as lerdStart.
+export function lerdResizeMachine(mib: number): Promise<boolean> {
+  return streamStart('/api/machine/memory', { method: 'POST', body: JSON.stringify({ mib }) });
+}
+
+async function streamStart(url: string, init: RequestInit): Promise<boolean> {
   lerdStarting.set(true);
   resetStartProgress();
   let done = 0;
   let ok = true;
   try {
-    const res = await apiFetch('/api/lerd/start', { method: 'POST' });
+    const res = await apiFetch(url, init);
     if (!res.ok || !res.body) return false;
     await readNDJSON<StartEvent>(res.body, (evt) => {
       switch (evt.phase) {

@@ -25,6 +25,7 @@
   import { loadFrameworkMarks } from '$stores/frameworkMarks';
   import { loadWorkerMarks } from '$stores/workerMarks';
   import { loadWorkerHealth } from '$stores/workerHealth';
+  import MachineMemoryBanner from './components/MachineMemoryBanner.svelte';
   import { watchActiveRun } from '$stores/wizard';
   import { connectWs, disconnectWs } from '$lib/ws';
   import { initDashboardRoute } from '$stores/dashboard';
@@ -207,6 +208,7 @@
   <div class="fixed bottom-3 left-1/2 -translate-x-1/2 z-60 w-[min(92vw,640px)] flex flex-col gap-2">
     <NotifyBanner />
     <ThemeSuggestBanner />
+    <MachineMemoryBanner />
   </div>
   <NotificationToasts />
   <WizardBubble />

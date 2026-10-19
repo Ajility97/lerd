@@ -39,3 +39,21 @@ func TestRecommendedVMMemoryMiB(t *testing.T) {
 		})
 	}
 }
+
+func TestRaisedVMMemoryMiB(t *testing.T) {
+	cases := []struct {
+		current int64
+		hostGiB int
+		want    int64
+	}{
+		{4096, 48, 6144}, // room to spare: 2 GB more
+		{4096, 10, 5120}, // capped at half the host
+		{8192, 16, 0},    // already at half the host
+		{3072, 0, 0},     // host size unknown: offer nothing
+	}
+	for _, c := range cases {
+		if got := raisedVMMemoryMiB(c.current, c.hostGiB); got != c.want {
+			t.Errorf("raisedVMMemoryMiB(%d, %d) = %d, want %d", c.current, c.hostGiB, got, c.want)
+		}
+	}
+}

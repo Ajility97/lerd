@@ -261,6 +261,22 @@ This command is macOS-only. On Linux podman writes to the host filesystem direct
 
 ---
 
+## `lerd machine memory` (macOS)
+
+```bash
+lerd machine memory          # has the VM run out of memory since it booted?
+lerd machine memory 6        # restart the VM with 6 GB, asks for confirmation first
+lerd machine memory 6 --yes  # skip the prompt
+```
+
+When the Podman Machine VM runs out of memory, its kernel kills whatever is using the most, usually MySQL or a PHP worker, and commands that need them hang or fail. lerd reads the VM's console log on the host and counts those kills since the VM last booted, so checking costs nothing inside the VM.
+
+With no argument the command reports the kills and suggests a size: 2 GB more than the VM has, but never past half of the Mac's memory. With a size in GB it stops the VM, sets its memory and runs `lerd start`, so every container is stopped for the minute or so that takes. Site data and databases live on the host and are untouched.
+
+The dashboard shows the same finding as a banner while the VM has had kills, with a button that does the restart, and `lerd doctor` reports it under Containers & Images. A size you set this way is kept: `lerd start` only ever raises the VM to its default, never lowers it.
+
+---
+
 ## Autostart on login
 
 Lerd can boot itself every time you log in. Autostart is a single switch over every lerd-owned systemd user unit on the machine:
@@ -352,6 +368,7 @@ Where a digest is given the download is checked against it and rejected on a mis
 | Full shutdown before a reinstall | `lerd quit` |
 | `lerd start` fails with an overlay / graph-driver storage error (macOS) | `lerd machine reset` |
 | lerd's VM is holding more host disk than it uses (macOS) | `lerd machine reclaim` |
+| lerd's VM keeps running out of memory (macOS) | `lerd machine memory` |
 | Verify everything's healthy | `lerd status` |
 | Update Composer / mise / fnm / mkcert to their pinned versions | `lerd tools:update` |
 | Uninstall a service entirely (data preserved) | `lerd service remove <name>` |

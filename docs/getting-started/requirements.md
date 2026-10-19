@@ -81,10 +81,10 @@ On first start `lerd` sizes the Podman Machine VM based on your host RAM so 8 GB
 | 9-31 GB  | 4 GB                  |
 | ≥ 32 GB  | 6 GB                  |
 
-The memory value is a ceiling, not a reservation: the VM only uses what your containers actually request. If sites slow down under load on an 8 GB host, bump the VM manually:
+The memory value is a ceiling, not a reservation: the VM only uses what your containers actually request. If the VM runs out of memory the dashboard says so and offers a restart with more, or you can do it from the terminal:
 
 ```bash
-podman machine stop
-podman machine set --memory 4096
-podman machine start
+lerd machine memory 6
 ```
+
+See [`lerd machine memory`](../usage/lifecycle.md#lerd-machine-memory-macos).
