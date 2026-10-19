@@ -70,6 +70,10 @@
   # Quote escapes $s as one argument for the CommandLineToArgvW rules wsl.exe
   # parses its command line with. Windows PowerShell 5.1 passes embedded quotes
   # to native commands unescaped, so command lines are built here by hand.
+  # Lit makes $s a single-quoted PowerShell literal, for paths written into the
+  # scripts Elevated runs: a profile like O'Brien would otherwise end the string.
+  function Lit([string]$s) { "'" + ($s -replace "'", "''") + "'" }
+
   function Quote([string]$s) {
     $r = '"'; $n = 0
     foreach ($c in $s.ToCharArray()) {
@@ -130,8 +134,8 @@
   function Elevated([string]$body) {
     $log = [IO.Path]::GetTempFileName()
     $wrapped = "`$ProgressPreference = 'SilentlyContinue'; `$ErrorActionPreference = 'Stop'; " +
-      "try { & { $body } *>&1 | Out-File -Encoding utf8 '$log'; exit 0 } " +
-      "catch { `$_ | Out-File -Append -Encoding utf8 '$log'; exit 1 }"
+      "try { & { $body } *>&1 | Out-File -Encoding utf8 $(Lit $log); exit 0 } " +
+      "catch { `$_ | Out-File -Append -Encoding utf8 $(Lit $log); exit 1 }"
     $enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($wrapped))
     try {
       $proc = Start-Process powershell.exe -Verb RunAs -Wait -PassThru -WindowStyle Hidden `
@@ -294,12 +298,17 @@
     $url = (Invoke-RestMethod https://api.github.com/repos/microsoft/WSL/releases/latest).assets |
       Where-Object { $_.name -like "*.$arch.msi" } | Select-Object -First 1 -ExpandProperty browser_download_url
     if (-not $url) { throw "No WSL $arch MSI found in the latest github.com/microsoft/WSL release" }
-    $msi = Join-Path $env:TEMP 'lerd-wsl.msi'
-    Info "Downloading $url"
-    Invoke-WebRequest -UseBasicParsing $url -OutFile $msi
-    Info 'Installing the WSL package (msiexec)'
-    $code = Elevated "`$p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList '/i', '`"$msi`"', '/qn', '/norestart'; if (`$p.ExitCode -notin 0, 3010) { throw ""msiexec exited with `$(`$p.ExitCode)"" }"
-    Remove-Item $msi -ErrorAction SilentlyContinue
+    # The elevated step downloads the package itself, into a folder only
+    # administrators can change, and checks Microsoft signed it: a file in the
+    # user's temp folder could be swapped while Windows asks for approval.
+    Info "Downloading and installing $url"
+    $code = Elevated ("`$d = New-Item -ItemType Directory -Path (Join-Path `$env:SystemRoot ('Temp\lerd-wsl-' + [guid]::NewGuid())); " +
+      "`$m = Join-Path `$d 'wsl.msi'; Invoke-WebRequest -UseBasicParsing $(Lit $url) -OutFile `$m; " +
+      "`$sig = Get-AuthenticodeSignature `$m; " +
+      "if (`$sig.Status -ne 'Valid' -or `$sig.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') { throw 'The WSL package is not signed by Microsoft' }; " +
+      "`$p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList '/i', ('`"' + `$m + '`"'), '/qn', '/norestart'; " +
+      "Remove-Item `$d -Recurse -Force -ErrorAction SilentlyContinue; " +
+      "if (`$p.ExitCode -notin 0, 3010) { throw ""msiexec exited with `$(`$p.ExitCode)"" }")
     if ($code -ne 0) { throw 'Installing WSL failed' }
     # msiexec returns before Windows Installer finishes registering WSL, and the
     # stub asked in that window offers to install WSL all over again.
@@ -461,7 +470,7 @@ namespace LerdSetup {
     $arch = NativeArch
     $zipName = "lerd-desktop-win32-$arch.zip"
     $tag = ''
-    $temp = @()
+    $zipUrl = ''
     if ($Local -and (Test-Path (Join-Path $Local $zipName))) {
       $zip = Join-Path $Local $zipName
       Info "Using $zip"
@@ -476,15 +485,11 @@ namespace LerdSetup {
         RegisterDesktopApp
         return
       }
-      $zip = Join-Path $env:TEMP 'lerd-desktop.zip'
-      $temp += $zip
-      Info "Downloading $($a.browser_download_url)"
-      Invoke-WebRequest -UseBasicParsing $a.browser_download_url -OutFile $zip
+      $zipUrl = $a.browser_download_url
+      Info "Downloading $zipUrl"
     }
     # The logo Windows shows on lerd's notifications.
-    $png = Join-Path $env:TEMP 'lerd.png'
-    $temp += $png
-    Invoke-WebRequest -UseBasicParsing "https://raw.githubusercontent.com/$Repo/main/internal/ui/icons/icon-512.png" -OutFile $png
+    $pngUrl = "https://raw.githubusercontent.com/$Repo/main/internal/ui/icons/icon-512.png"
 
     StopDesktopApp
     Info 'Unpacking the desktop app'
@@ -493,15 +498,21 @@ namespace LerdSetup {
     # around it, or Windows PowerShell turns tar's first stderr line into a
     # terminating error and its exit code is never read.
     $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
-    $code = Elevated ("`$d = '$DesktopDir'; " +
+    # A released app is downloaded by the elevated step itself, so what lands
+    # in Program Files is never a file the user's other programs could swap.
+    $getZip = if ($zipUrl) {
+      "`$t = New-Item -ItemType Directory -Path (Join-Path `$env:SystemRoot ('Temp\lerd-desktop-' + [guid]::NewGuid())); " +
+      "`$z = Join-Path `$t 'app.zip'; Invoke-WebRequest -UseBasicParsing $(Lit $zipUrl) -OutFile `$z; "
+    } else { "`$z = $(Lit $zip); " }
+    $code = Elevated ("`$d = $(Lit $DesktopDir); " + $getZip +
       "if (Test-Path `$d) { Remove-Item `$d -Recurse -Force }; " +
-      "Remove-Item '$DesktopVersionFile' -ErrorAction SilentlyContinue; " +
+      "Remove-Item $(Lit $DesktopVersionFile) -ErrorAction SilentlyContinue; " +
       "New-Item -ItemType Directory -Force `$d | Out-Null; " +
-      "Copy-Item '$png' '$(Join-Path $AppDir 'lerd.png')' -Force; " +
-      "`$ErrorActionPreference = 'Continue'; & '$tar' -xf '$zip' -C `$d 2>&1 | ForEach-Object { ""`$_"" }; " +
+      "Invoke-WebRequest -UseBasicParsing $(Lit $pngUrl) -OutFile $(Lit (Join-Path $AppDir 'lerd.png')); " +
+      "`$ErrorActionPreference = 'Continue'; & $(Lit $tar) -xf `$z -C `$d 2>&1 | ForEach-Object { ""`$_"" }; " +
       "if (`$LASTEXITCODE -ne 0) { throw ""tar exited with `$LASTEXITCODE"" }; " +
-      "if ('$tag') { Set-Content -Path '$DesktopVersionFile' -Value '$tag' -NoNewline }")
-    $temp | ForEach-Object { Remove-Item $_ -ErrorAction SilentlyContinue }
+      "if (`$t) { Remove-Item `$t -Recurse -Force -ErrorAction SilentlyContinue }; " +
+      "if ($(Lit $tag)) { Set-Content -Path $(Lit $DesktopVersionFile) -Value $(Lit $tag) -NoNewline }")
     if (($code -ne 0) -or -not (Test-Path $DesktopExe)) { throw 'Installing the Lerd desktop app failed' }
     RegisterDesktopApp
   }
