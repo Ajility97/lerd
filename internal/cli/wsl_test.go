@@ -237,3 +237,15 @@ func TestWSLSetupDoneNote(t *testing.T) {
 		t.Errorf("a caller that restarts WSL is not given a manual step: %q", got)
 	}
 }
+
+// Turning lerd's DNS off must take back its NRPT rule, and only lerd's: a rule
+// the user added for another suffix stays.
+func TestRemoveNRPTScript_OnlyLerdsRule(t *testing.T) {
+	s := removeNRPTScript
+	if !strings.Contains(s, "$_.Comment -eq 'lerd'") || !strings.Contains(s, "Remove-DnsClientNrptRule") {
+		t.Errorf("does not remove lerd's rule by its comment: %s", s)
+	}
+	if !strings.Contains(s, "Clear-DnsClientCache") {
+		t.Errorf("leaves cached answers for the old suffix: %s", s)
+	}
+}

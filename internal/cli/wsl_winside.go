@@ -101,7 +101,7 @@ func installWindowsSide(w io.Writer) error {
 	}
 
 	if tld == "" {
-		return nil
+		return removeNRPTRule(w)
 	}
 	if out, _ := powershell(nrptPresentScript(tld)); strings.TrimSpace(out) == "yes" {
 		fmt.Fprintf(w, "  - Windows already sends .%s to lerd\n", tld)
@@ -251,6 +251,33 @@ const isElevatedScript = `([Security.Principal.WindowsPrincipal][Security.Princi
 
 // addNRPTScript replaces rather than adds, so a rerun after a rule that landed
 // late (or a changed TLD) never leaves duplicates behind.
+// removeNRPTScript takes back lerd's rule, found by its comment, and the
+// answers Windows cached through it.
+const removeNRPTScript = `Get-DnsClientNrptRule | Where-Object { $_.Comment -eq 'lerd' } | Remove-DnsClientNrptRule -Force; Clear-DnsClientCache`
+
+func lerdNRPTRulePresent() bool {
+	out, _ := powershell(`if (Get-DnsClientNrptRule | Where-Object { $_.Comment -eq 'lerd' }) { 'yes' }`)
+	return strings.TrimSpace(out) == "yes"
+}
+
+// removeNRPTRule drops lerd's rule once lerd no longer answers DNS for a TLD,
+// or Windows keeps sending the old suffix to an agent that stopped answering.
+func removeNRPTRule(w io.Writer) error {
+	if !lerdNRPTRulePresent() {
+		return nil
+	}
+	script := removeNRPTScript
+	if out, _ := powershell(isElevatedScript); strings.TrimSpace(out) != "True" {
+		fmt.Fprintln(w, "  → removing lerd's Windows DNS rule, approve the admin prompt on the Windows desktop")
+		script = elevated(script)
+	}
+	if _, err := powershell(script); err != nil {
+		return fmt.Errorf("removing the Windows DNS rule: %w", err)
+	}
+	fmt.Fprintln(w, "  ✓ Windows no longer sends a site TLD to lerd")
+	return nil
+}
+
 func addNRPTScript(tld string) string {
 	return fmt.Sprintf(`Get-DnsClientNrptRule | Where-Object { $_.Comment -eq 'lerd' } | Remove-DnsClientNrptRule -Force
 Add-DnsClientNrptRule -Namespace '.%s' -NameServers '127.0.0.1' -Comment 'lerd'
@@ -391,8 +418,8 @@ func removeWindowsSide() error {
 	if _, err := powershell(removeWindowsSideScript(winBin)); err != nil {
 		return err
 	}
-	if out, _ := powershell(`if (Get-DnsClientNrptRule | Where-Object { $_.Comment -eq 'lerd' }) { 'yes' }`); strings.TrimSpace(out) == "yes" {
-		if _, err := powershell(elevated(`Get-DnsClientNrptRule | Where-Object { $_.Comment -eq 'lerd' } | Remove-DnsClientNrptRule -Force; Clear-DnsClientCache`)); err != nil {
+	if lerdNRPTRulePresent() {
+		if _, err := powershell(elevated(removeNRPTScript)); err != nil {
 			return fmt.Errorf("removing the Windows DNS rule: %w", err)
 		}
 	}
