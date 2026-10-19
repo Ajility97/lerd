@@ -3,6 +3,7 @@ package wsl
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"os/user"
@@ -116,8 +117,11 @@ func Distro() string {
 	return distroFromRoot(root)
 }
 
-func terminalDirArgs(distro, dir string) []string {
-	return []string{"-w", "0", "nt", "-p", distro, "--startingDirectory", openTarget(dir)}
+// terminalDirArgs opens a tab at dir. It names the command rather than leaning
+// on the profile, which only lends the tab its look: a distro installed again
+// leaves a profile of the same name behind that runs cmd.exe.
+func terminalDirArgs(distro, user, dir string) []string {
+	return []string{"-w", "0", "nt", "-p", distro, "wsl.exe", "-d", distro, "-u", user, "--cd", dir}
 }
 
 // terminalScriptArgs runs script through `lerd wsl:term` in a new tab on the
@@ -134,26 +138,83 @@ func DecodeTerminalScript(arg string) (string, error) {
 	return string(b), err
 }
 
-// TerminalDir is the Windows Terminal invocation that opens a tab on this
-// distro at dir; ok is false when wt.exe is not installed.
+// TerminalDir is the command that opens a Windows Terminal tab on this distro
+// at dir; ok is false when wt.exe is not installed.
 func TerminalDir(dir string) (bin string, args []string, ok bool) {
-	wt, err := LookPath("wt.exe")
-	if err != nil {
-		return "", nil, false
-	}
-	return wt, terminalDirArgs(Distro(), dir), true
-}
-
-// TerminalScript is the Windows Terminal invocation that runs script in a new
-// tab through lerdBin; ok is false when wt.exe is not installed.
-func TerminalScript(lerdBin, script string) (bin string, args []string, ok bool) {
-	wt, err := LookPath("wt.exe")
-	if err != nil {
-		return "", nil, false
-	}
 	u, err := user.Current()
 	if err != nil {
 		return "", nil, false
 	}
-	return wt, terminalScriptArgs(Distro(), u.Username, lerdBin, script), true
+	return throughShell(terminalDirArgs(Distro(), u.Username, dir))
+}
+
+// TerminalScript is the command that runs script in a new Windows Terminal tab
+// through lerdBin; ok is false when wt.exe is not installed.
+func TerminalScript(lerdBin, script string) (bin string, args []string, ok bool) {
+	u, err := user.Current()
+	if err != nil {
+		return "", nil, false
+	}
+	return throughShell(terminalScriptArgs(Distro(), u.Username, lerdBin, script))
+}
+
+// throughShell starts wt.exe with wtArgs from a shortcut Explorer opens. A
+// window lerd starts itself from inside WSL, a background process to Windows,
+// opens behind the one in use with its taskbar button flashing; one the Windows
+// shell starts comes to the front, as a click on a shortcut would.
+func throughShell(wtArgs []string) (bin string, args []string, ok bool) {
+	wt, err := LookPath("wt.exe")
+	if err != nil {
+		return "", nil, false
+	}
+	ps := PowerShell()
+	winWT, err := windowsPathFn(wt)
+	if ps == "" || err != nil {
+		return "", nil, false
+	}
+	return ps, []string{"-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand", EncodePowerShell(shortcutScript(winWT, wtArgs))}, true
+}
+
+// shortcutScript writes a shortcut to target with args and opens it in Explorer.
+func shortcutScript(target string, args []string) string {
+	return fmt.Sprintf(`$l = Join-Path $env:TEMP 'lerd-terminal.lnk'
+$s = (New-Object -ComObject WScript.Shell).CreateShortcut($l)
+$s.TargetPath = %s
+$s.Arguments = %s
+$s.Save()
+& (Join-Path $env:WINDIR 'explorer.exe') $l`, psLiteral(target), psLiteral(windowsCommandLine(args)))
+}
+
+func psLiteral(s string) string { return "'" + strings.ReplaceAll(s, "'", "''") + "'" }
+
+// windowsCommandLine joins args the way a Windows program splits them back:
+// quoted when they hold a space or a quote, backslashes doubled before a quote.
+func windowsCommandLine(args []string) string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		if a != "" && !strings.ContainsAny(a, " \t\"") {
+			out[i] = a
+			continue
+		}
+		var b strings.Builder
+		b.WriteByte('"')
+		slashes := 0
+		for _, c := range a {
+			switch c {
+			case '\\':
+				slashes++
+				continue
+			case '"':
+				b.WriteString(strings.Repeat(`\`, 2*slashes+1))
+			default:
+				b.WriteString(strings.Repeat(`\`, slashes))
+			}
+			slashes = 0
+			b.WriteRune(c)
+		}
+		b.WriteString(strings.Repeat(`\`, 2*slashes))
+		b.WriteByte('"')
+		out[i] = b.String()
+	}
+	return strings.Join(out, " ")
 }

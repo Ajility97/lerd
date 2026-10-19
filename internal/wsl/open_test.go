@@ -105,12 +105,32 @@ func TestDistroFromRoot_readsTheUNCRoot(t *testing.T) {
 	}
 }
 
+// The tab names its command: a distro installed again leaves a profile of the
+// same name behind that runs cmd.exe.
 func TestTerminalArgs_opensATabOnTheDistroAtDir(t *testing.T) {
-	stubWindowsPath(t, func(p string) (string, error) { return `\\wsl.localhost\Ubuntu` + strings.ReplaceAll(p, "/", `\`), nil })
-	got := terminalDirArgs("Ubuntu", "/home/me/app")
-	want := []string{"-w", "0", "nt", "-p", "Ubuntu", "--startingDirectory", `\\wsl.localhost\Ubuntu\home\me\app`}
+	got := terminalDirArgs("Ubuntu", "me", "/home/me/my app")
+	want := []string{"-w", "0", "nt", "-p", "Ubuntu", "wsl.exe", "-d", "Ubuntu", "-u", "me", "--cd", "/home/me/my app"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("terminalDirArgs = %q, want %q", got, want)
+	}
+}
+
+func TestWindowsCommandLine(t *testing.T) {
+	got := windowsCommandLine([]string{"-w", "0", "--cd", "/home/me/my app", `say "hi"`, `C:\dir\`, ""})
+	want := `-w 0 --cd "/home/me/my app" "say \"hi\"" C:\dir\ ""`
+	if got != want {
+		t.Errorf("windowsCommandLine = %s, want %s", got, want)
+	}
+}
+
+// Explorer opens the shortcut, so Windows treats the terminal as the user's
+// own launch and brings it to the front.
+func TestShortcutScript(t *testing.T) {
+	got := shortcutScript(`C:\Users\O'Brien\wt.exe`, []string{"-p", "Ubuntu", "--cd", "/home/me/my app"})
+	for _, want := range []string{`$s.TargetPath = 'C:\Users\O''Brien\wt.exe'`, `$s.Arguments = '-p Ubuntu --cd "/home/me/my app"'`, `explorer.exe') $l`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("shortcutScript lacks %s:\n%s", want, got)
+		}
 	}
 }
 
