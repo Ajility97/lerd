@@ -5,7 +5,7 @@
 #   vm.sh up <guest>                 start a libvirt guest, wait for ssh, print its address
 #   vm.sh down <guest>               sync and stop it (destroy when ACPI is ignored)
 #   vm.sh reset <guest> [snapshot]   revert to the phase 0 baseline (default clean-no-lerd)
-#   vm.sh push <guest> [repo-dir]    copy build/lerd, build/lerd-tray and install.sh to ~/rc
+#   vm.sh push <guest> [repo-dir]    copy build/lerd, build/lerd-tray, build/lerd.exe and install.sh to ~/rc
 #   vm.sh run <guest> <phase|all>    run phases/NN-*.sh there; PASS/FAIL lines here, the rest in logs/
 #                                    (a phase run alone builds the lerd and sites it needs first)
 #   vm.sh ssh <guest> <cmd...>       run one command there
@@ -127,6 +127,7 @@ cmd_push() {
 	ssh "${SSH_OPTS[@]}" "$t" 'mkdir -p ~/rc'
 	scp "${SCP_OPTS[@]}" "$repo/build/lerd" "$repo/install.sh" "$t:rc/"
 	if [ -x "$repo/build/lerd-tray" ]; then scp "${SCP_OPTS[@]}" "$repo/build/lerd-tray" "$t:rc/"; fi
+	if [ -f "$repo/build/lerd.exe" ]; then scp "${SCP_OPTS[@]}" "$repo/build/lerd.exe" "$t:rc/"; fi
 	echo "pushed $("$repo/build/lerd" --version | head -1) to $t:~/rc"
 }
 
