@@ -73,6 +73,8 @@ sleep 1
 lerd service start mailpit </dev/null >/dev/null 2>&1
 new_web=$(mailpit_web | cut -d: -f2)
 kill "$squatter" 2>/dev/null
+# An active unit is not yet a listening Mailpit; the checks below wait for it.
+wait_for 30 curl -sf "http://127.0.0.1:$new_web/api/v1/info"
 check_out "mailpit moved off the taken port and runs" "moved=yes active=active" bash -c "echo moved=$([ -n "$new_web" ] && echo yes) active=\$(systemctl --user is-active lerd-mailpit)"
 # The dashboard reaches Mailpit through its own proxy, not by port.
 expect_200 5.9 "http://127.0.0.1:7073/_svc/mailpit/"
@@ -91,15 +93,25 @@ check_out "5.45 mailpit embedded on lerd.localhost answers its API and opens its
 check_out "lerd service preset spamassassin" "Installed preset|already" lerd service preset spamassassin
 check "lerd service start spamassassin" lerd service start spamassassin
 check_out "spamassassin is wired into mailpit" 'SPAMASSASSIN' bash -c "podman inspect lerd-mailpit --format '{{range .Config.Env}}{{println .}}{{end}}'"
-lerd artisan tinker --execute='Mail::raw("vm spam check", fn ($m) => $m->to("vm@example.test")->subject("vm-sa"));' </dev/null >/dev/null 2>&1
-sleep 3
-msg=$(curl -s "http://$(mailpit_web)/api/v1/messages?limit=1" | python3 -c 'import json,sys; print(json.load(sys.stdin)["messages"][0]["ID"])' 2>/dev/null)
+# Starting spamassassin restarts mailpit to wire it in, and its SMTP port opens a
+# moment after the unit is active, so the mail waits for it and is polled for.
+wait_for 30 bash -c "curl -sf http://\$(podman port lerd-mailpit 8025/tcp | grep -m1 -o '127\.0\.0\.1:[0-9]*')/api/v1/info"
+# A subject of this run's own, so a mail an earlier run left is never found instead.
+sa_subject=vm-sa-$(date +%s)
+lerd artisan tinker --execute="Mail::raw('vm spam check', fn (\$m) => \$m->to('vm@example.test')->subject('$sa_subject'));" </dev/null >/dev/null 2>&1
+sa_msg() { curl -s "http://$(mailpit_web)/api/v1/search?query=subject:$sa_subject&limit=1" | python3 -c 'import json,sys; print(json.load(sys.stdin)["messages"][0]["ID"])' 2>/dev/null; }
+wait_for 15 sa_msg
+msg=$(sa_msg)
 check_out "5.10 a caught message shows a SpamAssassin score, and removing it unwires mailpit" '"Score".*unwired' bash -c "curl -s 'http://$(mailpit_web)/api/v1/message/$msg/sa-check'; lerd service remove spamassassin >/dev/null 2>&1; podman inspect lerd-mailpit --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -q SPAMASSASSIN || echo unwired"
 
 lerd dump on </dev/null >/dev/null 2>&1
-lerd artisan tinker --execute='Mail::send("welcome", [], fn ($m) => $m->to("vm@example.test")->subject("vm-view"));' </dev/null >/dev/null 2>&1
-sleep 3
-msg=$(curl -s "http://$(mailpit_web)/api/v1/messages?limit=1" | python3 -c 'import json,sys; print(json.load(sys.stdin)["messages"][0]["ID"])' 2>/dev/null)
+# Removing spamassassin just restarted mailpit, so this mail waits for it too.
+wait_for 30 bash -c "curl -sf http://\$(podman port lerd-mailpit 8025/tcp | grep -m1 -o '127\.0\.0\.1:[0-9]*')/api/v1/info"
+view_subject=vm-view-$(date +%s)
+lerd artisan tinker --execute="Mail::send('welcome', [], fn (\$m) => \$m->to('vm@example.test')->subject('$view_subject'));" </dev/null >/dev/null 2>&1
+view_msg() { curl -s "http://$(mailpit_web)/api/v1/search?query=subject:$view_subject&limit=1" | python3 -c 'import json,sys; print(json.load(sys.stdin)["messages"][0]["ID"])' 2>/dev/null; }
+wait_for 15 view_msg
+msg=$(view_msg)
 check_out "5.11 a Laravel mail carries X-Lerd-View naming its Blade view" 'X-Lerd-View.*welcome' bash -c "curl -s 'http://$(mailpit_web)/api/v1/message/$msg/headers' | tr -d '\n'"
 lerd dump off </dev/null >/dev/null 2>&1
 
@@ -153,7 +165,9 @@ skip "the console is already logged in on the bucket clicked" "a browser session
 
 lerd service start postgres </dev/null >/dev/null 2>&1
 lerd service preset phpmyadmin </dev/null >/dev/null 2>&1
-lerd service preset adminer </dev/null >/dev/null 2>&1
+# Installed the way the dashboard does: /api/services is a snapshot that a
+# preset installed from the CLI, which starts no unit, does not refresh.
+curl -s -N -X POST -H 'X-Lerd-CSRF: 1' http://127.0.0.1:7073/api/services/presets/adminer >/dev/null
 check_out "5.23 [partial] postgres opens Adminer and MySQL the higher admin_rank" '"postgres"[^]]*adminer|adminer[^]]*postgres' bash -c "curl -s http://127.0.0.1:7073/api/services | tr -d ' \n'"
 skip "5.24 pgAdmin over plain http keeps its session" "a browser session, phase 10's browser pass"
 if getenforce 2>/dev/null | grep -q Enforcing; then
