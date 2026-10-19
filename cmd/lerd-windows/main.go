@@ -1,5 +1,4 @@
 // Command lerd-windows builds lerd.exe, the Windows side of a WSL install.
-// Started with no config beside it, it is the installer (see setup.go).
 // `lerd <args>` runs lerd inside the distro from the current folder, and the
 // same binary named php.exe, composer.exe and so on runs that shim. `lerd
 // --agent`, started at login by wsl:setup, boots the distro so lerd's services
@@ -28,19 +27,6 @@ func main() {
 	dir := filepath.Dir(self)
 	b, err := os.ReadFile(filepath.Join(dir, winshim.ConfigName))
 	shim := winshim.ShimFromExe(self)
-	// Without the config beside it this is the downloaded installer, not the
-	// shim wsl:setup put on PATH.
-	if shim == "" && ((err != nil && len(os.Args) == 1) || (len(os.Args) > 1 && os.Args[1] == "--setup")) {
-		err := setup()
-		if errors.Is(err, errHandedOff) {
-			return
-		}
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "\nSetup stopped:", err)
-		}
-		pause()
-		return
-	}
 	if err != nil {
 		fail(fmt.Errorf("reading %s: %w (run `lerd wsl:setup` inside WSL)", winshim.ConfigName, err))
 	}

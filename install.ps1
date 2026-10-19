@@ -2,7 +2,7 @@
 # Usage, from a PowerShell window (no need to open it as administrator):
 #   irm https://lerd.sh/install.ps1 | iex
 #
-# The console counterpart of lerd-setup.exe (lerd-env/windows-installer), and it
+# The console counterpart of Install-Lerd.exe (lerd-desktop's installer/), and it
 # takes the same steps: it takes a Windows machine with nothing on it to a
 # running lerd. The WSL features (and the restart they need), WSL itself, an
 # Ubuntu distro with a Linux user, Podman, the Lerd desktop app, lerd's own
@@ -37,7 +37,7 @@
   # The AppUserModelID lerd's own toasts use, shared by the desktop app.
   $ToastAppID = 'sh.lerd.Lerd'
   $Repo = 'lerd-env/lerd'
-  # Where lerd-setup.exe installs too: wsl:setup leaves lerd's agent to a desktop
+  # Where Install-Lerd.exe installs too: wsl:setup leaves lerd's agent to a desktop
   # app started from Program Files, which Windows Defender lets be.
   $AppDir = Join-Path $env:ProgramW6432 'Lerd'
   $DesktopDir = Join-Path $AppDir 'desktop'

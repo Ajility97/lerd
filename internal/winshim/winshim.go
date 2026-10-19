@@ -81,7 +81,7 @@ func WSLArgs(c Config, cwd string, args []string) []string {
 }
 
 // ShimFromExe names the shim a copy of lerd.exe stands for, php for php.exe,
-// or "" for lerd.exe itself and the lerd-setup.exe installer.
+// or "" for lerd.exe itself and anything else named lerd.
 func ShimFromExe(exe string) string {
 	base := exe[strings.LastIndexAny(exe, `\/`)+1:]
 	name := strings.TrimSuffix(strings.ToLower(base), ".exe")
