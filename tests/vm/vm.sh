@@ -125,8 +125,8 @@ cmd_push() {
 	t=$(target "$1")
 	[ -x "$repo/build/lerd" ] || die "$repo/build/lerd missing; run make build first"
 	ssh "${SSH_OPTS[@]}" "$t" 'mkdir -p ~/rc'
-	scp -q "$repo/build/lerd" "$repo/install.sh" "$t:rc/"
-	if [ -x "$repo/build/lerd-tray" ]; then scp -q "$repo/build/lerd-tray" "$t:rc/"; fi
+	scp "${SCP_OPTS[@]}" "$repo/build/lerd" "$repo/install.sh" "$t:rc/"
+	if [ -x "$repo/build/lerd-tray" ]; then scp "${SCP_OPTS[@]}" "$repo/build/lerd-tray" "$t:rc/"; fi
 	echo "pushed $("$repo/build/lerd" --version | head -1) to $t:~/rc"
 }
 
@@ -155,8 +155,8 @@ cmd_run() {
 	fi
 	mkdir -p "$LOGS"
 	ssh "${SSH_OPTS[@]}" "$t" 'mkdir -p ~/lerd-vm/phases'
-	scp -q "$HERE/lib.sh" "$t:lerd-vm/"
-	scp -q "${phases[@]}" "$t:lerd-vm/phases/"
+	scp "${SCP_OPTS[@]}" "$HERE/lib.sh" "$t:lerd-vm/"
+	scp "${SCP_OPTS[@]}" "${phases[@]}" "$t:lerd-vm/phases/"
 	local n=0 total=${#phases[@]}
 	for p in "${phases[@]}"; do
 		local name log watcher
@@ -241,6 +241,12 @@ cmd_status() {
 [ $# -ge 1 ] || die "usage: vm.sh list|up|down|reset|push|run|status|coverage|ssh <guest> ..."
 sub=$1
 shift
+# A guest's port=N flag applies to every ssh and scp to it.
+SCP_OPTS=(-q)
+if [ $# -ge 1 ] && port=$(guest_field "$1" 4 | tr ',' '\n' | sed -n 's/^port=//p') && [ -n "$port" ]; then
+	SSH_OPTS+=(-p "$port")
+	SCP_OPTS+=(-P "$port")
+fi
 case $sub in
 list) cmd_list ;;
 up) cmd_up "${1:?guest}" ;;

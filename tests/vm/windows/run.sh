@@ -10,6 +10,8 @@
 # local-dir is a folder on the guest holding install.sh, lerd and lerd.exe, to
 # install an unreleased build (the installer's /local=); the last argument
 # picks what the uninstall does with the distro, keep by default.
+# KEEP_INSTALLED=1 stops after the site check, leaving Lerd installed for the
+# Linux phases (wsl-ssh.sh, then vm.sh run against the distro).
 set -uo pipefail
 
 G=${1:?user@host}
@@ -56,6 +58,8 @@ echo "== site over HTTPS from Windows"
 wsl_user "mkdir -p ~/Lerd/hello && printf '<?php echo \\\"hello from lerd\\\";' > ~/Lerd/hello/index.php && cd ~/Lerd/hello && lerd link >/dev/null && lerd secure hello >/dev/null" >/dev/null
 got=$(ps "-Command \"(Invoke-WebRequest -UseBasicParsing -TimeoutSec 20 https://hello.test/).Content\"")
 if [ "$got" = 'hello from lerd' ]; then echo 'PASS W.14 https://hello.test from Windows'; else echo "FAIL W.14 https://hello.test from Windows ($got)"; fi
+
+[ "${KEEP_INSTALLED:-}" = 1 ] && exit 0
 
 echo "== uninstall, $DISTRO the distro"
 uninstaller=$(win "dir /b \"C:\\Program Files\\Lerd\\unins*.exe\"" | head -1)
