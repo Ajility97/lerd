@@ -32,17 +32,16 @@ var macosAccents = map[string]struct{ name, hex string }{
 }
 
 // macosDesktop reads macOS as a desktop to follow. An accent change lands in the
-// global preferences domain, which cfprefsd rewrites whole and stages beside the
-// old one, so the watch goes on the directory and filters for the name.
+// global preferences file, which is polled: a kqueue watch on its directory opens
+// every plist there, and the media ones make macOS ask for Apple Music access.
 func macosDesktop() Desktop {
 	theme := macosTheme(macosAccentIndex())
 	if theme == nil {
 		return Desktop{}
 	}
 	return Desktop{
-		Theme:      theme,
-		WatchDir:   macosPrefsDir(),
-		WatchNames: []string{globalPreferences},
+		Theme:    theme,
+		PollFile: filepath.Join(macosPrefsDir(), globalPreferences),
 	}
 }
 

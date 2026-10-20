@@ -176,9 +176,11 @@ there is nothing to follow there.
 under Appearance, read from `AppleAccentColor` in the global preferences domain.
 The eight swatches map onto Apple's own hexes and multicolor, which is what an
 account that never touched the picker is on, follows the system blue. The macOS
-entry keeps the surfaces it always had, and the watch sits on
-`~/Library/Preferences`, so a change shows up once macOS flushes the domain to
-disk rather than the instant the swatch is clicked.
+entry keeps the surfaces it always had, and lerd checks
+`~/Library/Preferences/.GlobalPreferences.plist` every two seconds rather than
+watching the folder, since a watch there opens every app's preferences and makes
+macOS ask for Apple Music access. A change shows up within two seconds of macOS
+flushing the domain to disk rather than the instant the swatch is clicked.
 
 Light mode tints the rail and the sidebar rather than leaving them white on the
 three desktop palettes, Breeze, Adwaita and macOS, since those are the desktops

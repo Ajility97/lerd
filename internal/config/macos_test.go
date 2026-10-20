@@ -77,15 +77,18 @@ func TestMacosAccentIndexStaysQuietWithNoReader(t *testing.T) {
 	}
 }
 
-func TestMacosDesktopWatchesTheGlobalPreferences(t *testing.T) {
+func TestMacosDesktopPollsOnlyTheGlobalPreferences(t *testing.T) {
 	requireDarwin(t)
 	stubDesktopTool(t, "defaults", "3")
 	d := macosDesktop()
 	if d.Theme == nil {
 		t.Fatal("macosDesktop() lent no theme")
 	}
-	if want := filepath.Join(macosPrefsDir(), globalPreferences); filepath.Join(d.WatchDir, d.WatchNames[0]) != want {
-		t.Errorf("watching %v, want %q", d, want)
+	if d.WatchDir != "" {
+		t.Errorf("watching %q: a kqueue watch opens every plist in it, media ones included", d.WatchDir)
+	}
+	if want := filepath.Join(macosPrefsDir(), globalPreferences); d.PollFile != want {
+		t.Errorf("polling %q, want %q", d.PollFile, want)
 	}
 }
 
