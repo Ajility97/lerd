@@ -72,7 +72,7 @@
 
   {#if !remote}
     <div
-      class="flex flex-col items-center gap-1 mt-3 pt-3 border-t border-lerd-headerborder w-10 min-h-0 flex-1 overflow-y-auto overscroll-contain no-scrollbar"
+      class="rail-rule-top flex flex-col items-center gap-1 mt-3 pt-3 w-10 min-h-0 flex-1 overflow-y-auto overscroll-contain no-scrollbar"
     >
       <IconButton
         title={m.nav_profiler()}
@@ -111,7 +111,7 @@
       {/each}
       {#if $railPlugins.length > 0}
         <!-- Plugin pages are the user's own additions, set apart from lerd's like the rail's first rule does. -->
-        <span aria-hidden="true" data-rail-divider class="shrink-0 w-10 my-2 border-t border-lerd-headerborder"></span>
+        <span aria-hidden="true" data-rail-divider class="rail-rule shrink-0 w-10 my-2"></span>
       {/if}
       {#each $railPlugins as p (p.name)}
         <IconButton title={p.page?.title ?? p.name} active={$dashboardOpen?.plugin === p.name} onclick={() => openPlugin(p)}>

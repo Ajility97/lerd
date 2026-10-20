@@ -478,3 +478,18 @@ button {
     scroll-behavior: auto !important;
   }
 }
+
+/* The rail's rules fade out at both ends, so they read as a pause between groups
+   rather than a box edge. rail-rule is a rule of its own, rail-rule-top one along
+   the top of a block. */
+.rail-rule,
+.rail-rule-top {
+  --rail-rule: linear-gradient(to right, transparent, var(--color-lerd-headerborder) 30%, var(--color-lerd-headerborder) 70%, transparent);
+}
+.rail-rule {
+  height: 1px;
+  background: var(--rail-rule);
+}
+.rail-rule-top {
+  background: var(--rail-rule) top / 100% 1px no-repeat;
+}
