@@ -20,6 +20,7 @@ import (
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/store"
 	lerdUpdate "github.com/geodro/lerd/internal/update"
+	"github.com/geodro/lerd/internal/wsl"
 	"github.com/spf13/cobra"
 )
 
@@ -145,7 +146,7 @@ func runUpdate(currentVersion string, beta bool) error {
 	}
 
 	// Also replace the binaries shipped beside lerd that this release includes.
-	for _, name := range companionBinaries {
+	for _, name := range companionBinaries() {
 		replaceCompanion(filepath.Join(extracted, name), filepath.Join(filepath.Dir(self), name))
 	}
 
@@ -787,9 +788,16 @@ func copyFile(src, dest string, mode os.FileMode) error {
 func stripV(v string) string { return lerdUpdate.StripV(v) }
 
 // backupBinary copies the current binary and version to backup locations for rollback.
-// companionBinaries ship beside lerd in a release: the tray, and lerd.exe, the
-// Windows side of a WSL install, which wsl:setup and lerd install copy out.
-var companionBinaries = []string{"lerd-tray", "lerd.exe"}
+// companionBinaries ship beside lerd in a release: the tray, and on WSL lerd.exe,
+// its Windows side, which wsl:setup and lerd install copy out.
+func companionBinaries() []string {
+	if onWSL() {
+		return []string{"lerd-tray", "lerd.exe"}
+	}
+	return []string{"lerd-tray"}
+}
+
+var onWSL = wsl.IsWSL
 
 // replaceCompanion swaps src in for dst when src exists.
 func replaceCompanion(src, dst string) {
@@ -808,7 +816,7 @@ func backupBinary(self, currentVersion string) {
 		return
 	}
 
-	for _, name := range companionBinaries {
+	for _, name := range companionBinaries() {
 		path := filepath.Join(filepath.Dir(self), name)
 		if _, err := os.Stat(path); err != nil {
 			continue
@@ -850,13 +858,13 @@ func runRollback() error {
 		return fmt.Errorf("replacing binary: %w", err)
 	}
 
-	for _, name := range companionBinaries {
+	for _, name := range companionBinaries() {
 		replaceCompanion(config.BackupCompanionFile(name), filepath.Join(filepath.Dir(self), name))
 	}
 
 	// Remove backup files so you can't double-rollback.
 	os.Remove(bakPath)
-	for _, name := range companionBinaries {
+	for _, name := range companionBinaries() {
 		os.Remove(config.BackupCompanionFile(name))
 	}
 	os.Remove(config.BackupVersionFile())

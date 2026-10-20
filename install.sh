@@ -655,7 +655,7 @@ cmd_install() {
     install -m 755 "$local_binary" "${INSTALL_DIR}/${BINARY}"
     # lerd.exe is the Windows side of a WSL install; wsl:setup copies it out.
     local local_exe; local_exe="$(dirname "$local_binary")/lerd.exe"
-    [ -f "$local_exe" ] && install -m 755 "$local_exe" "${INSTALL_DIR}/lerd.exe"
+    if is_wsl && [ -f "$local_exe" ]; then install -m 755 "$local_exe" "${INSTALL_DIR}/lerd.exe"; fi
     local version; version="$("${INSTALL_DIR}/${BINARY}" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || echo "dev")"
     success "Installed lerd ${version} (local) → ${INSTALL_DIR}/${BINARY}"
   else
@@ -678,7 +678,7 @@ cmd_install() {
     download_binary "$version" "$arch" "$tmpdir"
     install -m 755 "${tmpdir}/lerd" "${INSTALL_DIR}/${BINARY}"
     [ -f "${tmpdir}/lerd-tray" ] && install -m 755 "${tmpdir}/lerd-tray" "${INSTALL_DIR}/lerd-tray"
-    [ -f "${tmpdir}/lerd.exe" ] && install -m 755 "${tmpdir}/lerd.exe" "${INSTALL_DIR}/lerd.exe"
+    if is_wsl && [ -f "${tmpdir}/lerd.exe" ]; then install -m 755 "${tmpdir}/lerd.exe" "${INSTALL_DIR}/lerd.exe"; fi
     rm -rf "$tmpdir"
     success "Installed lerd v${version} → ${INSTALL_DIR}/${BINARY}"
   fi
@@ -797,7 +797,7 @@ cmd_update() {
   download_binary "$latest" "$arch" "$tmpdir"
   install -m 755 "${tmpdir}/lerd" "${INSTALL_DIR}/${BINARY}"
   [ -f "${tmpdir}/lerd-tray" ] && install -m 755 "${tmpdir}/lerd-tray" "${INSTALL_DIR}/lerd-tray"
-  [ -f "${tmpdir}/lerd.exe" ] && install -m 755 "${tmpdir}/lerd.exe" "${INSTALL_DIR}/lerd.exe"
+  if is_wsl && [ -f "${tmpdir}/lerd.exe" ]; then install -m 755 "${tmpdir}/lerd.exe" "${INSTALL_DIR}/lerd.exe"; fi
   rm -rf "$tmpdir"
   success "Updated to lerd v${latest}"
   star_note
