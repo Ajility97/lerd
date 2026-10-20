@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import { wsMessage, type NotificationEvent } from './ws';
+import { wsConnected, wsMessage, type NotificationEvent } from './ws';
 import { apiFetch } from './api';
 import { onFallbackOrigin } from './vhost';
 import { m } from '../paraglide/messages.js';
@@ -364,10 +364,9 @@ async function fireNotification(evt: NotificationEvent) {
       pushInApp(entry);
     }
     if (windowFocused()) return;
-    // Under the native sink the daemon has already posted this to the desktop.
-    // A second popup from the page duplicates it and takes the click away from
-    // the desktop app, which the daemon's copy opens through lerd://.
-    if (get(notifyDelivery) === 'native') return;
+    // Under the native sink the daemon already posted this, and a page copy would
+    // steal its lerd:// click. Until the sink is known the page cannot tell.
+    if (get(notifyDelivery) !== 'browser') return;
   }
   if (typeof Notification === 'undefined') return;
   if (Notification.permission !== 'granted') return;
@@ -395,8 +394,8 @@ async function fireNotification(evt: NotificationEvent) {
 
 // notifyDelivery mirrors the server's notification sink (browser | native) so
 // browser-only UI (the enable banner, permission prompts) can hide itself when
-// the daemon is delivering notifications natively.
-export const notifyDelivery = writable<'browser' | 'native'>('browser');
+// the daemon is delivering notifications natively. null until lerd-ui answers.
+export const notifyDelivery = writable<'browser' | 'native' | null>(null);
 
 // desktopAppInstalled mirrors whether the daemon sees the Lerd desktop app as
 // the lerd:// handler, so the web UI can offer "Open in app".
@@ -422,7 +421,7 @@ export async function loadNotifyDelivery() {
       notifyNativeKinds.set(d.kinds ?? {});
     }
   } catch {
-    /* keep browser default */
+    /* unknown until the next reconnect asks again */
   }
 }
 
@@ -480,6 +479,10 @@ export function initNotify() {
   initialized = true;
   handleProtocolLaunch();
   void loadNotifyDelivery();
+  // A page that loaded while lerd-ui was down learns the sink once it is back.
+  wsConnected.subscribe((up) => {
+    if (up) void loadNotifyDelivery();
+  });
   wsMessage.subscribe((msg) => {
     if (!msg?.notification) return;
     void fireNotification(msg.notification);
