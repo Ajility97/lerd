@@ -5,7 +5,10 @@
 # cloud VM, a spare laptop): run, push and ssh still work, up/down/reset don't.
 # noreboot marks a guest that cannot boot unattended (disk encryption), so
 # down and reset refuse it.
+# port=N reaches a guest whose ssh listens elsewhere than 22, such as a WSL
+# distro beside the Windows host's own sshd (tests/vm/windows/wsl-ssh.sh sets it up).
 deb         dev@dhcp          debian-test        -            clean-no-lerd
 fed         dev@dhcp          fedora-test        -            clean-no-lerd
 arch        dev@dhcp          arch-test          noreboot     -
 spare       dev@192.0.2.10    -                  -            -
+wsl         dev@192.0.2.20    win-test           port=2222    -

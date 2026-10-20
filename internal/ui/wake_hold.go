@@ -25,6 +25,9 @@ var (
 	wakeHoldAsleep = siteVhostWaking
 	wakeHoldPoll   = 50 * time.Millisecond
 	wakeHoldMax    = 60 * time.Second
+	// wakeHoldRePing resends the wake: one sent while the watcher restarts, as
+	// lerd start and lerd install make it, is lost, and the next tick is a minute off.
+	wakeHoldRePing = 2 * time.Second
 	// wakeHoldSettle covers the nginx master applying a reload it was just
 	// signalled to do; the signal returns before the new workers take over.
 	wakeHoldSettle = 50 * time.Millisecond
@@ -86,11 +89,16 @@ func handleWakeHold(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	wakeHoldPing(site.Name)
-	deadline := time.Now().Add(wakeHoldMax)
+	pinged := time.Now()
+	deadline := pinged.Add(wakeHoldMax)
 	for wakeHoldAsleep(site.PrimaryDomain()) {
 		if time.Now().After(deadline) {
 			w.WriteHeader(wakeHoldFailed)
 			return
+		}
+		if time.Since(pinged) >= wakeHoldRePing {
+			wakeHoldPing(site.Name)
+			pinged = time.Now()
 		}
 		select {
 		case <-r.Context().Done():

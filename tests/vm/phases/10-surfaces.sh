@@ -110,9 +110,14 @@ expect_200 "10.41 [partial]" "https://$host"
 switch_runtime
 check_not "10.41 [partial] and back to php-fpm" 'runtime frankenphp' site_view "$host"
 expect_200 "10.41 [partial]" "https://$host"
-# xdg-open stand-in: records what the TUI asked to open.
+# xdg-open stand-in: records what the TUI asked to open. Under WSL lerd hands
+# it to explorer.exe instead, as a Windows path, so that stand-in records the
+# Linux form back.
 fake=$HOME/lerd-vm-fakebin
 mkdir -p "$fake" && printf '#!/bin/sh\necho "$@" >>%s/opened\n' "$fake" >"$fake/xdg-open" && chmod +x "$fake/xdg-open" && rm -f "$HOME/lerd-vm-fakebin/opened"
+if command -v wslpath >/dev/null; then
+	printf '#!/bin/sh\ncase "$1" in \\\\*) wslpath -u "$1" ;; *) echo "$1" ;; esac >>%s/opened\n' "$fake" >"$fake/explorer.exe" && chmod +x "$fake/explorer.exe"
+fi
 PATH=$fake:$PATH tui_screen 140 45 "wait:Dashboard" "keys:\\x10" "wait:Go to or do" "keys:open folder $host" "sleep:1" "keys:\\r" "sleep:2" >/dev/null
 check_out "10.41 [partial] open folder hands the site's path to the desktop" "$DEMO_DIR" cat "$fake/opened"
 check_out "10.41 [partial] new worktree opens the command prompt prefilled" 'lerd worktree add' \
@@ -175,7 +180,7 @@ rid_of() { curl -ks -D - -o /dev/null --max-time 30 "https://$host/" "$@" | tr -
 recent_since() { ui "http://127.0.0.1:7073/api/sites/$host/analytics?range=1h" | python3 -c "import json,sys; rows=[r for r in json.load(sys.stdin)['recent'] if r['at_millis']>$1]; sys.exit(0 if rows and $2 else 1)"; }
 fpms() { podman ps --format '{{.Names}}' | grep -E '^lerd-php[0-9]+-fpm$'; }
 spx_dir=$HOME/.local/share/lerd/spx
-started=$(($(date +%s) * 1000))
+started=$(date +%s%3N)
 
 lerd dump on </dev/null >/dev/null 2>&1
 rid=$(rid_of)
@@ -183,7 +188,7 @@ check_out "10.91 a PHP response names its request in X-Lerd-Rid" '^[0-9a-f]{8,64
 check "10.91 the request's captured events carry that id" wait_for 15 bash -c "curl -s 'http://127.0.0.1:7073/api/dumps?rid=$rid' | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin) else 1)'"
 check "10.91 its Recent requests row carries the id and a clean path" wait_for 30 recent_since "$started" "any(r.get('rid')=='$rid' and r['uri']=='/' for r in rows)"
 lerd dump off </dev/null >/dev/null 2>&1
-off=$(($(date +%s) * 1000))
+off=$(date +%s%3N)
 curl -ks -o /dev/null --max-time 30 "https://$host/"
 check "10.91 with capture off the path stays clean" wait_for 30 recent_since "$off" "all('|' not in r['uri'] and not r.get('rid') for r in rows)"
 

@@ -125,6 +125,11 @@ func collectBugReport(w io.Writer, logLines int, anon *anonymizer, filter *logFi
 	section(w, "Network")
 	dumpNetwork(w)
 
+	if platform.Current.WindowsSide {
+		section(w, "WSL")
+		dumpWSL(w, logLines)
+	}
+
 	section(w, "Environment")
 	dumpEnvironment(w)
 }

@@ -21,6 +21,7 @@ import (
 	"github.com/geodro/lerd/internal/nginx"
 	nodeDet "github.com/geodro/lerd/internal/node"
 	phpDet "github.com/geodro/lerd/internal/php"
+	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/serviceops"
 	"github.com/geodro/lerd/internal/services"
@@ -883,7 +884,8 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		// package and rebooting. Leave the unit on disk but don't run it, or
 		// the failures drag the whole systemd user session to "degraded".
 		if !trayEnabled() {
-			// Turned off on purpose: why it couldn't run is not worth a note.
+			// Turned off on purpose, or on WSL, where the Windows desktop app
+			// owns the tray: why it couldn't run is not worth a note.
 			disableTrayUnit()
 		} else if reason := tray.Unavailable(tray.HelperPath()); reason != "" {
 			disableTrayUnit()
@@ -1024,6 +1026,11 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	}
 	if err := shims.Reconcile(clientShimPrompter()); err != nil {
 		fmt.Printf("    WARN: %v\n", err)
+	}
+	if platform.Current.WindowsSide {
+		if err := refreshWindowsSide(); err != nil {
+			fmt.Printf("    WARN: Windows side: %v\n", err)
+		}
 	}
 	ok()
 	noteShadowedComposer()

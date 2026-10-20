@@ -14,7 +14,8 @@ import (
 )
 
 // TestSharedCodeDoesNotBranchOnGOOS fails when a file compiled for more than
-// one OS compares or switches on runtime.GOOS.
+// one OS compares or switches on runtime.GOOS, or asks wsl.IsWSL(), since WSL is
+// a Linux the compiler cannot tell apart and platform.Current answers for it.
 func TestSharedCodeDoesNotBranchOnGOOS(t *testing.T) {
 	var problems []string
 	for _, dir := range []string{"../../cmd", "../../internal"} {
@@ -33,7 +34,7 @@ func TestSharedCodeDoesNotBranchOnGOOS(t *testing.T) {
 			}
 			if n := countOSBranches(t, path, nil); n > 0 {
 				rel, _ := filepath.Rel("../..", path)
-				problems = append(problems, fmt.Sprintf("%s: %d runtime.GOOS branches; move them into a per-OS file or platform.Current", filepath.ToSlash(rel), n))
+				problems = append(problems, fmt.Sprintf("%s: %d runtime.GOOS branches or wsl.IsWSL() calls; move them into a per-OS file or platform.Current", filepath.ToSlash(rel), n))
 			}
 			return nil
 		}); err != nil {
@@ -68,8 +69,9 @@ func isSharedGoFile(t *testing.T, path string) bool {
 	return builds > 1
 }
 
-// countOSBranches counts `runtime.GOOS ==`, `!=` and `switch runtime.GOOS` in
-// a file, or in src when it is given. Reading GOOS as a value is not counted.
+// countOSBranches counts `runtime.GOOS ==`, `!=`, `switch runtime.GOOS` and
+// wsl.IsWSL() calls in a file, or in src when it is given. Reading GOOS as a
+// value is not counted.
 func countOSBranches(t *testing.T, path string, src any) int {
 	t.Helper()
 	f, err := parser.ParseFile(token.NewFileSet(), path, src, 0)
@@ -87,19 +89,25 @@ func countOSBranches(t *testing.T, path string, src any) int {
 			if isGOOS(x.Tag) {
 				n++
 			}
+		case *ast.CallExpr:
+			if isSelector(x.Fun, "wsl", "IsWSL") {
+				n++
+			}
 		}
 		return true
 	})
 	return n
 }
 
-func isGOOS(e ast.Expr) bool {
+func isGOOS(e ast.Expr) bool { return isSelector(e, "runtime", "GOOS") }
+
+func isSelector(e ast.Expr, pkg, name string) bool {
 	sel, ok := e.(*ast.SelectorExpr)
-	if !ok || sel.Sel.Name != "GOOS" {
+	if !ok || sel.Sel.Name != name {
 		return false
 	}
-	pkg, ok := sel.X.(*ast.Ident)
-	return ok && pkg.Name == "runtime"
+	id, ok := sel.X.(*ast.Ident)
+	return ok && id.Name == pkg
 }
 
 func TestCountOSBranches(t *testing.T) {
@@ -113,6 +121,8 @@ func TestCountOSBranches(t *testing.T) {
 		"passed as data":  {`_ = exeName("lerd", runtime.GOOS)`, 0},
 		"shown to a user": {`println("platform:", runtime.GOOS)`, 0},
 		"other selector":  {`if build.GOOS == "darwin" {}`, 0},
+		"asks for WSL":    {`if wsl.IsWSL() {}`, 1},
+		"passes the func": {`seam := wsl.IsWSL; _ = seam`, 0},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {

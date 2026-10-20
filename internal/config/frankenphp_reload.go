@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/power"
@@ -21,7 +20,7 @@ func WatcherNeedsPolling(sitePath string) bool {
 	if platform.Current.UsesMachineVM {
 		return true
 	}
-	return wsl.IsWSL() && strings.HasPrefix(sitePath, "/mnt/")
+	return wsl.OnWindowsDrive(sitePath)
 }
 
 // HostCanPollWatchers reports whether any site on this host could need a
@@ -30,7 +29,7 @@ func WatcherNeedsPolling(sitePath string) bool {
 // work that exists only to maintain the poll cadence can stand down entirely
 // rather than waking to find nothing to do.
 func HostCanPollWatchers() bool {
-	return platform.Current.UsesMachineVM || wsl.IsWSL()
+	return platform.Current.UsesMachineVM || platform.Current.WindowsSide
 }
 
 // watcherPollIntervalMS is how often a polling reload watcher re-stats each

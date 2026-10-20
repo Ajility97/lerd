@@ -21,13 +21,11 @@ type Desktop struct {
 	PollFile   string
 }
 
-// CurrentDesktop returns the one desktop whose colours the dashboard follows.
-// The readers run in order of how definite their evidence is: Omarchy keeps a
-// state directory nothing else writes and ships full themes, while Plasma and
-// GNOME are read off files and schemas any machine may happen to carry. macOS
-// comes last because it is the only one of them a Mac can answer to.
+// CurrentDesktop returns the desktop whose colours the dashboard follows, trying
+// the most definite evidence first: Omarchy's own state directory, then Plasma
+// and GNOME files any machine may carry, then macOS and Windows.
 func CurrentDesktop() Desktop {
-	for _, read := range []func() Desktop{omarchyDesktop, plasmaDesktop, gnomeDesktop, macosDesktop} {
+	for _, read := range []func() Desktop{omarchyDesktop, plasmaDesktop, gnomeDesktop, macosDesktop, windowsDesktop} {
 		if d := read(); d.Theme != nil {
 			return d
 		}

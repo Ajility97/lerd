@@ -10,6 +10,7 @@ import (
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/feedback"
 	phpDet "github.com/geodro/lerd/internal/php"
+	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/siteops"
 	"golang.org/x/term"
@@ -21,6 +22,16 @@ import (
 // shims must not steal a piped stdin or block when run from a script or agent.
 func interactiveTTY() bool {
 	return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
+}
+
+// containerTTY decides whether a container exec gets a pty. Through lerd.exe on
+// Windows stdin stays a console while stdout is piped, and a pty would put colour
+// codes and CRLF into that pipe, so on WSL stdout must be a terminal too.
+func containerTTY() bool {
+	if platform.Current.WindowsSide {
+		return interactiveTTY()
+	}
+	return term.IsTerminal(int(os.Stdin.Fd()))
 }
 
 // Seams for the shared FPM up/installed fast path, swappable in tests.

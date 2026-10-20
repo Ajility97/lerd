@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/godbus/dbus/v5"
+
+	"github.com/geodro/lerd/internal/wsl"
 )
 
 const (
@@ -69,12 +71,13 @@ func call(obj dbus.BusObject, method string, args ...any) *dbus.Call {
 	return obj.CallWithContext(ctx, method, 0, args...)
 }
 
-// Supported reports whether native notifications can be delivered on this host.
-// True when a daemon already owns the well-known name (GNOME, KDE, which run it
-// as part of the session) or when the name is D-Bus activatable (mako, dunst,
-// xfce4-notifyd, which auto-start on the first Notify). False on a headless host
-// with no session bus and no daemon, so callers fall back to the browser sink.
+// Supported reports whether a notification daemon owns or can activate the
+// D-Bus name, or the host is WSL, where they are Windows toasts. Without either,
+// callers fall back to the browser sink.
 func Supported() bool {
+	if wsl.IsWSL() {
+		return toastSupported()
+	}
 	conn, err := sessionBus()
 	if err != nil {
 		return false
@@ -99,6 +102,9 @@ func Supported() bool {
 
 // Emit shows a native notification and returns the daemon-assigned id.
 func Emit(req Request) (uint32, error) {
+	if wsl.IsWSL() {
+		return 0, emitToast(req)
+	}
 	conn, err := sessionBus()
 	if err != nil {
 		return 0, err
@@ -229,6 +235,9 @@ func hasSchemeHandler(scheme string) bool {
 // AppInstalled reports whether the Lerd desktop app is registered as the lerd://
 // scheme handler, so callers can prefer it over a browser.
 func AppInstalled() bool {
+	if wsl.IsWSL() {
+		return windowsSchemeRegistered("lerd")
+	}
 	return hasSchemeHandler("lerd")
 }
 
@@ -236,5 +245,8 @@ func AppInstalled() bool {
 // its lerd:// scheme. Start, not Run: xdg-open can outlive the handoff, which
 // would block `lerd dashboard` and freeze the tray's Dashboard item behind it.
 func OpenApp(route string) error {
+	if wsl.IsWSL() {
+		return wsl.Open(appSchemeURL(route))
+	}
 	return exec.Command("xdg-open", appSchemeURL(route)).Start()
 }
