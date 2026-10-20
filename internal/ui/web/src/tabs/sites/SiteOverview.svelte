@@ -19,12 +19,14 @@
   const suggested = $derived(site.suggested_services || []);
   const declared = $derived(site.declared_services || []);
 
-  // The cards plugins draw here, only the ones switched on for this site.
+  // The cards plugins draw here, only the ones switched on for this site. Keyed
+  // on the name, since the site object is replaced on every live update.
+  const siteName = $derived(site.name);
   $effect(() => {
-    void loadPagePlugins(site.name).catch(() => {});
+    void loadPagePlugins(siteName).catch(() => {});
   });
   const cards = $derived(
-    ($siteSwitches[site.name] ?? [])
+    ($siteSwitches[siteName] ?? [])
       .filter((s) => s.kind === 'overview_card' && s.on)
       .flatMap((s) => $plugins.filter((p) => p.name === s.name && p.overview_card))
   );
