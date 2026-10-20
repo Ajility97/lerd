@@ -10,6 +10,7 @@ import (
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/feedback"
 	phpDet "github.com/geodro/lerd/internal/php"
+	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/siteops"
 	"golang.org/x/term"
@@ -27,7 +28,7 @@ func interactiveTTY() bool {
 // Windows stdin stays a console while stdout is piped, and a pty would put colour
 // codes and CRLF into that pipe, so on WSL stdout must be a terminal too.
 func containerTTY() bool {
-	if onWSL() {
+	if platform.Current.WindowsSide {
 		return interactiveTTY()
 	}
 	return term.IsTerminal(int(os.Stdin.Fd()))

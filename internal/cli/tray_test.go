@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/platform"
 )
 
 // The applet has to die without taking `lerd tray off` (or the shell that ran
@@ -121,8 +122,8 @@ func TestSetTrayPreference_PersistsOffAndBackOn(t *testing.T) {
 // install must not launch it there whatever the preference says.
 func TestTrayEnabled_OffWithoutATrayHost(t *testing.T) {
 	withTempXDG(t)
-	noTrayHost = func() bool { return true }
-	t.Cleanup(func() { noTrayHost = func() bool { return false } })
+	platform.Current.TrayHost = false
+	t.Cleanup(func() { platform.Current.TrayHost = true })
 
 	if trayEnabled() {
 		t.Error("a host with no tray host must report the tray off")

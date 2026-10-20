@@ -13,9 +13,9 @@ import (
 	"github.com/geodro/lerd/internal/dns"
 	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/nativephp"
+	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/services"
-	"github.com/geodro/lerd/internal/wsl"
 	"github.com/spf13/cobra"
 )
 
@@ -155,7 +155,7 @@ func runUninstall(force, keepData bool) error {
 		}
 	}
 
-	if wsl.IsWSL() {
+	if platform.Current.WindowsSide {
 		step("Removing lerd from Windows")
 		if err := removeWindowsSide(); err != nil {
 			fmt.Printf(" %v\n", err)

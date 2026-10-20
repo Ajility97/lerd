@@ -62,7 +62,6 @@ import (
 	lerdUpdate "github.com/geodro/lerd/internal/update"
 	"github.com/geodro/lerd/internal/version"
 	"github.com/geodro/lerd/internal/workerheal"
-	"github.com/geodro/lerd/internal/wsl"
 	"github.com/geodro/lerd/internal/xdebugops"
 )
 
@@ -377,7 +376,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/lerd/update-terminal", withCORS(handleLerdUpdateTerminal))
 	// Only the Windows desktop app uses these: it draws lerd's tray and raises its
 	// notifications, which lerd inside WSL cannot do itself.
-	if wsl.IsWSL() {
+	if platform.Current.WindowsSide {
 		mux.HandleFunc("/api/desktop/ws", handleDesktopWS)
 		mux.HandleFunc("/api/tray", withCORS(handleTray))
 		mux.HandleFunc("/api/tray/action", withCORS(publishAfter(handleTrayAction, eventbus.KindStatus, eventbus.KindServices, eventbus.KindSites)))

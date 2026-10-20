@@ -6,8 +6,11 @@ import (
 	"github.com/geodro/lerd/internal/wsl"
 )
 
+// WSL is Linux to the compiler, so it is told apart here, once.
 var Current = Caps{
-	Opener: "xdg-open",
+	Opener:      "xdg-open",
+	TrayHost:    !wsl.IsWSL(),
+	WindowsSide: wsl.IsWSL(),
 }
 
 // OpenCommand hands target to the desktop's default app, nil when there is no

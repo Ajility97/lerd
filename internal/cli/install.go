@@ -3,7 +3,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"github.com/geodro/lerd/internal/wsl"
 	"io"
 	"os"
 	"os/exec"
@@ -22,6 +21,7 @@ import (
 	"github.com/geodro/lerd/internal/nginx"
 	nodeDet "github.com/geodro/lerd/internal/node"
 	phpDet "github.com/geodro/lerd/internal/php"
+	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/serviceops"
 	"github.com/geodro/lerd/internal/services"
@@ -1027,7 +1027,7 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 	if err := shims.Reconcile(clientShimPrompter()); err != nil {
 		fmt.Printf("    WARN: %v\n", err)
 	}
-	if wsl.IsWSL() {
+	if platform.Current.WindowsSide {
 		if err := refreshWindowsSide(); err != nil {
 			fmt.Printf("    WARN: Windows side: %v\n", err)
 		}

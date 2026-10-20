@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/wsl"
 )
 
@@ -16,7 +17,7 @@ const WindowsThemeID = "windows"
 // runs with Windows as its desktop. The accent lives in the registry, which has
 // no file to watch, so the dashboard picks a change up on its next load.
 func windowsDesktop() Desktop {
-	if !wsl.IsWSL() {
+	if !platform.Current.WindowsSide {
 		return Desktop{}
 	}
 	out := desktopToolOutput(wsl.WindowsTool("reg.exe"), "query", `HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent`, "/v", "AccentPalette")

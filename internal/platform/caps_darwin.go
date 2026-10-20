@@ -7,6 +7,7 @@ var Current = Caps{
 	UsesMachineVM:    true,
 	NativePHPRuntime: true,
 	WorkerModes:      true,
+	TrayHost:         true,
 }
 
 // OpenCommand hands target to the default app through open(1).

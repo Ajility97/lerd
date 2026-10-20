@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/geodro/lerd/internal/platform"
 	lerdUpdate "github.com/geodro/lerd/internal/update"
 )
 
@@ -636,13 +637,13 @@ func TestPrepUserUnitsForRollback_skipsMissingFiles(t *testing.T) {
 
 // lerd.exe rides in every Linux archive, but only a WSL install uses it.
 func TestCompanionBinaries_lerdExeOnlyOnWSL(t *testing.T) {
-	prev := onWSL
-	t.Cleanup(func() { onWSL = prev })
-	onWSL = func() bool { return false }
+	prev := platform.Current.WindowsSide
+	t.Cleanup(func() { platform.Current.WindowsSide = prev })
+	platform.Current.WindowsSide = false
 	if got := companionBinaries(); !reflect.DeepEqual(got, []string{"lerd-tray"}) {
 		t.Errorf("off WSL got %v, want the tray only", got)
 	}
-	onWSL = func() bool { return true }
+	platform.Current.WindowsSide = true
 	if got := companionBinaries(); !reflect.DeepEqual(got, []string{"lerd-tray", "lerd.exe"}) {
 		t.Errorf("on WSL got %v, want the tray and lerd.exe", got)
 	}

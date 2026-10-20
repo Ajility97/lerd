@@ -17,10 +17,10 @@ import (
 	"github.com/geodro/lerd/internal/download"
 	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/origin"
+	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/store"
 	lerdUpdate "github.com/geodro/lerd/internal/update"
-	"github.com/geodro/lerd/internal/wsl"
 	"github.com/spf13/cobra"
 )
 
@@ -787,17 +787,14 @@ func copyFile(src, dest string, mode os.FileMode) error {
 
 func stripV(v string) string { return lerdUpdate.StripV(v) }
 
-// backupBinary copies the current binary and version to backup locations for rollback.
 // companionBinaries ship beside lerd in a release: the tray, and on WSL lerd.exe,
 // its Windows side, which wsl:setup and lerd install copy out.
 func companionBinaries() []string {
-	if onWSL() {
+	if platform.Current.WindowsSide {
 		return []string{"lerd-tray", "lerd.exe"}
 	}
 	return []string{"lerd-tray"}
 }
-
-var onWSL = wsl.IsWSL
 
 // replaceCompanion swaps src in for dst when src exists.
 func replaceCompanion(src, dst string) {
@@ -810,6 +807,7 @@ func replaceCompanion(src, dst string) {
 	}
 }
 
+// backupBinary copies the current binary and version to backup locations for rollback.
 func backupBinary(self, currentVersion string) {
 	if err := copyFile(self, config.BackupBinaryFile(), 0755); err != nil {
 		feedback.Warn("could not back up binary for rollback: %v", err)

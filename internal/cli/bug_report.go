@@ -18,7 +18,6 @@ import (
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/services"
 	"github.com/geodro/lerd/internal/version"
-	"github.com/geodro/lerd/internal/wsl"
 	"github.com/spf13/cobra"
 )
 
@@ -126,7 +125,7 @@ func collectBugReport(w io.Writer, logLines int, anon *anonymizer, filter *logFi
 	section(w, "Network")
 	dumpNetwork(w)
 
-	if wsl.IsWSL() {
+	if platform.Current.WindowsSide {
 		section(w, "WSL")
 		dumpWSL(w, logLines)
 	}

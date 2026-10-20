@@ -13,4 +13,9 @@ type Caps struct {
 	NativePHPRuntime bool
 	// WorkerModes: workers can run through exec or in a container of their own.
 	WorkerModes bool
+	// TrayHost: the desktop can show lerd's own tray applet.
+	TrayHost bool
+	// WindowsSide: Linux inside WSL, with lerd.exe, its agent and the desktop app
+	// on the Windows side to keep in step and to serve.
+	WindowsSide bool
 }
