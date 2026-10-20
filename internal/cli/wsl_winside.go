@@ -252,10 +252,14 @@ func replaceRunningExe(path string, exe []byte) error {
 
 // agentHandOverScript drops the agent's own Run entry, which an install from
 // before the desktop app left behind. It checks first: a Remove-ItemProperty
-// that finds nothing fails, and even silenced it fails the script.
+// that finds nothing fails, and even silenced it fails the script. The new
+// config stops the running agent, so a closed app is started, hidden, to run
+// the next one; the exe comes from the lerd:// handler the app registered.
 func agentHandOverScript() string {
 	return `$k = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-if (Get-ItemProperty -Path $k -Name 'lerd' -ErrorAction SilentlyContinue) { Remove-ItemProperty -Path $k -Name 'lerd' }`
+if (Get-ItemProperty -Path $k -Name 'lerd' -ErrorAction SilentlyContinue) { Remove-ItemProperty -Path $k -Name 'lerd' }
+$c = (Get-ItemProperty -Path 'HKCU:\Software\Classes\lerd\shell\open\command' -ErrorAction SilentlyContinue).'(default)'
+if ($c -match '^"([^"]+)"' -and -not (Get-Process -Name lerd-desktop -ErrorAction SilentlyContinue)) { Start-Process $Matches[1] -ArgumentList '--hidden' }`
 }
 
 // agentRunValue is the HKCU Run entry. conhost --headless keeps the agent from

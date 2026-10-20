@@ -95,8 +95,10 @@ func runWSLSetup(cmd *cobra.Command, _ []string) error {
 	}
 
 	// 6. Windows side: lerd.exe on PATH, its login agent, and .test for Windows.
+	// The Windows installers read the exit status, so a failure here stops them
+	// at this step with a retry rather than reporting a lerd Windows cannot reach.
 	if err := installWindowsSide(w); err != nil {
-		fmt.Fprintf(w, "  ! Windows integration: %v\n", err)
+		return fmt.Errorf("Windows integration: %w", err)
 	}
 
 	fmt.Fprintln(w)

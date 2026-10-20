@@ -86,8 +86,14 @@ func TestAgentHandOverScript_DropsTheAgentRunEntry(t *testing.T) {
 	if !strings.Contains(got, `if (Get-ItemProperty -Path $k -Name 'lerd' -ErrorAction SilentlyContinue)`) {
 		t.Errorf("the hand-over must only drop an entry that is there:\n%s", got)
 	}
-	if strings.Contains(got, "conhost") || strings.Contains(got, "Start-Process") {
+	if strings.Contains(got, "conhost") || strings.Contains(got, "lerd.exe") {
 		t.Errorf("the hand-over must not start the agent itself:\n%s", got)
+	}
+	// The new config stops the running agent, so a closed app must be started.
+	for _, want := range []string{`HKCU:\Software\Classes\lerd\shell\open\command`, `-not (Get-Process -Name lerd-desktop`, `Start-Process $Matches[1] -ArgumentList '--hidden'`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the hand-over must start a closed desktop app, missing %s:\n%s", want, got)
+		}
 	}
 }
 
