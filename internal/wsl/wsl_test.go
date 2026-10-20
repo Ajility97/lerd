@@ -196,7 +196,7 @@ nameserver 10.255.255.254
 `
 
 func TestGeneratedNameservers_WSLFile(t *testing.T) {
-	got := GeneratedNameservers(wslGeneratedResolvConf)
+	got, _ := GeneratedNameservers(wslGeneratedResolvConf)
 	if len(got) != 1 || got[0] != "10.255.255.254" {
 		t.Errorf("got %v, want [10.255.255.254]", got)
 	}
@@ -205,14 +205,25 @@ func TestGeneratedNameservers_WSLFile(t *testing.T) {
 func TestGeneratedNameservers_NotWSLGenerated(t *testing.T) {
 	// Already handed to systemd-resolved: nothing to take over.
 	stub := "# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\nnameserver 127.0.0.53\noptions edns0 trust-ad\nsearch .\n"
-	if got := GeneratedNameservers(stub); got != nil {
+	if got, _ := GeneratedNameservers(stub); got != nil {
 		t.Errorf("stub resolv.conf should yield nil, got %v", got)
 	}
 }
 
 func TestResolvedUpstreamDropin(t *testing.T) {
-	got := ResolvedUpstreamDropin([]string{"10.255.255.254", "1.1.1.1"})
+	got := ResolvedUpstreamDropin([]string{"10.255.255.254", "1.1.1.1"}, nil)
 	want := "[Resolve]\nDNS=10.255.255.254 1.1.1.1\n"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// A search suffix from Windows survives the handover, so short names such as
+// gitserver still resolve through resolved.
+func TestResolvedUpstreamDropin_KeepsTheSearchSuffixes(t *testing.T) {
+	ns, search := GeneratedNameservers(wslGeneratedResolvConf + "search corp.example lab.example\n")
+	got := ResolvedUpstreamDropin(ns, search)
+	want := "[Resolve]\nDNS=10.255.255.254\nDomains=corp.example lab.example\n"
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
