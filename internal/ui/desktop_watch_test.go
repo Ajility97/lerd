@@ -115,3 +115,45 @@ func TestWatchDesktopThemeWithoutADesktop(t *testing.T) {
 		t.Error("watchDir on a missing directory = nil, want an error the caller can ignore")
 	}
 }
+
+// What cfprefsd does to the global preferences: write a new copy beside the
+// old one and move it into place.
+func TestPollFileReportsAReplacedFile(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, ".GlobalPreferences.plist")
+	if err := os.WriteFile(file, []byte("blue"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	changed := make(chan struct{}, 4)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pollFile(ctx, file, 10*time.Millisecond, func() { changed <- struct{}{} })
+
+	staged := filepath.Join(dir, "staged")
+	if err := os.WriteFile(staged, []byte("purple"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(staged, file); err != nil {
+		t.Fatal(err)
+	}
+	waitForSignal(t, changed)
+}
+
+func TestPollFileStaysQuietWhileTheFileIsUntouched(t *testing.T) {
+	file := filepath.Join(t.TempDir(), ".GlobalPreferences.plist")
+	if err := os.WriteFile(file, []byte("blue"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	changed := make(chan struct{}, 4)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	pollFile(ctx, file, 10*time.Millisecond, func() { changed <- struct{}{} })
+
+	select {
+	case <-changed:
+		t.Error("an untouched file reported a change")
+	case <-time.After(100 * time.Millisecond):
+	}
+}
