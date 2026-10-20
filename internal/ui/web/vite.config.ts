@@ -53,6 +53,7 @@ export default defineConfig(() => ({
     // outruns the 5s default on a loaded machine. The assertions themselves
     // finish in milliseconds.
     testTimeout: 20000,
+    hookTimeout: 20000,
     // One worker per core means one jsdom and one transform pipeline per core,
     // which on a 32-thread machine is several gigabytes of resident memory for
     // a suite that finishes just as fast on eight.

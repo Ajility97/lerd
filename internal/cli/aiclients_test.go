@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/geodro/lerd/internal/hostbin"
+	"github.com/geodro/lerd/internal/platform"
 	toml "github.com/pelletier/go-toml/v2"
 )
 
@@ -26,6 +27,7 @@ func TestMain(m *testing.M) {
 	// A developer running Claude Code under another profile would otherwise
 	// have the global skill tests write into that real profile.
 	os.Unsetenv("CLAUDE_CONFIG_DIR")
+	platform.Current.TrayHost = true
 	os.Exit(m.Run())
 }
 

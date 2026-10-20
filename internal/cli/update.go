@@ -17,6 +17,7 @@ import (
 	"github.com/geodro/lerd/internal/download"
 	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/origin"
+	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/store"
 	lerdUpdate "github.com/geodro/lerd/internal/update"
@@ -144,14 +145,9 @@ func runUpdate(currentVersion string, beta bool) error {
 		return fmt.Errorf("replacing binary: %w", err)
 	}
 
-	// Also replace lerd-tray if it was included in this release.
-	trayBin := filepath.Join(extracted, "lerd-tray")
-	if _, err := os.Stat(trayBin); err == nil {
-		selfTray := filepath.Join(filepath.Dir(self), "lerd-tray")
-		tmpTray := selfTray + ".tmp"
-		if err := copyFile(trayBin, tmpTray, 0755); err == nil {
-			os.Rename(tmpTray, selfTray) //nolint:errcheck
-		}
+	// Also replace the binaries shipped beside lerd that this release includes.
+	for _, name := range companionBinaries() {
+		replaceCompanion(filepath.Join(extracted, name), filepath.Join(filepath.Dir(self), name))
 	}
 
 	// Update the cache so lerd status / doctor stop showing a stale notice.
@@ -791,6 +787,26 @@ func copyFile(src, dest string, mode os.FileMode) error {
 
 func stripV(v string) string { return lerdUpdate.StripV(v) }
 
+// companionBinaries ship beside lerd in a release: the tray, and on WSL lerd.exe,
+// its Windows side, which wsl:setup and lerd install copy out.
+func companionBinaries() []string {
+	if platform.Current.WindowsSide {
+		return []string{"lerd-tray", "lerd.exe"}
+	}
+	return []string{"lerd-tray"}
+}
+
+// replaceCompanion swaps src in for dst when src exists.
+func replaceCompanion(src, dst string) {
+	if _, err := os.Stat(src); err != nil {
+		return
+	}
+	tmp := dst + ".tmp"
+	if err := copyFile(src, tmp, 0755); err == nil {
+		os.Rename(tmp, dst) //nolint:errcheck
+	}
+}
+
 // backupBinary copies the current binary and version to backup locations for rollback.
 func backupBinary(self, currentVersion string) {
 	if err := copyFile(self, config.BackupBinaryFile(), 0755); err != nil {
@@ -798,11 +814,13 @@ func backupBinary(self, currentVersion string) {
 		return
 	}
 
-	// Back up lerd-tray if it exists next to the main binary.
-	trayPath := filepath.Join(filepath.Dir(self), "lerd-tray")
-	if _, err := os.Stat(trayPath); err == nil {
-		if err := copyFile(trayPath, config.BackupTrayFile(), 0755); err != nil {
-			feedback.Warn("could not back up lerd-tray: %v", err)
+	for _, name := range companionBinaries() {
+		path := filepath.Join(filepath.Dir(self), name)
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+		if err := copyFile(path, config.BackupCompanionFile(name), 0755); err != nil {
+			feedback.Warn("could not back up %s: %v", name, err)
 		}
 	}
 
@@ -838,19 +856,15 @@ func runRollback() error {
 		return fmt.Errorf("replacing binary: %w", err)
 	}
 
-	// Restore lerd-tray if a backup exists.
-	trayBak := config.BackupTrayFile()
-	if _, err := os.Stat(trayBak); err == nil {
-		selfTray := filepath.Join(filepath.Dir(self), "lerd-tray")
-		tmpTray := selfTray + ".tmp"
-		if err := copyFile(trayBak, tmpTray, 0755); err == nil {
-			os.Rename(tmpTray, selfTray) //nolint:errcheck
-		}
+	for _, name := range companionBinaries() {
+		replaceCompanion(config.BackupCompanionFile(name), filepath.Join(filepath.Dir(self), name))
 	}
 
 	// Remove backup files so you can't double-rollback.
 	os.Remove(bakPath)
-	os.Remove(config.BackupTrayFile())
+	for _, name := range companionBinaries() {
+		os.Remove(config.BackupCompanionFile(name))
+	}
 	os.Remove(config.BackupVersionFile())
 
 	// Update the cache.

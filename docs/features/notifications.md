@@ -9,7 +9,7 @@ The first time you open the dashboard a small banner offers to enable browser no
 Notifications have a single delivery **sink**, chosen per install and mutually exclusive so you never get the same alert twice:
 
 - **Browser**: the WebSocket fan-out to open dashboards plus Web Push to subscribed browsers (the paths described under [How it works](#how-it-works)). Needs a browser permission grant, works cross-machine over the LAN, and delivers to a closed PWA.
-- **Native desktop**: the `lerd-ui` daemon posts straight to the desktop notification service (`org.freedesktop.Notifications` over the session bus, using the DBus library lerd already ships). No browser, no permission prompt, and notifications appear even with nothing open. Web Push is suppressed in this mode, and so is the popup an open dashboard would otherwise raise itself, so the daemon's is the only copy and clicking it opens the desktop app. Linux only for now; macOS follows later.
+- **Native desktop**: the `lerd-ui` daemon posts straight to the desktop notification service (`org.freedesktop.Notifications` over the session bus, using the DBus library lerd already ships). No browser, no permission prompt, and notifications appear even with nothing open. Web Push is suppressed in this mode, and so is the popup an open dashboard would otherwise raise itself, so the daemon's is the only copy and clicking it opens the desktop app. Inside [WSL2](../getting-started/wsl2.md#8-notifications) the daemon raises Windows toasts instead. Linux and WSL2 only for now; macOS follows later.
 
 Switch under **System → Notifications** with the *Delivery* control, or from the CLI:
 
@@ -19,7 +19,7 @@ lerd notify target browser    # WebSocket + Web Push
 lerd notify status            # shows the current sink
 ```
 
-On a fresh Linux install the installer asks whether you want the [Lerd desktop app](#the-desktop-app) (which selects the native sink) or the browser, and remembers the answer. An unset target resolves to **browser**, so every upgrade, every non-interactive install, and every non-Linux install stays on the browser sink unchanged. The switcher and the native sink are offered only when a notification daemon is present (GNOME, KDE, Hyprland/mako, XFCE, dunst, …); on macOS or a host without one, only browser delivery is shown.
+On a fresh Linux install the installer asks whether you want the [Lerd desktop app](#the-desktop-app) (which selects the native sink) or the browser, and remembers the answer. An unset target resolves to **browser**, so every upgrade, every non-interactive install, and every non-Linux install stays on the browser sink unchanged. The switcher and the native sink are offered only when a notification daemon is present (GNOME, KDE, Hyprland/mako, XFCE, dunst, …) or lerd runs inside WSL2; on macOS or a host without one, only browser delivery is shown.
 
 ## The desktop app
 
@@ -48,7 +48,7 @@ In native mode, clicking a notification opens the [Lerd desktop app](https://ler
 | `update_available` | Something installed has fallen behind: a newer image tag for a service, a republished PHP base image, or a host tool (Composer, mise, fnm, mkcert) whose pin has moved. One notification per item, when it first goes stale | on | low |
 | `dump` | A `ray()` / `dump()` / var-dump packet arrives | **off** | low |
 
-A desktop notification is held back while a dashboard window has focus, since that window is already showing whatever the notification would say; the event still rides the websocket, so the bell and the notification centre have it either way. Focus is a lease each window renews every ten seconds and the server forgets after twenty five, not a flag a window sets once: a page that is closed, suspended, navigated away from or reconnecting after a restart stops holding notifications back within seconds of going quiet, rather than keeping them silenced until its socket is reaped. Messages are the exception and reach the desktop regardless, because what they announce has already left the machine.
+A desktop notification is held back while a dashboard window has focus, since that window is already showing whatever the notification would say; the event still rides the websocket, so the bell and the notification centre have it either way. Focus is a lease each window renews every ten seconds and the server forgets after twenty five, not a flag a window sets once: a page that is closed, suspended, navigated away from or reconnecting after a restart stops holding notifications back within seconds of going quiet, rather than keeping them silenced until its socket is reaped. Messages are the exception and reach the desktop regardless, because what they announce has already left the machine. Bringing a dashboard window to the front also clears the popups it raised earlier and the app's badge, so an app launcher or a dock does not keep counting notifications you have already caught up on in the dashboard. A dashboard page raises desktop popups only once lerd-ui has told it the browser is the sink. A page that loaded while lerd-ui was down, such as the desktop app at login, holds them back until its connection returns and it can ask again, so under the native sink it never doubles the daemon's popup.
 
 The diagnostic categories (`nplusone`, `slow_route`) report a problem lerd found in your app rather than an action that completed, so the toast and the notification centre draw them as amber warnings, between the blue informational entries and the red failures.
 
@@ -65,6 +65,8 @@ Clicking a notification focuses the dashboard (or launches the PWA if closed) an
 ## How it works
 
 With the **native** sink selected the daemon skips everything below and posts once to `org.freedesktop.Notifications`, unless a dashboard window has focus. A desktop popup for something you are already looking at is noise, so while the app or a dashboard tab is focused nothing is raised on the desktop, on either sink: the event still rides the websocket to the page, Web Push is skipped since there is a live page to receive it, and delivery resumes the moment you switch away. Each connection reports its own focus, so a second window left in the background never suppresses anything.
+
+A desktop app listening on `/api/desktop/ws` takes the native notifications over: whatever the daemon would have posted after the rules above goes to the app instead, which raises it itself. The Windows desktop app does this, so its notifications open its own window rather than coming from PowerShell inside WSL. With no app listening the daemon posts them as before.
 
 Nothing is lost when the desktop is skipped: the dashboard shows the event in the page as a toast in the bottom-right corner. Informational ones clear themselves after a few seconds; a failed operation stays until you dismiss it, carries a link to the thing that failed, and is shown even when notifications are muted or the desktop popup already fired.
 
@@ -115,6 +117,7 @@ Subscriptions that the push service retires (HTTP 410 Gone, 404 Not Found) are p
 | `GET` | `/api/notifications/target` | Returns the delivery sink, whether native is supported on this host, and the resolved native category prefs. |
 | `POST` | `/api/notifications/target` | Sets the delivery sink to `browser` or `native`. |
 | `POST` | `/api/notifications/kinds` | Toggles one native category (`{kind, enabled}`). |
+| `GET` | `/api/desktop/ws` | WebSocket for a desktop app that raises native notifications itself. Each text frame is `{"type": "notification", "title", "body", "route", "urgency"}`, with `urgency` one of `low`, `normal` or `critical`. Like the tray actions, a remote session reaches it only with full access on. |
 
 All endpoints sit behind the standard `withRemoteControlGate` (loopback-only by default). The mailpit webhook at `/api/webhooks/mailpit` has its own explicit bypass, the threat surface is bounded (a LAN attacker could spoof fake mail notifications) and lerd is a local-dev tool.
 

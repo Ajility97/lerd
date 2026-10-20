@@ -8,7 +8,6 @@ import (
 	"github.com/geodro/lerd/internal/envpass"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 // NewConsoleCmd returns the console command — runs framework console in the project's container.
@@ -35,6 +34,9 @@ func consoleCmdArgs(cwd, container, consoleCmd string, tty bool, args []string) 
 	cmdArgs := append(execFlags, terminalColorEnvArgs()...)
 	cmdArgs = append(cmdArgs, envpass.Args(cwd, os.Environ())...)
 	cmdArgs = append(cmdArgs, debugSiteEnvArgs(cwd)...)
+	if path := withContainerNode(cwd, podman.ContainerPath); path != podman.ContainerPath {
+		cmdArgs = append(cmdArgs, "--env", "PATH="+path)
+	}
 	cmdArgs = append(cmdArgs, "-w", cwd, container, "php", consoleCmd)
 	return append(cmdArgs, args...)
 }
@@ -94,7 +96,7 @@ func runConsole(_ *cobra.Command, args []string) error {
 
 	podman.EnsurePathMounted(cwd, version)
 
-	cmd := podman.Cmd(consoleCmdArgs(cwd, container, consoleCmd, term.IsTerminal(int(os.Stdin.Fd())), args)...)
+	cmd := podman.Cmd(consoleCmdArgs(cwd, container, consoleCmd, containerTTY(), args)...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

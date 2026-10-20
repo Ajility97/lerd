@@ -72,15 +72,9 @@ export const DEFAULT_PALETTE_ID = 'lerd';
 // built-in #ff2d20 and its #e02419 hover.
 const HOVER_STEP = 0.12;
 
-// lerd, muted and Ocean are the dashboard's own, and the desktop ones follow
-// lerd's straight away since they are the likeliest pick after it. The editor
-// schemes are their published palettes. The desktop ones are read from what
-// those desktops actually ship, not from memory of them: Breeze from
-// Plasma 6.7's BreezeDark.colors, Adwaita from libadwaita 1.9's named colours,
-// macOS from Apple's documented system blue and window background. All three
-// have been darkened since the values most write-ups still quote. Their light
-// chrome is the tone each desktop tints its own sidebar with, Breeze's window
-// colour and libadwaita's sidebar_bg_color.
+// lerd, muted and Ocean are the dashboard's own, the desktop ones follow lerd's
+// as its likeliest successors, read from what those desktops ship (sources in
+// docs/features/dashboard-themes.md), and the editor schemes are their own.
 export const BUILTIN_PALETTES: Palette[] = [
   {
     id: 'lerd',
@@ -135,6 +129,20 @@ export const BUILTIN_PALETTES: Palette[] = [
     border: '#3a3a3a',
     muted: '#4a4a4a',
     chromeLight: '#f3f4f6',
+    source: 'builtin'
+  },
+  {
+    id: 'windows',
+    name: 'Windows',
+    accent: '#0067c0',
+    accentHover: '#003e92',
+    accentDark: '#4cc2ff',
+    accentHoverDark: '#99ebff',
+    bg: '#202020',
+    card: '#2b2b2b',
+    border: '#323232',
+    muted: '#424242',
+    chromeLight: '#f3f3f3',
     source: 'builtin'
   },
   {
@@ -245,16 +253,14 @@ export const BUILTIN_PALETTES: Palette[] = [
 
 const DEFAULT_PALETTE = BUILTIN_PALETTES[0];
 
-// The built-in each desktop's own entry stands in for. A machine running that
-// desktop has the real thing, live and on whichever scheme it happens to be
-// wearing, and the built-in beside it is a snapshot of one of them.
-// macOS is in here against its own name: the built-in it replaces is the one
-// already called macOS, and the entry still wants that palette's surfaces under
-// the accent the Mac in front of you is set to.
+// The built-in each desktop's live entry stands in for. macOS and Windows map to
+// their own names: the entry keeps that palette's surfaces under the accent the
+// machine is set to.
 const DESKTOP_STANDS_IN_FOR: Record<string, string> = {
   plasma: 'breeze',
   gnome: 'adwaita',
-  macos: 'macos'
+  macos: 'macos',
+  windows: 'windows'
 };
 
 export const SYSTEM_PALETTE_IDS = Object.values(DESKTOP_STANDS_IN_FOR);

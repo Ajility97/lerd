@@ -21,9 +21,9 @@ func stubWakeHold(t *testing.T, asleepPolls int) (pinged *[]string) {
 	if err := config.AddSite(config.Site{Name: "shop", Path: "/srv/shop", Domains: []string{"shop.test"}}); err != nil {
 		t.Fatal(err)
 	}
-	prevPing, prevAsleep, prevPoll, prevMax, prevSettle := wakeHoldPing, wakeHoldAsleep, wakeHoldPoll, wakeHoldMax, wakeHoldSettle
+	prevPing, prevAsleep, prevPoll, prevMax, prevSettle, prevRePing := wakeHoldPing, wakeHoldAsleep, wakeHoldPoll, wakeHoldMax, wakeHoldSettle, wakeHoldRePing
 	t.Cleanup(func() {
-		wakeHoldPing, wakeHoldAsleep, wakeHoldPoll, wakeHoldMax, wakeHoldSettle = prevPing, prevAsleep, prevPoll, prevMax, prevSettle
+		wakeHoldPing, wakeHoldAsleep, wakeHoldPoll, wakeHoldMax, wakeHoldSettle, wakeHoldRePing = prevPing, prevAsleep, prevPoll, prevMax, prevSettle, prevRePing
 	})
 	pinged = &[]string{}
 	wakeHoldPing = func(s string) { *pinged = append(*pinged, s) }
@@ -205,5 +205,23 @@ func TestSiteVhostWaking_waitsForTheReloadAfterTheRestore(t *testing.T) {
 	reloadAt(now.Add(2 * time.Second))
 	if siteVhostWaking("shop.test") {
 		t.Fatal("restored and reloaded must release")
+	}
+}
+
+// A ping sent while the watcher restarts, as lerd start and lerd install make
+// it, is lost, so the hold keeps pinging rather than waiting for a wake that
+// only the next watcher tick, a minute later, would bring.
+func TestWakeHold_pingsAgainWhileTheSiteSleeps(t *testing.T) {
+	pinged := stubWakeHold(t, 40)
+	wakeHoldRePing = 5 * time.Millisecond
+	fakeNginx(t, http.StatusOK, "ok")
+	wakeRequest("shop.test", "/")
+	if len(*pinged) < 2 {
+		t.Fatalf("pinged %d times over a long hold, want it repeated", len(*pinged))
+	}
+	for _, s := range *pinged {
+		if s != "shop" {
+			t.Errorf("pinged %q, want shop", s)
+		}
 	}
 }
