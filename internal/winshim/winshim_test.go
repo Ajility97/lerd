@@ -82,6 +82,25 @@ func TestArgToLinux(t *testing.T) {
 	}
 }
 
+// A relative path such as .\artisan reaches PHP with forward slashes, while a
+// namespace that names no file keeps its backslashes.
+func TestArgToLinux_RelativePaths(t *testing.T) {
+	prev := Exists
+	Exists = func(p string) bool { return p == `.\artisan` || p == `tests\Unit\FooTest.php` }
+	t.Cleanup(func() { Exists = prev })
+	cfg := Config{Distro: "Ubuntu-24.04", Mount: "/mnt"}
+	for in, want := range map[string]string{
+		`.\artisan`:              "./artisan",
+		`tests\Unit\FooTest.php`: "tests/Unit/FooTest.php",
+		`App\Models\User`:        `App\Models\User`,
+		`--filter=Tests\FooTest`: `--filter=Tests\FooTest`,
+	} {
+		if got := ArgToLinux(cfg, in); got != want {
+			t.Errorf("ArgToLinux(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestShimArgs(t *testing.T) {
 	cfg := Config{Distro: "Ubuntu-24.04", Lerd: "/home/me/.local/bin/lerd", Shims: "/home/me/.local/share/lerd/bin", Mount: "/mnt"}
 	got, err := ShimArgs(cfg, `C:\app`, "composer", []string{"install", `C:\app\composer.json`})

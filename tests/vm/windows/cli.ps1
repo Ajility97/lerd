@@ -73,6 +73,8 @@ $got = In $unc { php -v }
 Check 'C.7 php.exe -v' ($got -match '^PHP \d') $got
 $got = In $unc { php artisan --version }
 Check 'C.8 php artisan from the site folder' ($got -match 'Laravel Framework') $got
+$got = In $unc { php .\artisan --version }
+Check 'C.8b php .\artisan, a relative Windows path' ($got -match 'Laravel Framework') $got
 $got = In $unc { composer --version }
 Check 'C.9 composer.exe --version' ($got -match 'Composer version') $got
 $got = In $unc { node -v }
@@ -144,6 +146,8 @@ $got = Cmd $unc 'lerd which'
 Check 'K.2 cmd: lerd which after pushd to the site' ($got -match "Projects/$Site" -and $got -match 'EXIT=0') $got
 $got = Cmd $unc 'php artisan --version'
 Check 'K.3 cmd: php artisan after pushd' ($got -match 'Laravel Framework') $got
+$got = Cmd $unc 'php .\artisan --version'
+Check 'K.3b cmd: php .\artisan after pushd' ($got -match 'Laravel Framework') $got
 $got = Cmd $unc 'composer --version'
 Check 'K.4 cmd: composer --version' ($got -match 'Composer version') $got
 $got = Cmd $win 'php -r "exit(7);"'

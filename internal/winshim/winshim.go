@@ -5,6 +5,7 @@ package winshim
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"regexp"
 	"strings"
@@ -151,6 +152,14 @@ var (
 	shimName  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 )
 
+// Exists reports whether a path is there from lerd.exe's working folder. A
+// relative argument is only taken for a path when it is, since App\Models\User
+// and tests\Unit look alike.
+var Exists = func(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
 // ArgToLinux turns a Windows path argument, or the path in a --flag=path, into
 // the one lerd sees, so a file an IDE passes reaches it; anything else, a PHP
 // namespace included, is left as it is.
@@ -164,6 +173,9 @@ func ArgToLinux(c Config, arg string) string {
 	}
 	m := drivePath.FindStringSubmatch(arg)
 	if m == nil {
+		if strings.Contains(arg, `\`) && !strings.HasPrefix(arg, `\`) && Exists(arg) {
+			return strings.ReplaceAll(arg, `\`, "/")
+		}
 		return arg
 	}
 	mount := c.Mount
