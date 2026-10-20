@@ -57,10 +57,9 @@ func checkLimit(raw string, ceiling time.Duration) error {
 	return nil
 }
 
-// RunWithin runs cmd and stops it once limit passes, every surface but the
-// CLI going through it. The script runs in its own process group so the stop
-// reaches whatever it started too, and the wait still gives up shortly after
-// on a child that left the group holding the output open.
+// RunWithin runs cmd for every surface but the CLI and stops it, with all it
+// started, once limit passes; the wait still gives up on a child that left the
+// group holding the output open.
 func RunWithin(cmd *exec.Cmd, limit time.Duration) error {
 	cmd.WaitDelay = time.Second
 	OwnProcessGroup(cmd)

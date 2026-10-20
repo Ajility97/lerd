@@ -77,10 +77,9 @@ func Find(name string) (*Plugin, error) {
 	return ReadPlugin(filepath.Join(Dir(), name))
 }
 
-// Command builds the process for one of the plugin's files. The plugin's
-// context goes in as LERD_* variables on top of lerd's own environment; extra
-// carries what the surface knows (site, event...). It creates the plugin's
-// data dir so a script can write to it without checking first.
+// Command builds the process for one of the plugin's files, with its context
+// as LERD_* variables plus what the surface knows in extra. It creates the data
+// dir first, so a script can write there without checking.
 func (p *Plugin) Command(run, surface string, args []string, extra map[string]string) (*exec.Cmd, error) {
 	if err := p.checkExecutable(run); err != nil {
 		return nil, err

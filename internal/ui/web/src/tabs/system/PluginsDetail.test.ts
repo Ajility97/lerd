@@ -42,7 +42,7 @@ it('lists plugins as cards and opens one to show what it adds and requires', asy
 it('shows why a broken plugin failed in its detail', async () => {
   const { findByText, getByRole } = render(PluginsDetail);
   await fireEvent.click(await findByText('broken'));
-  expect(within(getByRole('dialog')).getByText(/api_version 9 needs a newer lerd/)).toBeTruthy();
+  expect(await within(getByRole('dialog')).findByText(/api_version 9 needs a newer lerd/)).toBeTruthy();
 });
 
 // The author can only fix what they hear about, so a failure links straight to
@@ -55,9 +55,12 @@ it('shows a plugin\'s last failure with a link to report it', async () => {
     }
   ];
   const { findByText, getByRole } = render(PluginsDetail);
+  // The list is a store the other tests filled too, so wait for this one's
+  // fetch before opening the card, and let the dialog catch up after.
+  await waitFor(() => expect(calls.some((c) => c.url.endsWith('/api/plugin-manager'))).toBe(true));
   await fireEvent.click(await findByText('hello'));
   const dialog = within(getByRole('dialog'));
-  expect(dialog.getByText(/boom/)).toBeTruthy();
+  expect(await dialog.findByText(/boom/)).toBeTruthy();
   expect(dialog.getByRole('link', { name: 'Report to the author' }).getAttribute('href')).toBe('https://github.com/acme/hello/issues/new?title=x');
 });
 

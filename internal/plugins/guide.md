@@ -14,7 +14,7 @@ A new framework, a new framework version, or a service everyone could use belong
 4. `plugin` `list` after each edit. A plugin that does not load is listed with the reason, and nothing else of it runs.
 5. Drive every surface you kept, as the user would, before saying it works (see Verifying below).
 
-Building the plugin somewhere else, such as a repository the user will publish? Then `plugin` `install` with that folder's path copies it in; install again after each change, since the installed copy does not follow the folder.
+Building the plugin somewhere else, such as a repository the user will publish? Then `plugin` `install` with that folder's path copies it in. The installed copy does not follow the folder and an install never replaces one, so after a change run `lerd plugin remove <name>`, which keeps the plugin's data, and install again; or make the change in the installed folder too.
 
 ## plugin.yaml
 

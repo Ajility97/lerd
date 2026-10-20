@@ -746,10 +746,7 @@ func TestLerdReference_underSizeCeiling(t *testing.T) {
 	//
 	// 38150 → 38300 for fastcgi_params, which keeps a framework-wide param in
 	// its definition rather than in a per-site location override.
-	//
-	// 38300 → 38750 for the plugin tool, which sends an assistant to the plugin
-	// guide before it builds the user a plugin.
-	const ceiling = 38750
+	const ceiling = 38750 // 38300 → 38750 for the plugin tool and its guide
 	if got := len(lerdReference); got > ceiling {
 		t.Errorf("lerd-reference.md is %d bytes, ceiling is %d — trim before raising", got, ceiling)
 	}

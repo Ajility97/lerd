@@ -513,11 +513,9 @@ func profilerEnabled() bool {
 	return err == nil && cfg.IsProfilerEnabled()
 }
 
-// pageInjectConf renders what a site's vhost adds to its pages: one script
-// injection before </head> for browser logs and every page plugin the site
-// switched on, since nginx rewrites </head> only once, plus the locations that
-// hand those scripts and their calls to lerd-ui, naming the site in headers
-// nginx sets itself. Empty when nothing is injected, which leaves the page alone.
+// pageInjectConf renders one </head> injection for browser logs and the site's
+// page plugins (nginx rewrites it once), plus the locations handing them to
+// lerd-ui with the site in headers nginx sets. Empty leaves the page alone.
 func pageInjectConf(siteName, branch string) string {
 	site, err := config.FindSite(siteName)
 	if err != nil || site == nil {

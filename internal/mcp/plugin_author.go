@@ -67,34 +67,11 @@ func execPluginList(map[string]any) (any, *rpcError) {
 		Broken    []broken `json:"broken"`
 	}{Installed: []entry{}, Broken: []broken{}}
 	for _, p := range list {
-		out.Installed = append(out.Installed, entry{Name: p.Name, Dir: p.Dir, Surfaces: surfacesOf(p)})
+		out.Installed = append(out.Installed, entry{Name: p.Name, Dir: p.Dir, Surfaces: p.Surfaces()})
 	}
 	for _, e := range errs {
 		out.Broken = append(out.Broken, broken{Dir: e.Dir, Error: e.Err.Error()})
 	}
 	data, _ := json.MarshalIndent(out, "", "  ")
 	return toolOK(string(data)), nil
-}
-
-// surfacesOf names what a loaded plugin adds, so an assistant can check its
-// edits landed without reading the manifest back.
-func surfacesOf(p *plugins.Plugin) []string {
-	var s []string
-	add := func(on bool, name string) {
-		if on {
-			s = append(s, name)
-		}
-	}
-	add(len(p.Commands) > 0, "commands")
-	add(len(p.SiteCommands) > 0, "site_commands")
-	add(len(p.Hooks) > 0, "hooks")
-	add(p.MCP != nil && len(p.MCP.Tools) > 0, "mcp")
-	add(len(p.API) > 0, "api")
-	if p.UI != nil {
-		add(p.UI.Page != nil, "page")
-		add(p.UI.SiteTab != nil, "site_tab")
-		add(p.UI.OverviewCard != nil, "overview_card")
-		add(p.UI.PageScript != "", "page_script")
-	}
-	return s
 }

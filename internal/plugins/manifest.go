@@ -1,7 +1,6 @@
-// Package plugins discovers user-installed lerd plugins and runs their
-// executables. A plugin is a directory holding plugin.yaml plus whatever files
-// it names; every surface (CLI, hooks, MCP, API, UI) is declared there and
-// served by running one of those files, so a plugin can be written in anything.
+// Package plugins discovers user-installed lerd plugins and runs them: a folder
+// holding plugin.yaml and the files it names, each surface served by running
+// one of those files, so a plugin can be written in anything.
 package plugins
 
 import (

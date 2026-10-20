@@ -16,10 +16,9 @@ const (
 	PluginFrameworks = "frameworks"
 )
 
-// PluginDefinitionDirs returns the folder of the given kind in every installed
-// plugin that loads. The plugins package sets it, since it imports config and
-// not the other way round. Plugin definitions sit below lerd's own and the
-// store's, so they only ever add names.
+// PluginDefinitionDirs returns the folder of the given kind in every plugin that
+// loads, set by the plugins package since it imports config. Plugin definitions
+// sit below lerd's own and the store's, so they only ever add names.
 var PluginDefinitionDirs = func(kind string) []string { return nil }
 
 // pluginDefinitionPath returns the first plugin file serving name, or "".

@@ -57,10 +57,9 @@ func newStage() (string, error) {
 	return os.MkdirTemp(Dir(), ".install-")
 }
 
-// place validates the plugin fetched into staged and moves it into the plugins
-// dir under the name its manifest declares. want, when set, is the name the
-// catalog listed it under; replace swaps out an installed copy, which is kept
-// until the new one is in place; src records where a catalog install came from.
+// place validates staged and moves it in under its manifest's name, which must
+// be want when the catalog named one. replace swaps an installed copy, kept
+// until the new one is in; src records a catalog install's origin.
 func place(stage, staged, want string, replace bool, src *Source) (*Plugin, error) {
 	// The checks below read what is installed, so a second install placing at
 	// the same time, from another tab or the CLI, could pass them too.

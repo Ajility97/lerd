@@ -46,10 +46,9 @@ func IsEvent(name string) bool { return events[name] }
 // HookLog is the file in a plugin's data dir that collects its hooks' output.
 const HookLog = "hooks.log"
 
-// Emit runs every installed plugin's hook for event, one after another. The
-// payload goes in as JSON on stdin with "event" added, and each key also as
-// LERD_<KEY>. A hook's output and failure land in its hooks.log; neither ever
-// reaches the caller, whose operation already succeeded.
+// Emit runs every plugin's hook for event in turn, the payload as JSON on stdin
+// and as LERD_<KEY>. Output and failure go to its hooks.log, never back to the
+// caller, whose operation already succeeded.
 func Emit(event string, payload map[string]string) {
 	if !IsEvent(event) {
 		panic("plugins: emit of undeclared event " + event)

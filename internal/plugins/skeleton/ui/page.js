@@ -1,7 +1,6 @@
-// Runs on the pages of every site this plugin is switched on for, in the site's
-// own origin. lerd serves it, and the plugin's endpoints, under /_lerd/plugins/,
-// so a plain same-origin fetch reaches them. Keep it small and self-contained:
-// it shares the page with the app, so it draws inside a shadow root.
+// Runs in the own origin of each site this plugin is switched on for, so a plain
+// fetch of /_lerd/plugins/<name>/api/ reaches its endpoints. It shares the page
+// with the app, so keep it small and draw inside a shadow root.
 (() => {
   const name = document.currentScript.src.split('/').slice(-2, -1)[0];
   const host = document.createElement('div');

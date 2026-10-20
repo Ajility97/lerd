@@ -42,10 +42,9 @@
     if (e.key === 'ArrowLeft') step(-1);
     if (e.key === 'ArrowRight') step(1);
   }
-  // The slides move on by themselves, the way the lineup on lerd.sh does: the
-  // active thumbnail's bar fills over the slide time and the slide changes when
-  // it ends, so the two never drift. Hovering pauses the fill, and with reduced
-  // motion there is no fill and so no change.
+  // Like the lineup on lerd.sh, the active thumbnail's bar fills over the slide
+  // time and its end moves the slide on, so they never drift. Hover pauses it;
+  // reduced motion has no fill and so no change.
   const SLIDE_MS = 5000;
   const repoLabel = $derived(repo?.replace(/^https:\/\/(www\.)?github\.com\//, '') ?? '');
 </script>

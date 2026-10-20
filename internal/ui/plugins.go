@@ -208,12 +208,9 @@ func pluginEndpointFor(urlPath string) (*plugins.Plugin, *plugins.Endpoint) {
 	return nil, nil
 }
 
-// withPluginPages serves what page plugins put on a site's pages, ahead of the
-// remote-control gate like browser logs: GET <PagePath><name>/page.js is the
-// script, and <PagePath><name>/api/<path> reaches the plugin's endpoints. Both
-// come only through nginx, which names the site, and only for a site the user
-// switched the plugin on for. A loopback_only endpoint is never reachable from
-// a page, which a phone on the LAN may be showing.
+// withPluginPages serves <PagePath><name>/page.js and its /api/<path> calls,
+// ahead of the remote gate, only through nginx and for sites that switched it
+// on; loopback_only endpoints stay off pages, which a phone may be showing.
 func withPluginPages(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rest, ok := strings.CutPrefix(r.URL.Path, plugins.PagePath)
@@ -390,13 +387,9 @@ type catalogEntry struct {
 	Missing []string `json:"missing,omitempty"`
 }
 
-// handlePluginManager serves the plugin manager:
-//
-//	GET    /api/plugin-manager                → installed plugins, broken ones included
-//	GET    /api/plugin-manager/catalog        → approved plugins, marked when installed
-//	POST   /api/plugin-manager                → install {"name"} from the catalog, or {"source"}
-//	POST   /api/plugin-manager/<name>/update  → move to the newly approved commit
-//	DELETE /api/plugin-manager/<name>         → remove, keeping the plugin's data
+// handlePluginManager serves /api/plugin-manager: GET lists installed plugins
+// (or /catalog the approved ones), POST installs {name} or {source}, and
+// POST <name>/update or DELETE <name> updates or removes, keeping its data.
 func handlePluginManager(w http.ResponseWriter, r *http.Request) {
 	name := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/plugin-manager"), "/")
 	switch {

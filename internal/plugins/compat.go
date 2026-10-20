@@ -16,13 +16,9 @@ var (
 	lowerBoundRe = regexp.MustCompile(`^>=\s*(\d+)\.(\d+)(\.\d+)?$`)
 )
 
-// Compatible reports whether this lerd meets a plugin's `lerd` constraint,
-// compared on major and minor. A plugin states the oldest lerd it needs and no
-// newest, so a new release never strands it; breaking the contract is what
-// api_version is for, and any other form of constraint is refused. A build
-// from an untagged commit has no version to judge and loads everything.
-// Compared here rather than with internal/php, which would link the service
-// managers into every package that emits a plugin event.
+// Compatible reports whether this lerd meets a plugin's `>=X.Y` lower bound, on
+// major and minor; other forms are refused and an untagged build loads all.
+// Parsed here, not in internal/php, so emitting an event links no service code.
 func Compatible(constraint string) bool {
 	if constraint == "" {
 		return true
