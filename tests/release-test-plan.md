@@ -69,7 +69,8 @@ list` and self-heal; phase 7's `lerd worktree add`, its 200, bare-git add and
 3. Before a run, `git diff --stat <last-passing-commit> <candidate>` decides:
 an item whose phase touches a changed package (for example `internal/dns`,
 `internal/nginx` or `internal/certs` for phase 3, `internal/serviceops` for
-phase 5, `internal/ui` for phase 10) runs; when the diff leaves its packages
+phase 5, `internal/ui` for phase 10, `internal/plugins`, `internal/mcp` and
+`internal/siteops` for phase 15) runs; when the diff leaves its packages
 alone it may be recorded as `CARRIED <commit>`, naming the candidate it last
 passed on, with that run's evidence. When in doubt it runs. Nothing is carried
 across more than one minor release.
@@ -199,6 +200,12 @@ phases once the next release makes it ordinary.
 | Doctor explaining repeated macOS folder prompts, Xdebug across a runtime switch | 14 |
 
 ---
+
+## What 1.38.0 adds to this plan
+
+| Change | Phase |
+|---|---|
+| Plugins: every surface, the catalog, plugin services and the `plugin` MCP tool | 15 |
 
 ## Phase 0 — baseline snapshots
 
@@ -1296,6 +1303,54 @@ skipped rather than quietly passing it.
       container, image, volume or site data
 - [ ] Switching back to the container runtime brings every site home,
       **https → 200**
+
+## Phase 15 — plugins
+
+Runs on its own guest state: it installs the build in `~/rc` when lerd is
+missing (it comes after phase 13's uninstall in a full run) and links a site of
+its own, `vmplugsite`, a plain PHP page, so it depends on no earlier phase. The
+plugin under test is the boilerplate from `lerd plugin new vmplug`, which uses
+every surface; the dashboard itself is signed off by hand, and these checks
+prove what it draws through the API it reads.
+
+- [ ] `lerd plugin new vmplug` writes a plugin that loads at once and
+      `lerd plugin list` shows it
+- [ ] Its CLI command, run inside the linked project, gets the site:
+      `lerd vmplug:greet` greets `vmplugsite` via `cli`
+- [ ] Its API endpoint answers through lerd-ui with the site it was given
+- [ ] Its MCP tool is listed as `vmplug_greet` and answers through `lerd mcp`
+- [ ] lerd's own `plugin` MCP tool returns the plugin guide, and `list` names a
+      broken plugin's reason
+- [ ] `lerd mcp:inject` writes `plugins.md` beside lerd's skill and the
+      plugin's own skill, and `lerd mcp:eject` takes the plugin's skill away
+      after the plugin is removed
+- [ ] Its `site.linked` hook runs when a site is linked, and writes to the
+      plugin's data folder
+- [ ] `lerd plugin page vmplug on` puts its script into the site's HTML, the
+      script answers 200 through nginx, and `off` takes it out again
+- [ ] A page's call to the plugin's endpoint through nginx answers for the
+      site, and the same call from another site's page is refused
+- [ ] `lerd plugin card vmplug on` switches its Overview card on for the site,
+      the dashboard's API reports it on, and the card's page serves 200
+- [ ] The dashboard's plugin manager lists the plugin with what it adds and its
+      icon
+- [ ] Installing from a folder copies the plugin in, and a second install of
+      the same name is refused
+- [ ] Each of these is refused by name: a PHP script, a platform this is not,
+      a `lerd` bound newer than this build, a missing requirement, and a
+      service name lerd already has
+- [ ] A broken manifest is listed with its reason, and the other plugins keep
+      working
+- [ ] An endpoint that fails is recorded as the plugin's last failure
+- [ ] A service a plugin ships shows up in `lerd service preset`, installs,
+      starts and answers, and stays installed when the plugin is removed until
+      it is removed itself
+- [ ] With `LERD_PLUGIN_CATALOG` on a local index, `lerd plugin search` lists
+      its plugin, `lerd plugin install` puts in the approved commit and nothing
+      newer, and `lerd plugin update` moves to a newly approved one
+- [ ] `lerd plugin remove` keeps the plugin's data folder
+- [ ] `lerd plugin search` against plugins.lerd.sh answers without an error,
+      and the site still answers **http → 200** at the end
 
 ## Sign-off
 
