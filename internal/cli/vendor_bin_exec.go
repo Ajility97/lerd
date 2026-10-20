@@ -121,7 +121,7 @@ func runVendorBinDirect(cwd, rel string, args []string) error {
 	}
 	podman.EnsurePathMounted(cwd, version)
 
-	cmd := podman.Cmd(vendorBinExecArgs(cwd, container, rel, args, interactiveTTY())...)
+	cmd := podman.Cmd(vendorBinExecArgs(cwd, container, rel, args, containerTTY())...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	return runAndPropagate(cmd)
 }

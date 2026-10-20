@@ -23,6 +23,16 @@ func interactiveTTY() bool {
 	return term.IsTerminal(int(os.Stdin.Fd())) && term.IsTerminal(int(os.Stdout.Fd()))
 }
 
+// containerTTY decides whether a container exec gets a pty. Through lerd.exe on
+// Windows stdin stays a console while stdout is piped, and a pty would put colour
+// codes and CRLF into that pipe, so on WSL stdout must be a terminal too.
+func containerTTY() bool {
+	if onWSL() {
+		return interactiveTTY()
+	}
+	return term.IsTerminal(int(os.Stdin.Fd()))
+}
+
 // Seams for the shared FPM up/installed fast path, swappable in tests.
 var (
 	fpmContainerRunning = podman.ContainerRunning

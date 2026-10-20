@@ -96,7 +96,7 @@ func runConsole(_ *cobra.Command, args []string) error {
 
 	podman.EnsurePathMounted(cwd, version)
 
-	cmd := podman.Cmd(consoleCmdArgs(cwd, container, consoleCmd, interactiveTTY(), args)...)
+	cmd := podman.Cmd(consoleCmdArgs(cwd, container, consoleCmd, containerTTY(), args)...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
