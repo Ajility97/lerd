@@ -673,7 +673,42 @@ func WorkerStopForSite(siteName, sitePath, workerName string) error {
 	// The unit is down, so whatever is still running in the container is a
 	// leftover rather than a worker anything supervises.
 	killWorkerInContainer(siteName, sitePath, workerName)
+	ClearStoppedWorkerURLFile(siteName, sitePath, workerName)
 	return err
+}
+
+// ClearStoppedWorkerURLFile removes the file a stopped worker's server advertised
+// its URL in, so pages fall back to the build (vite's public/hot) instead of a
+// dead proxy. dir is the checkout the worker ran in, empty for the site's own.
+func ClearStoppedWorkerURLFile(siteName, dir, workerName string) {
+	s, _ := config.FindSite(siteName)
+	if dir == "" && s != nil {
+		dir = s.Path
+	}
+	// No framework to ask: its workers are .lerd.yaml's, as resolveSiteAndFramework reads them.
+	if s != nil && s.IsCustomContainer() && s.Framework == "" {
+		if proj, _ := config.LoadProjectConfig(dir); proj != nil {
+			clearWorkerURLFile(dir, proj.CustomWorkers[workerName].Health)
+		}
+		return
+	}
+	if fw, ok := config.GetFrameworkForDir(siteFrameworkName(siteName), dir); ok {
+		clearWorkerURLFile(dir, fw.Workers[workerName].Health)
+	}
+}
+
+// The path may come from a project's own .lerd.yaml, so the removal goes through
+// an os.Root, which refuses anything resolving outside the checkout, symlinks too.
+func clearWorkerURLFile(dir string, h *config.WorkerHealth) {
+	if h == nil || h.URLFile == "" || dir == "" {
+		return
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return
+	}
+	defer root.Close()
+	_ = root.Remove(h.URLFile)
 }
 
 // StopWorkerUnit tears down a worker unit the caller has already resolved to a
