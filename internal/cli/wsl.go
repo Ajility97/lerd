@@ -12,6 +12,7 @@ import (
 	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/feedback"
+	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/wsl"
 	"github.com/spf13/cobra"
 )
@@ -33,7 +34,7 @@ func NewWSLSetupCmd() *cobra.Command {
 
 func runWSLSetup(cmd *cobra.Command, _ []string) error {
 	w := cmd.OutOrStdout()
-	if !wsl.IsWSL() {
+	if !platform.Current.WindowsSide {
 		return fmt.Errorf("not running inside WSL2 (no WSL_DISTRO_NAME / microsoft kernel); nothing to do")
 	}
 

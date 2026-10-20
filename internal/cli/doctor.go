@@ -292,7 +292,7 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	// ── WSL2 ─────────────────────────────────────────────────────────────────
 	// Failure modes only WSL has: the podman log driver, kernels that break
 	// containers, no tray host, slow 9P mounts. wsl:setup fixes the first and third.
-	if wsl.IsWSL() {
+	if platform.Current.WindowsSide {
 		section = "WSL2"
 		fmt.Fprintln(w, "\n[WSL2]")
 
