@@ -101,3 +101,15 @@ stage() { printf '%s\n' "$2" > "$1"; git add "$1"; }
   [ "$status" -eq 1 ]
   [[ "$output" == *"café.go:3"* ]]
 }
+
+@test "does not count comment-like text inside a go raw string" {
+  stage a_test.go $'package a\n\nvar in = `\n/* one\n   two\n   three\n   four */\n{"a": 1}\n`'
+  run "$HOOK"
+  [ "$status" -eq 0 ]
+}
+
+@test "ends a block only at its own closing marker" {
+  stage a.svelte $'<!--\n  example: /* x */\n  two\n  three\n-->\n<div></div>'
+  run "$HOOK"
+  [ "$status" -eq 1 ]
+}

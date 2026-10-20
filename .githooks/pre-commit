@@ -20,16 +20,20 @@ check() {
       if (len > max && hit) printf "%s:%d: comment block is %d lines, keep it to %d\n", file, start, len, max
       len = 0; hit = 0
     }
-    inblock { count(); if ($0 ~ /\*\/|-->/) inblock = 0; next }
+    function ticks(   line) { line = $0; return gsub(/`/, "", line) }
+    inblock { count(); if (index($0, closer)) inblock = 0; next }
+    # Lines inside a backtick string (Go raw, JS template) are data, not comments.
+    inraw { flush(); if (ticks() % 2) inraw = 0; next }
     /^[[:space:]]*\/\/(go:|\+build|nolint)/ { flush(); next }
     /^[[:space:]]*(\/\/|\*([[:space:]\/]|$))/ { count(); next }
     /^[[:space:]]*(\/\*|<!--)/ {
       count()
+      closer = ($0 ~ /^[[:space:]]*\/\*/) ? "*/" : "-->"
       rest = $0; sub(/^[[:space:]]*(\/\*|<!--)/, "", rest)
-      if (rest !~ /\*\/|-->/) inblock = 1
+      if (!index(rest, closer)) inblock = 1
       next
     }
-    { flush() }
+    { flush(); if (ticks() % 2) inraw = 1 }
     END { flush() }')
   if [ -n "$out" ]; then
     echo "$out"
