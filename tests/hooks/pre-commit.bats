@@ -65,3 +65,39 @@ stage() { printf '%s\n' "$2" > "$1"; git add "$1"; }
   run "$HOOK"
   [ "$status" -eq 0 ]
 }
+
+@test "counts every line of a multi-line svelte comment" {
+  stage a.svelte $'<!--\n  one\n  two\n  three\n-->\n<div></div>'
+  run "$HOOK"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"a.svelte:1"* ]]
+}
+
+@test "counts every line of an unstarred block comment" {
+  stage a.ts $'/* one\n   two\n   three\n   four */\nexport const a = 1;'
+  run "$HOOK"
+  [ "$status" -eq 1 ]
+}
+
+@test "passes one-line block comments in a row of code" {
+  stage a.ts $'/* one */\nexport const a = 1;\n<!-- not a comment in ts but harmless -->\nexport const b = 2;'
+  run "$HOOK"
+  [ "$status" -eq 0 ]
+}
+
+@test "checks a renamed file at its new path" {
+  stage old.go $'package a\n\n// one\n// two\n// three\nfunc A() {}\n\nfunc B() {}\nfunc C() {}\nfunc D() {}'
+  git commit -qm base --no-verify
+  git mv old.go new.go
+  stage new.go $'package a\n\n// one\n// two\n// three\n// four\nfunc A() {}\n\nfunc B() {}\nfunc C() {}\nfunc D() {}'
+  run "$HOOK"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"new.go:3"* ]]
+}
+
+@test "checks a file whose name git would quote" {
+  stage café.go $'package a\n\n// one\n// two\n// three\n// four\nfunc A() {}'
+  run "$HOOK"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"café.go:3"* ]]
+}

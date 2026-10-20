@@ -4,24 +4,29 @@
 max=3
 status=0
 
-while IFS= read -r f; do
-  # Line numbers the commit adds, from the +start,count of each zero-context hunk.
-  added=$(git diff --cached -U0 -- "$f" | awk '/^@@/ {
+# check <path> [old path]: a rename is diffed against its old path, so only the
+# lines it really adds count.
+check() {
+  local f=$1 added out
+  added=$(git diff --cached -U0 -M -- "$@" | awk '/^@@/ {
     split($3, a, ","); n = substr(a[1], 2); c = (a[2] == "" ? 1 : a[2])
     for (i = 0; i < c; i++) printf "%d ", n + i }')
-  [ -z "$added" ] && continue
+  [ -z "$added" ] && return
   # The whole block around an added line counts, so growing an old one is caught.
   out=$(git show ":$f" | awk -v max="$max" -v added="$added" -v file="$f" '
     BEGIN { n = split(added, l, " "); for (i = 1; i <= n; i++) want[l[i]] = 1 }
+    function count() { if (len == 0) start = NR; len++; if (NR in want) hit = 1 }
     function flush() {
       if (len > max && hit) printf "%s:%d: comment block is %d lines, keep it to %d\n", file, start, len, max
       len = 0; hit = 0
     }
+    inblock { count(); if ($0 ~ /\*\/|-->/) inblock = 0; next }
     /^[[:space:]]*\/\/(go:|\+build|nolint)/ { flush(); next }
-    /^[[:space:]]*(\/\/|\/\*|\*([[:space:]\/]|$)|<!--)/ {
-      if (len == 0) start = NR
-      len++
-      if (NR in want) hit = 1
+    /^[[:space:]]*(\/\/|\*([[:space:]\/]|$))/ { count(); next }
+    /^[[:space:]]*(\/\*|<!--)/ {
+      count()
+      rest = $0; sub(/^[[:space:]]*(\/\*|<!--)/, "", rest)
+      if (rest !~ /\*\/|-->/) inblock = 1
       next
     }
     { flush() }
@@ -30,7 +35,15 @@ while IFS= read -r f; do
     echo "$out"
     status=1
   fi
-done < <(git diff --cached --name-only --diff-filter=AM -- '*.go' '*.ts' '*.js' '*.svelte')
+}
+
+while IFS= read -r -d '' st; do
+  old=
+  case $st in R*) IFS= read -r -d '' old ;; esac
+  IFS= read -r -d '' f
+  case $f in *.go | *.ts | *.js | *.svelte) ;; *) continue ;; esac
+  if [ -n "$old" ]; then check "$f" "$old"; else check "$f"; fi
+done < <(git diff --cached --name-status -z -M --diff-filter=AMR)
 
 [ $status -eq 0 ] || echo "Shorten them, or commit with --no-verify if a block truly needs the room."
 exit $status
