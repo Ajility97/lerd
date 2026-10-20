@@ -43,3 +43,30 @@ func TestSetSitePagePlugin_TogglesAndPersists(t *testing.T) {
 		t.Fatal("expected an error for a site that is not registered")
 	}
 }
+
+// Overview cards are switched apart from page scripts: one plugin can have its
+// card on a site's Overview while its script stays off that site's pages.
+func TestSetSiteOverviewCard_KeptApartFromPageScripts(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+	t.Setenv("XDG_DATA_HOME", tmp)
+	if err := AddSite(Site{Name: "shop", Domains: []string{"shop.test"}, Path: t.TempDir()}); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetSiteOverviewCard("shop", "stats", true); err != nil {
+		t.Fatal(err)
+	}
+	invalidateSitesCache()
+	site, _ := FindSite("shop")
+	if !slices.Equal(site.OverviewCards, []string{"stats"}) || site.PagePlugins != nil {
+		t.Fatalf("OverviewCards = %v, PagePlugins = %v", site.OverviewCards, site.PagePlugins)
+	}
+	if err := SetSiteOverviewCard("shop", "stats", false); err != nil {
+		t.Fatal(err)
+	}
+	invalidateSitesCache()
+	site, _ = FindSite("shop")
+	if site.OverviewCards != nil {
+		t.Fatalf("OverviewCards = %v, want none", site.OverviewCards)
+	}
+}

@@ -58,5 +58,9 @@ ui:
   site_tab:
     title: Hello
     entry: ui/site.html
+  # A card on a site's Overview, once switched on for that site; it grows to fit.
+  overview_card:
+    title: Hello
+    entry: ui/card.html
   # Injected into a site's pages once switched on for that site, never before.
   page_script: ui/page.js

@@ -92,6 +92,9 @@ type Endpoint struct {
 type UI struct {
 	Page    *UIPage `yaml:"page,omitempty" json:"page,omitempty"`
 	SiteTab *UIPage `yaml:"site_tab,omitempty" json:"site_tab,omitempty"`
+	// OverviewCard is drawn on the Overview of the sites the user switched the
+	// plugin's card on for.
+	OverviewCard *UIPage `yaml:"overview_card,omitempty" json:"overview_card,omitempty"`
 	// PageScript is injected into the pages of the sites the user switched the
 	// plugin on for, and runs in those sites' own origin.
 	PageScript string `yaml:"page_script,omitempty" json:"page_script,omitempty"`
@@ -200,7 +203,7 @@ func (p *Plugin) validate() error {
 		return err
 	}
 	if p.UI != nil {
-		for _, page := range []*UIPage{p.UI.Page, p.UI.SiteTab} {
+		for _, page := range []*UIPage{p.UI.Page, p.UI.SiteTab, p.UI.OverviewCard} {
 			if err := p.validatePage(page); err != nil {
 				return err
 			}
@@ -312,6 +315,7 @@ func (p *Plugin) Surfaces() []string {
 	add("api", len(p.API) > 0)
 	add("page", p.UI != nil && p.UI.Page != nil)
 	add("site_tab", p.UI != nil && p.UI.SiteTab != nil)
+	add("overview_card", p.UI != nil && p.UI.OverviewCard != nil)
 	add("page_script", p.UI != nil && p.UI.PageScript != "")
 	add("provides", len(p.Provides) > 0)
 	add("services", p.ships(config.PluginServices))

@@ -46,3 +46,19 @@ func SetPagePlugin(site *config.Site, plugin string, on bool) error {
 	}
 	return pageReloadFn()
 }
+
+// SetOverviewCard switches a plugin's card on or off for a site's Overview.
+// Like a page script, only a plugin that has a card can be switched on, and
+// switching off always works so a removed plugin's setting can be cleared.
+func SetOverviewCard(site *config.Site, plugin string, on bool) error {
+	if on {
+		p, err := plugins.Find(plugin)
+		if err != nil {
+			return err
+		}
+		if p.UI == nil || p.UI.OverviewCard == nil {
+			return fmt.Errorf("plugin %s has no overview card", plugin)
+		}
+	}
+	return config.SetSiteOverviewCard(site.Name, plugin, on)
+}

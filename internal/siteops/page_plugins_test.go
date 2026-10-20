@@ -60,3 +60,28 @@ func TestSetPagePlugin_RefusesWhatCannotBeInjected(t *testing.T) {
 		t.Errorf("switching off must always work: %v", err)
 	}
 }
+
+func TestSetOverviewCard_OnlyForAPluginWithACard(t *testing.T) {
+	withTempEnv(t)
+	rewritten, _ := stubPageVhosts(t)
+	if err := plugins.Scaffold("hello", filepath.Join(plugins.Dir(), "hello")); err != nil {
+		t.Fatal(err)
+	}
+	site := &config.Site{Name: "shop", Domains: []string{"shop.test"}, Path: t.TempDir()}
+	if err := config.AddSite(*site); err != nil {
+		t.Fatal(err)
+	}
+	if err := SetOverviewCard(site, "hello", true); err != nil {
+		t.Fatalf("SetOverviewCard: %v", err)
+	}
+	got, _ := config.FindSite("shop")
+	if !slices.Equal(got.OverviewCards, []string{"hello"}) || len(*rewritten) != 0 {
+		t.Errorf("OverviewCards = %v, rewritten %v: a card touches no vhost", got.OverviewCards, *rewritten)
+	}
+	if err := SetOverviewCard(site, "gone", true); err == nil {
+		t.Error("switching on a plugin that is not installed must fail")
+	}
+	if err := SetOverviewCard(site, "gone", false); err != nil {
+		t.Errorf("switching off must always work: %v", err)
+	}
+}

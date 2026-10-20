@@ -82,30 +82,8 @@ func NewPluginCmd() *cobra.Command {
 			return nil
 		},
 	})
-	cmd.AddCommand(&cobra.Command{
-		Use:       "page <name> on|off",
-		Short:     "Switch a plugin's page script on or off for the site in this directory",
-		Args:      cobra.ExactArgs(2),
-		ValidArgs: []string{"on", "off"},
-		RunE: func(_ *cobra.Command, args []string) error {
-			if args[1] != "on" && args[1] != "off" {
-				return fmt.Errorf("expected on or off, got %q", args[1])
-			}
-			cwd, err := os.Getwd()
-			if err != nil {
-				return err
-			}
-			site, err := config.FindSiteByPath(cwd)
-			if err != nil {
-				return fmt.Errorf("no lerd site here; run this from a linked project")
-			}
-			if err := siteops.SetPagePlugin(site, args[0], args[1] == "on"); err != nil {
-				return err
-			}
-			feedback.Done(fmt.Sprintf("%s page script %s for %s", args[0], args[1], site.Name))
-			return nil
-		},
-	})
+	cmd.AddCommand(siteSwitchCommand("page", "Switch a plugin's page script on or off for the site in this directory", "page script", siteops.SetPagePlugin))
+	cmd.AddCommand(siteSwitchCommand("card", "Switch a plugin's card on or off on the Overview of the site in this directory", "overview card", siteops.SetOverviewCard))
 	return cmd
 }
 
@@ -266,4 +244,33 @@ func commandExists(root *cobra.Command, name string) bool {
 		}
 	}
 	return false
+}
+
+// siteSwitchCommand is `lerd plugin <use> <name> on|off`, switching one thing a
+// plugin puts on a site for the site linked in the working directory.
+func siteSwitchCommand(use, short, what string, set func(*config.Site, string, bool) error) *cobra.Command {
+	return &cobra.Command{
+		Use:       use + " <name> on|off",
+		Short:     short,
+		Args:      cobra.ExactArgs(2),
+		ValidArgs: []string{"on", "off"},
+		RunE: func(_ *cobra.Command, args []string) error {
+			if args[1] != "on" && args[1] != "off" {
+				return fmt.Errorf("expected on or off, got %q", args[1])
+			}
+			cwd, err := os.Getwd()
+			if err != nil {
+				return err
+			}
+			site, err := config.FindSiteByPath(cwd)
+			if err != nil {
+				return fmt.Errorf("no lerd site here; run this from a linked project")
+			}
+			if err := set(site, args[0], args[1] == "on"); err != nil {
+				return err
+			}
+			feedback.Done(fmt.Sprintf("%s %s %s for %s", args[0], what, args[1], site.Name))
+			return nil
+		},
+	}
 }

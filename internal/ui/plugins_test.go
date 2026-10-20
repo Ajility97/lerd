@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -235,6 +236,9 @@ func TestPluginManager_ListsInstalledAndBroken(t *testing.T) {
 	if strings.Join(got[1].Requires, ",") != "/bin/sh" {
 		t.Errorf("echo requires = %v, want its scripts' interpreter", got[1].Requires)
 	}
+	if got[1].Icon != "/plugins/echo/ui/icon.svg" || got[0].Icon != "" {
+		t.Errorf("icons = %q, %q, want echo's page icon only", got[0].Icon, got[1].Icon)
+	}
 }
 
 func TestPluginManager_CatalogMarksWhatThisMachineLacks(t *testing.T) {
@@ -451,9 +455,20 @@ func TestPagePlugins_ListsAndRefusesWithoutAuthority(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
 		t.Fatalf("%v: %s", err, rec.Body)
 	}
-	// echo has no page script, so only hello is offered.
-	if len(got) != 1 || got[0].Name != "hello" || !got[0].On {
-		t.Errorf("got %+v, want hello switched on", got)
+	// echo has no page script or card, so only hello's two are offered.
+	if len(got) != 2 || got[0].Name != "hello" || got[0].Kind != kindPageScript || !got[0].On || got[1].Kind != kindOverviewCard || got[1].On {
+		t.Errorf("got %+v, want hello's script on and its card off", got)
+	}
+
+	rec = httptest.NewRecorder()
+	handlePagePlugins(rec, localRequest(http.MethodPost, "/api/page-plugins", `{"site":"shop","plugin":"hello","kind":"overview_card","on":true}`))
+	if site, _ := config.FindSite("shop"); rec.Code != 200 || !slices.Equal(site.OverviewCards, []string{"hello"}) {
+		t.Errorf("card switch = %d %s, OverviewCards %v", rec.Code, rec.Body, site.OverviewCards)
+	}
+	rec = httptest.NewRecorder()
+	handlePagePlugins(rec, localRequest(http.MethodPost, "/api/page-plugins", `{"site":"shop","plugin":"hello","kind":"banner","on":true}`))
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("an unknown kind must be refused, got %d", rec.Code)
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/page-plugins", strings.NewReader(`{"site":"shop","plugin":"hello","on":false}`))

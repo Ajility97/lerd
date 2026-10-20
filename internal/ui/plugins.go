@@ -22,6 +22,8 @@ type pluginInfo struct {
 	Description string      `json:"description,omitempty"`
 	Page        *pluginPage `json:"page,omitempty"`
 	SiteTab     *pluginPage `json:"site_tab,omitempty"`
+	// OverviewCard is listed for every site; a site's switches say where it shows.
+	OverviewCard *pluginPage `json:"overview_card,omitempty"`
 }
 
 type pluginPage struct {
@@ -39,6 +41,7 @@ func handlePluginsList(w http.ResponseWriter, _ *http.Request) {
 		if p.UI != nil {
 			info.Page = pluginPageInfo(p.Name, p.UI.Page)
 			info.SiteTab = pluginPageInfo(p.Name, p.UI.SiteTab)
+			info.OverviewCard = pluginPageInfo(p.Name, p.UI.OverviewCard)
 		}
 		out = append(out, info)
 	}
@@ -262,19 +265,28 @@ func withPluginPages(next http.Handler) http.Handler {
 	})
 }
 
-// pagePlugin is one plugin a site's pages can carry, and whether they do.
+// pagePlugin is one thing a plugin can put on a site, its page script or its
+// Overview card, and whether the site has it switched on.
 type pagePlugin struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
+	Kind        string `json:"kind"`
 	On          bool   `json:"on"`
 }
 
-// handlePagePlugins lists the page plugins for ?site= (GET) or switches one on
-// or off for a site (POST {site, plugin, on}).
+const (
+	kindPageScript   = "page_script"
+	kindOverviewCard = "overview_card"
+)
+
+// handlePagePlugins lists what plugins can put on ?site= (GET), or switches one
+// on or off for a site (POST {site, plugin, kind, on}); kind defaults to the
+// page script, the only kind before Overview cards.
 func handlePagePlugins(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Site   string `json:"site"`
 		Plugin string `json:"plugin"`
+		Kind   string `json:"kind"`
 		On     bool   `json:"on"`
 	}
 	switch r.Method {
@@ -299,7 +311,16 @@ func handlePagePlugins(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.Method == http.MethodPost {
-		if err := siteops.SetPagePlugin(site, req.Plugin, req.On); err != nil {
+		set := siteops.SetPagePlugin
+		switch req.Kind {
+		case "", kindPageScript:
+		case kindOverviewCard:
+			set = siteops.SetOverviewCard
+		default:
+			http.Error(w, "unknown kind: "+req.Kind, http.StatusBadRequest)
+			return
+		}
+		if err := set(site, req.Plugin, req.On); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -311,8 +332,14 @@ func handlePagePlugins(w http.ResponseWriter, r *http.Request) {
 	list, _ := plugins.Load()
 	out := []pagePlugin{}
 	for _, p := range list {
-		if p.UI != nil && p.UI.PageScript != "" {
-			out = append(out, pagePlugin{Name: p.Name, Description: p.Description, On: slices.Contains(site.PagePlugins, p.Name)})
+		if p.UI == nil {
+			continue
+		}
+		if p.UI.PageScript != "" {
+			out = append(out, pagePlugin{Name: p.Name, Description: p.Description, Kind: kindPageScript, On: slices.Contains(site.PagePlugins, p.Name)})
+		}
+		if p.UI.OverviewCard != nil {
+			out = append(out, pagePlugin{Name: p.Name, Description: p.Description, Kind: kindOverviewCard, On: slices.Contains(site.OverviewCards, p.Name)})
 		}
 	}
 	writeJSON(w, out)
@@ -327,7 +354,10 @@ type managedPlugin struct {
 	Adds        []string `json:"adds,omitempty"`
 	Requires    []string `json:"requires,omitempty"`
 	Error       string   `json:"error,omitempty"`
-	// Commit is the catalog commit it was installed at; empty when not listed.
+	// Icon is its rail icon, when it has a page, drawn on its card.
+	Icon string `json:"icon,omitempty"`
+	// Repo and Commit are where the catalog installed it from; empty when not listed.
+	Repo   string `json:"repo,omitempty"`
 	Commit string `json:"commit,omitempty"`
 	// Update is the newer approved commit, when there is one.
 	Update string `json:"update,omitempty"`
@@ -426,8 +456,11 @@ func managedPlugins() []managedPlugin {
 	out := make([]managedPlugin, 0, len(list)+len(errs))
 	for _, p := range list {
 		row := managedPlugin{Name: p.Name, Version: p.Version, Description: p.Description, Adds: p.Surfaces(), Requires: p.Requirements(), Failure: failureFor(p.Name)}
+		if p.UI != nil && p.UI.Page != nil && p.UI.Page.Icon != "" {
+			row.Icon = pluginFileURL(p.Name, p.UI.Page.Icon)
+		}
 		if src, ok := plugins.InstalledSource(p.Name); ok {
-			row.Commit = src.Commit
+			row.Repo, row.Commit = src.Repo, src.Commit
 			if l, newer := plugins.PendingUpdate(p.Name); newer {
 				row.Update = l.Commit
 			}

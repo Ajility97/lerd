@@ -15,6 +15,12 @@ window.lerd = (() => {
     msg.status < 400 ? p.resolve(msg.body) : p.reject(new Error(msg.body));
   });
 
+  // An Overview card has no height of its own, so tell the dashboard how tall
+  // the page is whenever that changes.
+  new ResizeObserver(() => {
+    window.parent.postMessage({ type: 'lerd:resize', height: document.documentElement.scrollHeight }, '*');
+  }).observe(document.documentElement);
+
   return {
     context: {
       site: params.get('site') || '',

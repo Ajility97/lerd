@@ -25,14 +25,20 @@ lerd hello:greet shop       # run one of its commands
 | `lerd plugin install <path\|git-url>` | Install a plugin from a directory or a git repository, outside the catalog |
 | `lerd plugin remove <name>` | Remove a plugin; the data it stored is kept |
 | `lerd plugin list` | List installed plugins, with the reason any of them failed to load |
+| `lerd plugin page <name> on\|off` | Switch a plugin's page script on or off for the site in this directory |
+| `lerd plugin card <name> on\|off` | Switch a plugin's Overview card on or off for the site in this directory |
 
-The dashboard does the same under **System → Plugins**: it lists every installed plugin with what it adds, installs one from a folder path or a git URL, and removes one, broken ones included. Because installing puts code on the machine, a remote dashboard only shows it once `lerd remote-control full-access on` is set.
+The dashboard does the same under **System → Plugins**. **Installed** shows each plugin as a card with whether it loaded; opening one shows what it adds, what it requires, where it came from and its last failure, with **Update** and **Remove**, broken plugins included. **Install from a folder or git** opens a dialog that takes a folder path or a git URL. Because installing puts code on the machine, a remote dashboard only shows it once `lerd remote-control full-access on` is set.
 
 A plugin that fails to load is skipped and listed with its error; it never stops lerd or the other plugins.
 
+### Building one with an AI assistant
+
+Ask your assistant for the plugin you want. lerd's MCP server has a `plugin` tool whose `guide` teaches it how a plugin is written, the rules it follows and how to check each surface works; `new` scaffolds the boilerplate and `list` shows what loaded and why anything did not. Claude Code also gets the guide as `plugins.md` beside lerd's skill when you run `lerd mcp:inject`. The assistant can install a plugin from a folder; installing from a git URL or the catalog stays a command you run.
+
 ### The catalog
 
-[plugins.lerd.sh](https://plugins.lerd.sh) lists the plugins approved in the [lerd-env/plugins](https://github.com/lerd-env/plugins) registry, and the dashboard's **Browse** tab shows the same list with an Install button. Each listing names a repository and the exact commit a maintainer approved, and that commit is the only one lerd installs: it fetches that commit alone, checks it is the one it got, and keeps no git history beside it, so a repository that moves on later changes nothing on your machine. When a newer commit is approved, the plugin shows an **Update** button and `lerd plugin update` moves to it, keeping the data the plugin stored.
+[plugins.lerd.sh](https://plugins.lerd.sh) lists the plugins approved in the [lerd-env/plugins](https://github.com/lerd-env/plugins) registry, and the dashboard's **Browse** tab shows the same list as cards with each plugin's first screenshot, filtered by category, searched and sorted, a page at a time. Opening a card shows all its screenshots and details, with the Install button. Each listing names a repository and the exact commit a maintainer approved, and that commit is the only one lerd installs: it fetches that commit alone, checks it is the one it got, and keeps no git history beside it, so a repository that moves on later changes nothing on your machine. When a newer commit is approved, the plugin shows an **Update** button and `lerd plugin update` moves to it, keeping the data the plugin stored.
 
 To be listed, a plugin meets the registry's [approval terms](https://github.com/lerd-env/plugins/blob/main/SUBMITTING.md). Among them, everything it runs is a script a reviewer can read, in shell, Python, Node or similar: compiled binaries are not listed, though a plugin you install from a folder or your own repository can be a binary too.
 
@@ -100,6 +106,7 @@ provides:                   # jobs the plugin takes over from lerd, see below
 ui:                         # files live under ui/, the only folder the dashboard serves
   page:     {title: Hello, icon: ui/icon.svg, entry: ui/index.html}
   site_tab: {title: Hello, entry: ui/site.html}
+  overview_card: {title: Hello, entry: ui/card.html}   # on a site's Overview once switched on for that site
   page_script: ui/page.js   # runs on a site's pages once switched on for that site
 ```
 
@@ -238,7 +245,7 @@ The token is the plugin's own: lerd derives it from the plugin's name and a secr
 
 ## Dashboard pages and tabs
 
-A rail page opens in the dashboard's panel, the same place service dashboards open; a site tab sits beside Overview, Logs and the rest, and receives `site`, `domain` and `branch` as query parameters.
+A rail page opens in the dashboard's panel, the same place service dashboards open, under its own rule on the rail below lerd's launchers; a site tab sits beside Overview, Logs and the rest, and receives `site`, `domain` and `branch` as query parameters. An Overview card is a section of its own on a site's Overview, below the services, and receives the same parameters. It is off on every site until switched on from the plugin icon in the site's header or with `lerd plugin card <name> on` in the project, and it grows to the height of its page, which the boilerplate's `ui/lerd.js` reports for it.
 
 Plugin pages run in a sandboxed frame with no access to the dashboard, so a plugin page can never act with the dashboard's standing. It reaches its own API endpoints through the bridge in the boilerplate's `ui/lerd.js`:
 
