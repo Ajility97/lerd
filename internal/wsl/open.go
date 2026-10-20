@@ -124,10 +124,8 @@ func terminalDirArgs(distro, user, dir string) []string {
 	return []string{"-w", "0", "nt", "-p", distro, "wsl.exe", "-d", distro, "-u", user, "--cd", dir}
 }
 
-// terminalScriptArgs runs script through `lerd wsl:term` in a new tab on the
-// distro's own profile, as lerd's user rather than the distro's default one.
-// wt.exe splits its command line on ';' and mangles quotes, so the script
-// travels as base64, which has neither.
+// terminalScriptArgs runs script through `lerd wsl:term` in a new tab as lerd's
+// user. It travels as base64, since wt.exe splits on ';' and mangles quotes.
 func terminalScriptArgs(distro, user, lerdBin, script string) []string {
 	return []string{"-w", "0", "nt", "-p", distro, "wsl.exe", "-d", distro, "-u", user, "--exec", lerdBin, "wsl:term", base64.RawURLEncoding.EncodeToString([]byte(script))}
 }
@@ -158,10 +156,9 @@ func TerminalScript(lerdBin, script string) (bin string, args []string, ok bool)
 	return throughShell(terminalScriptArgs(Distro(), u.Username, lerdBin, script))
 }
 
-// throughShell starts wt.exe with wtArgs from a shortcut Explorer opens. A
-// window lerd starts itself from inside WSL, a background process to Windows,
-// opens behind the one in use with its taskbar button flashing; one the Windows
-// shell starts comes to the front, as a click on a shortcut would.
+// throughShell starts wt.exe from a shortcut Explorer opens: a window started
+// from WSL opens behind with its taskbar button flashing, one the shell starts
+// comes to the front.
 func throughShell(wtArgs []string) (bin string, args []string, ok bool) {
 	wt, err := LookPath("wt.exe")
 	if err != nil {

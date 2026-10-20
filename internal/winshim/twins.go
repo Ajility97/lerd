@@ -33,10 +33,9 @@ func ShimNames(dir string) ([]string, error) {
 	return names, nil
 }
 
-// SyncTwins makes php.exe and its siblings in dir lerd.exe under the shims'
-// names, linked where the disk allows and copied where it does not; a .cmd
-// would not do, cmd.exe refuses a \\wsl.localhost folder. Twins of shims that
-// are gone, or of an older lerd.exe, go; a running one is renamed away.
+// SyncTwins makes php.exe and its siblings copies or links of lerd.exe (a .cmd
+// fails, cmd.exe refuses a \\wsl.localhost folder). Stale twins go; a running
+// one is renamed away.
 func SyncTwins(dir string, names []string) error {
 	lerdExe := filepath.Join(dir, "lerd.exe")
 	want := map[string]bool{}

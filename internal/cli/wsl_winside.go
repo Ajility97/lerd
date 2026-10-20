@@ -250,11 +250,9 @@ func replaceRunningExe(path string, exe []byte) error {
 	return os.WriteFile(path, exe, 0o755)
 }
 
-// agentHandOverScript drops the agent's own Run entry, which an install from
-// before the desktop app left behind. It checks first: a Remove-ItemProperty
-// that finds nothing fails, and even silenced it fails the script. The new
-// config stops the running agent, so a closed app is started, hidden, to run
-// the next one; the exe comes from the lerd:// handler the app registered.
+// agentHandOverScript drops the agent's Run entry an older install left, if any
+// (a Remove-ItemProperty that finds nothing fails the script). The new config
+// stops the running agent, so a closed desktop app is started to run the next.
 func agentHandOverScript() string {
 	return `$k = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 if (Get-ItemProperty -Path $k -Name 'lerd' -ErrorAction SilentlyContinue) { Remove-ItemProperty -Path $k -Name 'lerd' }
@@ -327,12 +325,9 @@ func waitForNRPT(tld string) error {
 // wslVMCreator is the id Windows gives WSL's VM in its Hyper-V firewall.
 const wslVMCreator = `{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}`
 
-// lanFirewallScript lets the local network into WSL. Its Hyper-V firewall
-// blocks every inbound connection by default, so lan:share, lan:expose,
-// lan:services and remote control answered only inside the distro. The rule
-// names no ports, since lerd's move when one is taken or changed; what answers
-// is what listens beyond loopback, which lerd does only with a LAN feature on,
-// and only from the local subnet. Windows without that firewall has none to open.
+// lanFirewallScript lets the local subnet through WSL's Hyper-V firewall, which
+// blocks all inbound by default. No ports, since lerd's move; only a LAN feature
+// listens beyond loopback anyway. Windows without that firewall has none to open.
 const lanFirewallScript = `if (Get-Command New-NetFirewallHyperVRule -ErrorAction SilentlyContinue) {
   Remove-NetFirewallHyperVRule -Name 'lerd-lan' -ErrorAction SilentlyContinue
   New-NetFirewallHyperVRule -Name 'lerd-lan' -DisplayName 'lerd LAN' -Direction Inbound -VMCreatorId '` + wslVMCreator + `' -RemoteAddresses LocalSubnet -Action Allow | Out-Null
