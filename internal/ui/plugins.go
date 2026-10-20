@@ -149,7 +149,10 @@ func runPluginEndpoint(w http.ResponseWriter, r *http.Request, p *plugins.Plugin
 		for k, v := range plugins.Env(payload) {
 			env[k] = v
 		}
-		dir = site.Path
+		if dir = resolveSitePath(site, branch); dir == "" {
+			http.Error(w, "unknown worktree branch: "+branch, http.StatusNotFound)
+			return
+		}
 	}
 	cmd, err := p.Command(e.Run, plugins.SurfaceAPI, nil, env)
 	if err != nil {

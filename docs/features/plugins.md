@@ -261,7 +261,7 @@ The script runs in the site's origin, so it reaches its plugin's endpoints with 
 const res = await fetch('/_lerd/plugins/hello/api/greet');
 ```
 
-Those calls hand the endpoint the site, and the worktree when the page is a worktree's. They are only answered for a site the plugin is switched on for, only from that site's own pages, and never for a `loopback_only` endpoint, since a phone on the LAN may be the one showing the page. The script shares the page with the app, so draw inside a shadow root as the boilerplate's `ui/page.js` does.
+Those calls hand the endpoint the site, and when the page is a worktree's they run in that worktree's checkout with `LERD_BRANCH` set. They are only answered for a site the plugin is switched on for, only from that site's own pages, and never for a `loopback_only` endpoint, since a phone on the LAN may be the one showing the page. The script shares the page with the app, so draw inside a shadow root as the boilerplate's `ui/page.js` does.
 
 ---
 

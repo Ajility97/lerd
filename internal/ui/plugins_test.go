@@ -392,6 +392,49 @@ func TestPluginPages_RefuseAScriptLinkedOutOfTheUIDir(t *testing.T) {
 	}
 }
 
+// A page on a worktree's domain calls the plugin in that worktree's checkout,
+// and a branch lerd does not know gets nothing rather than the parent's.
+func TestPluginPages_EndpointRunsInTheWorktreeCheckout(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	installAPIPlugin(t)
+	dir := filepath.Join(plugins.Dir(), "echo")
+	if err := os.WriteFile(filepath.Join(dir, "bin", "where"), []byte("#!/bin/sh\npwd -P\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := filepath.Join(dir, plugins.ManifestFile)
+	data, _ := os.ReadFile(manifest)
+	data = []byte(strings.Replace(string(data), "api:\n", "api:\n  - {path: where, methods: [GET], run: bin/where}\n", 1))
+	if err := os.WriteFile(manifest, []byte(strings.Replace(string(data), "ui:\n", "ui:\n  page_script: ui/page.js\n", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "ui", "page.js"), []byte("/* page */"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sitePath := t.TempDir()
+	checkout, _ := filepath.EvalSymlinks(t.TempDir())
+	makeWorktree(t, sitePath, "feat", "feat", checkout)
+	if err := config.AddSite(config.Site{Name: "on", Domains: []string{"on.test"}, Path: sitePath, PagePlugins: []string{"echo"}}); err != nil {
+		t.Fatal(err)
+	}
+	serve := withPluginPages(http.NotFoundHandler())
+
+	req := pageRequest(http.MethodGet, "/_lerd/plugins/echo/api/where", "on")
+	req.Header.Set("X-Lerd-Branch", "feat")
+	rec := httptest.NewRecorder()
+	serve.ServeHTTP(rec, req)
+	if got := strings.TrimSpace(rec.Body.String()); rec.Code != 200 || got != checkout {
+		t.Errorf("worktree call = %d %q, want 200 in %s", rec.Code, got, checkout)
+	}
+
+	req = pageRequest(http.MethodGet, "/_lerd/plugins/echo/api/where", "on")
+	req.Header.Set("X-Lerd-Branch", "gone")
+	rec = httptest.NewRecorder()
+	serve.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("unknown branch = %d %q, want 404", rec.Code, rec.Body)
+	}
+}
+
 func TestPagePlugins_ListsAndRefusesWithoutAuthority(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	installAPIPlugin(t)
