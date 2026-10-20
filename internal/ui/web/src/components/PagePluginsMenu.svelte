@@ -50,7 +50,11 @@
       {#snippet triggerButton(toggle, open)}
         <button
           type="button"
-          onclick={toggle}
+          onclick={() => {
+            // Read again on every open, so a switch made in another dashboard shows.
+            if (!open) loadPagePlugins(site).catch(() => {});
+            toggle();
+          }}
           aria-label={m.sites_pagePlugins_label()}
           aria-expanded={open}
           use:tooltip={m.sites_pagePlugins_label()}

@@ -67,6 +67,8 @@ export interface Site {
   idle?: boolean;
   idle_suspended_workers?: string[];
   services?: string[];
+  // Plugins whose card the Overview shows; it arrives with every live update.
+  overview_cards?: string[];
   declared_services?: string[];
   suggested_services?: ServiceSuggestion[];
   db_database?: string;

@@ -52,3 +52,13 @@ it('groups page scripts apart from Overview cards and switches each kind on its 
   await waitFor(() => expect(posts).toEqual([{ site: 'shop2', plugin: 'stats', kind: 'overview_card', on: true }]));
   await waitFor(() => expect(getAllByTitle('stats')[1].getAttribute('aria-checked')).toBe('true'));
 });
+
+// Another dashboard may have switched something since the menu last looked.
+it('reads the switches again each time it opens', async () => {
+  serve([{ name: 'debug', description: 'Debug bar', on: false }]);
+  const { findByLabelText } = render(PagePluginsMenu, { props: { site: 'shop3' } });
+  const trigger = await findByLabelText('Plugins on this site');
+  const before = (globalThis.fetch as unknown as { mock: { calls: unknown[] } }).mock.calls.length;
+  await fireEvent.click(trigger);
+  await waitFor(() => expect((globalThis.fetch as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(before + 1));
+});

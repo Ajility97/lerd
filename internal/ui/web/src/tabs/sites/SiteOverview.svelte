@@ -5,7 +5,7 @@
   import SiteSuggestedServiceCard from './SiteSuggestedServiceCard.svelte';
   import SiteRequestTiming from './SiteRequestTiming.svelte';
   import PluginFrame from '$components/PluginFrame.svelte';
-  import { plugins, siteSwitches, loadPagePlugins } from '$stores/plugins';
+  import { plugins } from '$stores/plugins';
   import { activeWorktreeDomain, type Site } from '$stores/sites';
   import { m } from '../../paraglide/messages.js';
 
@@ -19,16 +19,10 @@
   const suggested = $derived(site.suggested_services || []);
   const declared = $derived(site.declared_services || []);
 
-  // The cards plugins draw here, only the ones switched on for this site. Keyed
-  // on the name, since the site object is replaced on every live update.
-  const siteName = $derived(site.name);
-  $effect(() => {
-    void loadPagePlugins(siteName).catch(() => {});
-  });
+  // The cards plugins draw here, the ones switched on for this site. They come
+  // with the site, so a switch made in another dashboard lands here too.
   const cards = $derived(
-    ($siteSwitches[siteName] ?? [])
-      .filter((s) => s.kind === 'overview_card' && s.on)
-      .flatMap((s) => $plugins.filter((p) => p.name === s.name && p.overview_card))
+    (site.overview_cards ?? []).flatMap((name) => $plugins.filter((p) => p.name === name && p.overview_card))
   );
 </script>
 

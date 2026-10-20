@@ -1046,6 +1046,9 @@ type SiteResponse struct {
 	// project's .lerd.yaml. Used by the dashboard to render service badges
 	// on the site detail panel.
 	Services []string `json:"services,omitempty"`
+	// OverviewCards are the plugins whose card the Overview shows, sent with
+	// the site so a switch made anywhere reaches an Overview already open.
+	OverviewCards []string `json:"overview_cards,omitempty"`
 	// DeclaredServices are the Services listed in .lerd.yaml, which the site
 	// overview offers to remove.
 	DeclaredServices []string `json:"declared_services,omitempty"`
@@ -1326,6 +1329,7 @@ func buildSites() ([]SiteResponse, error) {
 			Branch:               e.Branch,
 			Worktrees:            worktreeResponses,
 			Services:             e.Services,
+			OverviewCards:        e.OverviewCards,
 			DeclaredServices:     e.DeclaredServices,
 			SuggestedServices:    e.SuggestedServices,
 			DBDatabase:           envfile.ReadKey(filepath.Join(e.Path, ".env"), "DB_DATABASE"),
