@@ -127,7 +127,8 @@ func TestWindowsCommandLine(t *testing.T) {
 // own launch and brings it to the front.
 func TestShortcutScript(t *testing.T) {
 	got := shortcutScript(`C:\Users\O'Brien\wt.exe`, []string{"-p", "Ubuntu", "--cd", "/home/me/my app"})
-	for _, want := range []string{`$s.TargetPath = 'C:\Users\O''Brien\wt.exe'`, `$s.Arguments = '-p Ubuntu --cd "/home/me/my app"'`, `explorer.exe') $l`} {
+	// Each launch gets its own shortcut, or two at once could swap arguments.
+	for _, want := range []string{`$s.TargetPath = 'C:\Users\O''Brien\wt.exe'`, `$s.Arguments = '-p Ubuntu --cd "/home/me/my app"'`, `explorer.exe') $l`, `[guid]::NewGuid()`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("shortcutScript lacks %s:\n%s", want, got)
 		}

@@ -172,9 +172,11 @@ func throughShell(wtArgs []string) (bin string, args []string, ok bool) {
 	return ps, []string{"-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand", EncodePowerShell(shortcutScript(winWT, wtArgs))}, true
 }
 
-// shortcutScript writes a shortcut to target with args and opens it in Explorer.
+// shortcutScript writes a shortcut to target with args and opens it in Explorer,
+// one per launch so two at once cannot swap arguments; old ones are cleared.
 func shortcutScript(target string, args []string) string {
-	return fmt.Sprintf(`$l = Join-Path $env:TEMP 'lerd-terminal.lnk'
+	return fmt.Sprintf(`Get-ChildItem $env:TEMP -Filter 'lerd-terminal-*.lnk' | Where-Object { $_.LastWriteTime -lt (Get-Date).AddMinutes(-1) } | Remove-Item -ErrorAction SilentlyContinue
+$l = Join-Path $env:TEMP ('lerd-terminal-' + [guid]::NewGuid() + '.lnk')
 $s = (New-Object -ComObject WScript.Shell).CreateShortcut($l)
 $s.TargetPath = %s
 $s.Arguments = %s
