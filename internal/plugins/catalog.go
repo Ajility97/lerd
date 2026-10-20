@@ -214,7 +214,7 @@ func installListing(name string, replace bool) (*Plugin, error) {
 		return nil, err
 	}
 	defer os.RemoveAll(stage)
-	staged := filepath.Join(stage, "plugin")
+	staged := filepath.Join(stage, stagedName)
 	if err := fetchCommit(l.Repo, l.Commit, staged); err != nil {
 		return nil, err
 	}

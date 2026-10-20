@@ -22,7 +22,7 @@ func Install(src string) (*Plugin, error) {
 		return nil, err
 	}
 	defer os.RemoveAll(stage)
-	staged := filepath.Join(stage, "plugin")
+	staged := filepath.Join(stage, stagedName)
 
 	if info, err := os.Stat(src); err == nil && info.IsDir() {
 		if err := git.CopyTree(src, staged); err != nil {
@@ -40,6 +40,13 @@ func Install(src string) (*Plugin, error) {
 
 	return place(stage, staged, "", false, nil)
 }
+
+// The fetched copy and the one it replaces sit in the stage beside the plugin
+// renamed to its own name, which never starts with a dot.
+const (
+	stagedName   = ".plugin"
+	previousName = ".previous"
+)
 
 // newStage makes a staging dir inside the plugins dir, so the final move into
 // place is a rename on the same filesystem.
@@ -93,7 +100,7 @@ func place(stage, staged, want string, replace bool, src *Source) (*Plugin, erro
 		if !replace {
 			return nil, fmt.Errorf("plugin %s is already installed; remove it first", name)
 		}
-		if err := os.Rename(dest, filepath.Join(stage, "previous")); err != nil {
+		if err := os.Rename(dest, filepath.Join(stage, previousName)); err != nil {
 			return nil, err
 		}
 	}

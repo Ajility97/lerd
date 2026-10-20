@@ -133,6 +133,32 @@ func TestUpdateListed_MovesToTheNewApprovedCommit(t *testing.T) {
 	}
 }
 
+// The installed copy is set aside in the stage while the new one moves in, so
+// a plugin named like that spot still updates.
+func TestUpdateListed_NameOfTheStagingSpots(t *testing.T) {
+	for _, name := range []string{"previous", "plugin"} {
+		t.Run(name, func(t *testing.T) {
+			isolate(t)
+			repo, first := gitRepo(t, name)
+			serveIndex(t, Listing{Name: name, Repo: "file://" + repo, Commit: first})
+			if _, err := InstallListed(name); err != nil {
+				t.Fatal(err)
+			}
+			head, _ := exec.Command("git", "-C", repo, "rev-parse", "HEAD").Output()
+			serveIndex(t, Listing{Name: name, Repo: "file://" + repo, Commit: strings.TrimSpace(string(head))})
+			if err := refreshCatalog(); err != nil {
+				t.Fatal(err)
+			}
+			if err := UpdateListed(name); err != nil {
+				t.Fatalf("UpdateListed: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(Dir(), name, "LATER")); err != nil {
+				t.Error("the update should bring the newly approved files")
+			}
+		})
+	}
+}
+
 // A plugin installed from a folder is the user's own code, and a catalog
 // listing that happens to share its name must not replace it.
 func TestUpdateListed_RefusesAPluginNotFromTheCatalog(t *testing.T) {
