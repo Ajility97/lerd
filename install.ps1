@@ -48,7 +48,9 @@
   # What the steps learn and the answers they act on. A table, so the functions
   # below change it in place instead of reaching for $script: scope, which `irm
   # | iex` would make the caller's own session.
-  $S = @{ LinuxUser = ''; Password = $null; UserExists = $false; LerdInstalled = $false; DNSLocalhost = $false; ManageNode = $true }
+  $S = @{ LinuxUser = ''; Password = $null; UserExists = $false; LerdInstalled = $false; DNSLocalhost = $false; ManageNode = $true; OptionsPending = $false }
+  # Choices wait here until applied, so a run cut off after install.sh still applies them.
+  $OptionsFile = Join-Path $env:LOCALAPPDATA 'lerd\setup-options.json'
 
   # ---- output ----------------------------------------------------------------
 
@@ -548,7 +550,7 @@ namespace LerdSetup {
   # ApplyOptions turns answers that differ from the installers' defaults into lerd
   # commands, before wsl:setup reads the DNS mode to decide on the .test rule.
   function ApplyOptions {
-    if ($S.LerdInstalled) { return }
+    if (-not $S.OptionsPending) { return }
     if ($S.DNSLocalhost) {
       Step 'Applying your options...'
       Run 'Applying your options' (WSLExe) (AsUser '~/.local/bin/lerd dns:disable')
@@ -557,13 +559,14 @@ namespace LerdSetup {
       Step 'Applying your options...'
       Run 'Applying your options' (WSLExe) (AsUser '~/.local/bin/lerd node:unmanage')
     }
+    Remove-Item $OptionsFile -ErrorAction SilentlyContinue
   }
 
   # TrustCA imports lerd's root CA from here, so Windows' confirmation opens in
   # front rather than behind, as wsl:setup's hidden certutil's can. Declining is
   # not a failure: the sites work, with a browser warning.
   function TrustCA {
-    if (-not $S.LerdInstalled -and $S.DNSLocalhost) { return }
+    if ($S.OptionsPending -and $S.DNSLocalhost) { return }
     $crt = Join-Path $env:TEMP 'lerd-rootCA.crt'
     # No CA means .localhost mode, which has no certificates to trust.
     $r = Capture (WSLExe) (AsUser "cp `"`$(~/.local/share/lerd/bin/mkcert -CAROOT)/rootCA.pem`" `"`$(wslpath '$crt')`"")
@@ -650,7 +653,17 @@ namespace LerdSetup {
   } else {
     Info "Using the existing Linux user $($S.LinuxUser)"
   }
-  if (-not $S.LerdInstalled) { AskOptions }
+  if (Test-Path $OptionsFile) {
+    $o = Get-Content $OptionsFile -Raw | ConvertFrom-Json
+    $S.DNSLocalhost = [bool]$o.DNSLocalhost
+    $S.ManageNode = [bool]$o.ManageNode
+    $S.OptionsPending = $true
+  } elseif (-not $S.LerdInstalled) {
+    AskOptions
+    $null = New-Item -ItemType Directory -Force (Split-Path $OptionsFile)
+    @{ DNSLocalhost = $S.DNSLocalhost; ManageNode = $S.ManageNode } | ConvertTo-Json | Set-Content $OptionsFile
+    $S.OptionsPending = $true
+  }
 
   try {
     EnsureWSL
