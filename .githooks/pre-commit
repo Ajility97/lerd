@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Rejects a commit that leaves any comment block it touches longer than three
+# lines (CLAUDE.md). Enable once per clone: git config core.hooksPath .githooks
+max=3
+status=0
+
+# check <path> [old path]: a rename is diffed against its old path, so only the
+# lines it really adds count.
+check() {
+  local f=$1 added out
+  added=$(git diff --cached -U0 -M -- "$@" | awk '/^@@/ {
+    split($3, a, ","); n = substr(a[1], 2); c = (a[2] == "" ? 1 : a[2])
+    for (i = 0; i < c; i++) printf "%d ", n + i }')
+  [ -z "$added" ] && return
+  # The whole block around an added line counts, so growing an old one is caught.
+  out=$(git show ":$f" | awk -v max="$max" -v added="$added" -v file="$f" '
+    BEGIN { n = split(added, l, " "); for (i = 1; i <= n; i++) want[l[i]] = 1 }
+    function count() { if (len == 0) start = NR; len++; if (NR in want) hit = 1 }
+    function flush() {
+      if (len > max && hit) printf "%s:%d: comment block is %d lines, keep it to %d\n", file, start, len, max
+      len = 0; hit = 0
+    }
+    function ticks(   line) { line = $0; return gsub(/`/, "", line) }
+    inblock { count(); if (index($0, closer)) inblock = 0; next }
+    # Lines inside a backtick string (Go raw, JS template) are data, not comments.
+    inraw { flush(); if (ticks() % 2) inraw = 0; next }
+    /^[[:space:]]*\/\/(go:|\+build|nolint)/ { flush(); next }
+    /^[[:space:]]*\/\// { count(); next }
+    /^[[:space:]]*(\/\*|<!--)/ {
+      count()
+      closer = ($0 ~ /^[[:space:]]*\/\*/) ? "*/" : "-->"
+      rest = $0; sub(/^[[:space:]]*(\/\*|<!--)/, "", rest)
+      if (!index(rest, closer)) inblock = 1
+      next
+    }
+    { flush(); if (ticks() % 2) inraw = 1 }
+    END { flush() }')
+  if [ -n "$out" ]; then
+    echo "$out"
+    status=1
+  fi
+}
+
+while IFS= read -r -d '' st; do
+  old=
+  case $st in R*) IFS= read -r -d '' old ;; esac
+  IFS= read -r -d '' f
+  case $f in *.go | *.ts | *.js | *.svelte) ;; *) continue ;; esac
+  if [ -n "$old" ]; then check "$f" "$old"; else check "$f"; fi
+done < <(git diff --cached --name-status -z -M --diff-filter=AMR)
+
+[ $status -eq 0 ] || echo "Shorten them, or commit with --no-verify if a block truly needs the room."
+exit $status
