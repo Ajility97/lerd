@@ -73,6 +73,9 @@
   # scripts Elevated runs: a profile like O'Brien would otherwise end the string.
   function Lit([string]$s) { "'" + ($s -replace "'", "''") + "'" }
 
+  # Sh makes $s a single-quoted literal for the Linux shell, where '' is no escape.
+  function Sh([string]$s) { "'" + ($s -replace "'", "'\''") + "'" }
+
   # Quote escapes $s as one argument for wsl.exe's CommandLineToArgvW parsing;
   # PowerShell 5.1 passes embedded quotes unescaped, so lines are built by hand.
   function Quote([string]$s) {
@@ -569,7 +572,7 @@ namespace LerdSetup {
     if ($S.OptionsPending -and $S.DNSLocalhost) { return }
     $crt = Join-Path $env:TEMP 'lerd-rootCA.crt'
     # No CA means .localhost mode, which has no certificates to trust.
-    $r = Capture (WSLExe) (AsUser "cp `"`$(~/.local/share/lerd/bin/mkcert -CAROOT)/rootCA.pem`" `"`$(wslpath '$crt')`"")
+    $r = Capture (WSLExe) (AsUser "cp `"`$(~/.local/share/lerd/bin/mkcert -CAROOT)/rootCA.pem`" `"`$(wslpath $(Sh $crt))`"")
     if ($r.Code -ne 0) { return }
     try {
       $c = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 $crt
@@ -590,7 +593,7 @@ namespace LerdSetup {
   # what every Linux machine gets.
   function InstallLerd {
     if ($Local) {
-      $body = "cd `"`$(wslpath '$Local')`" && bash install.sh --local ./lerd"
+      $body = "cd `"`$(wslpath $(Sh $Local))`" && bash install.sh --local ./lerd"
     } else {
       $body = 'curl -fsSL https://lerd.sh/install.sh | bash'
     }
