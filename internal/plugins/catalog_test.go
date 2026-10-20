@@ -249,3 +249,33 @@ func TestCatalog_CachedForADayAndRefusesBadListings(t *testing.T) {
 		t.Errorf("a day-old cache must be refreshed, fetched %d times", *hits)
 	}
 }
+
+// LERD_PLUGIN_CATALOG points lerd at another index, a registry pull request's
+// or a test machine's, and keeps its own cache so the real one is never mixed in.
+func TestCatalog_EnvPointsAtAnotherIndexWithItsOwnCache(t *testing.T) {
+	isolate(t)
+	repo, commit := gitRepo(t, "hello")
+	serveIndex(t, Listing{Name: "real", Repo: "file://" + repo, Commit: commit})
+	if _, err := LoadCatalog(); err != nil {
+		t.Fatal(err)
+	}
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(Catalog{Plugins: []Listing{{Name: "hello", Repo: "file://" + repo, Commit: commit, Images: []string{"images/hello.png"}}}})
+	}))
+	t.Cleanup(other.Close)
+	t.Setenv("LERD_PLUGIN_CATALOG", other.URL+"/index.json")
+
+	c, err := LoadCatalog()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Plugins) != 1 || c.Plugins[0].Name != "hello" {
+		t.Fatalf("catalog = %+v, want the other index's listing, not the cached real one", c.Plugins)
+	}
+	if got := c.Plugins[0].Images[0]; got != other.URL+"/images/hello.png" {
+		t.Errorf("image = %s, want it resolved against the other index", got)
+	}
+	if _, err := InstallListed("hello"); err != nil {
+		t.Errorf("InstallListed from the other index: %v", err)
+	}
+}

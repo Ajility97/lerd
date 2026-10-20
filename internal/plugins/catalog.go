@@ -1,6 +1,8 @@
 package plugins
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,6 +20,15 @@ import (
 // CatalogURL is the approved plugin listing plugins.lerd.sh publishes from the
 // lerd-env/plugins registry. A var so tests can point it at their own server.
 var CatalogURL = "https://plugins.lerd.sh/index.json"
+
+// catalogURL is the index in use: LERD_PLUGIN_CATALOG points lerd at another
+// one, such as a registry pull request's or a test machine's.
+func catalogURL() string {
+	if u := os.Getenv("LERD_PLUGIN_CATALOG"); u != "" {
+		return u
+	}
+	return CatalogURL
+}
 
 // catalogMaxAge is how long a fetched catalog is trusted before it is fetched again.
 const catalogMaxAge = 24 * time.Hour
@@ -66,7 +77,15 @@ const sourceFile = ".lerd-source.json"
 
 var commitRe = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
-func catalogCachePath() string { return filepath.Join(config.DataDir(), "plugin-catalog.json") }
+// catalogCachePath keeps another index's copy apart, so the real catalog's
+// never answers for it and switching back never shows the other one's.
+func catalogCachePath() string {
+	if u := os.Getenv("LERD_PLUGIN_CATALOG"); u != "" {
+		sum := sha256.Sum256([]byte(u))
+		return filepath.Join(config.DataDir(), "plugin-catalog-"+hex.EncodeToString(sum[:4])+".json")
+	}
+	return filepath.Join(config.DataDir(), "plugin-catalog.json")
+}
 
 // LoadCatalog returns the approved plugins, fetching the index when the cached
 // copy is a day old. When the fetch fails a cached copy, however old, still
@@ -88,7 +107,7 @@ func LoadCatalog() (*Catalog, error) {
 
 func refreshCatalog() error {
 	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get(CatalogURL)
+	resp, err := client.Get(catalogURL())
 	if err != nil {
 		return fmt.Errorf("fetching the plugin catalog: %w", err)
 	}
@@ -154,7 +173,7 @@ func validListings(in []Listing) []Listing {
 // into absolute URLs. A path with a scheme, a host or a way up is refused, so
 // an image can only ever come from where the index is published.
 func resolveImages(paths []string) ([]string, bool) {
-	base, err := url.Parse(CatalogURL)
+	base, err := url.Parse(catalogURL())
 	if err != nil {
 		return nil, false
 	}

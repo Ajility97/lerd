@@ -42,7 +42,7 @@ Ask your assistant for the plugin you want. lerd's MCP server has a `plugin` too
 
 To be listed, a plugin meets the registry's [approval terms](https://github.com/lerd-env/plugins/blob/main/SUBMITTING.md). Among them, everything it runs is a script a reviewer can read, in shell, Python, Node or similar: compiled binaries are not listed, though a plugin you install from a folder or your own repository can be a binary too.
 
-lerd reads the catalog at most once a day and keeps the last copy, so browsing and installed plugins work offline. Plugins installed from a folder or a repository of your own show as not listed and are never updated from the catalog.
+lerd reads the catalog at most once a day and keeps the last copy, so browsing and installed plugins work offline. To try another index, such as a registry pull request's, set `LERD_PLUGIN_CATALOG` to its `index.json` URL for the command: `LERD_PLUGIN_CATALOG=http://127.0.0.1:8000/index.json lerd plugin search`. That index is cached on its own, so the real catalog is never mixed in. Plugins installed from a folder or a repository of your own show as not listed and are never updated from the catalog.
 
 ---
 
