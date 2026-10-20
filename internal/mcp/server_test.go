@@ -293,8 +293,9 @@ func TestToolList_underSizeCeiling(t *testing.T) {
 	// its id, so an assistant can follow a slow or failing request the user
 	// points at instead of sifting every captured event, then 25400 → 25500 for
 	// dumps_buffer and its size, so an assistant whose request left the buffer
-	// can make room for the next one.
-	const ceiling = 25500
+	// can make room for the next one, then 25500 → 25950 for the plugin tool, so
+	// an assistant can build the user a plugin from lerd's own guide.
+	const ceiling = 25950
 	got, err := json.Marshal(toolList())
 	if err != nil {
 		t.Fatalf("marshal tool list: %v", err)

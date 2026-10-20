@@ -40,7 +40,7 @@ func TestEveryMCPActionIsDocumented(t *testing.T) {
 	}
 }
 
-func TestWriteGlobalAISkills_writesAllThreeFiles(t *testing.T) {
+func TestWriteGlobalAISkills_writesEveryClientFile(t *testing.T) {
 	home := t.TempDir()
 
 	if err := WriteGlobalAISkills(home, false); err != nil {
@@ -49,6 +49,7 @@ func TestWriteGlobalAISkills_writesAllThreeFiles(t *testing.T) {
 
 	expect := []string{
 		filepath.Join(home, ".claude", "skills", "lerd", "SKILL.md"),
+		filepath.Join(home, ".claude", "skills", "lerd", "plugins.md"),
 		filepath.Join(home, ".cursor", "rules", "lerd.mdc"),
 		filepath.Join(home, ".junie", "guidelines.md"),
 	}
@@ -745,7 +746,10 @@ func TestLerdReference_underSizeCeiling(t *testing.T) {
 	//
 	// 38150 → 38300 for fastcgi_params, which keeps a framework-wide param in
 	// its definition rather than in a per-site location override.
-	const ceiling = 38300
+	//
+	// 38300 → 38750 for the plugin tool, which sends an assistant to the plugin
+	// guide before it builds the user a plugin.
+	const ceiling = 38750
 	if got := len(lerdReference); got > ceiling {
 		t.Errorf("lerd-reference.md is %d bytes, ceiling is %d — trim before raising", got, ceiling)
 	}

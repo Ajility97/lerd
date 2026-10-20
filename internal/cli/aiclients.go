@@ -174,6 +174,13 @@ var aiClients = []aiClient{
 			Global:  filepath.Join(".claude", "skills", "lerd", "SKILL.md"),
 			Format:  ctxOverwrite,
 			Content: renderClaudeSkill,
+		}, {
+			// A topic guide beside the skill, the way Omarchy's skill keeps one
+			// per area, so plugin authoring loads only when it is needed.
+			Project: filepath.Join(".claude", "skills", "lerd", "plugins.md"),
+			Global:  filepath.Join(".claude", "skills", "lerd", "plugins.md"),
+			Format:  ctxOverwrite,
+			Content: func() string { return plugins.Guide },
 		}},
 	},
 	{

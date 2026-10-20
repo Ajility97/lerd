@@ -61,6 +61,7 @@ func toolList() []mcpTool {
 		requestTool(),
 		worktreeTool(),
 		workspaceTool(),
+		pluginAuthorTool(),
 	}
 }
 
@@ -261,6 +262,12 @@ var groupDispatch = map[string]map[string]handlerFn{
 		"delete": execWorkspaceDelete,
 		"assign": execWorkspaceAssign,
 		"move":   execWorkspaceMove,
+	},
+	"plugin": {
+		"guide":   execPluginGuide,
+		"new":     execPluginNew,
+		"list":    execPluginList,
+		"install": execPluginInstall,
 	},
 }
 
