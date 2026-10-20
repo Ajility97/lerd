@@ -30,9 +30,9 @@ func TestWriteDevServerValues_CarriesAddressesAndPort(t *testing.T) {
 	dir := t.TempDir()
 	tool := viteToolForTest(t)
 	addr := devServerAddr{
-		Origin:  "https://winter.test",
-		Hosts:   []string{"winter.test", ".winter.test"},
-		Origins: []string{"https://winter.test"},
+		Origin:         "https://winter.test",
+		Hosts:          []string{"winter.test", ".winter.test"},
+		OriginPatterns: []string{`^https://([a-z0-9-]+\.)*winter\.test$`},
 	}
 
 	rel, err := writeDevServerValues(dir, tool, addr, 5173)
@@ -84,9 +84,9 @@ func TestDevServerConfigKeepsTheServerOnPlainHTTP(t *testing.T) {
 	dir := t.TempDir()
 	tool := viteToolForTest(t)
 	addr := devServerAddr{
-		Origin:  "https://winter.test",
-		Hosts:   []string{"winter.test"},
-		Origins: []string{"https://winter.test"},
+		Origin:         "https://winter.test",
+		Hosts:          []string{"winter.test"},
+		OriginPatterns: []string{`^https://([a-z0-9-]+\.)*winter\.test$`},
 	}
 
 	rel, err := writeDevServerValues(dir, tool, addr, 5173)

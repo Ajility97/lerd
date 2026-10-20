@@ -81,7 +81,7 @@ export default {
         // it picks at boot, and its page may fetch what the site's page may.
         cors: {
             origin: [
-                ...%s,
+                ...%s.map((p) => new RegExp(p)),
                 /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
                 /^https?:\/\/\[::1\](:\d+)?$/,
                 /^https?:\/\/localhost(:\d+)?$/,
@@ -151,7 +151,7 @@ const lerd = {
         // it picks at boot, and its page may fetch what the site's page may.
         cors: {
             origin: [
-                ...%s,
+                ...%s.map((p) => new RegExp(p)),
                 /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
                 /^https?:\/\/\[::1\](:\d+)?$/,
                 /^https?:\/\/localhost(:\d+)?$/,
