@@ -1,4 +1,4 @@
-package tray
+package traymenu
 
 // Settings are the persisted lerd toggles the tray menu shows.
 type Settings struct {

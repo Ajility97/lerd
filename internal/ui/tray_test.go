@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/geodro/lerd/internal/desktopnotify"
-	"github.com/geodro/lerd/internal/tray"
+	"github.com/geodro/lerd/internal/traymenu"
 )
 
 // stubTray serves a fixed menu, records the commands an action runs instead of
@@ -24,12 +24,12 @@ type stubTray struct {
 	err     error
 }
 
-func useStubTray(t *testing.T, snap *tray.Snapshot) *stubTray {
+func useStubTray(t *testing.T, snap *traymenu.Snapshot) *stubTray {
 	t.Helper()
 	s := &stubTray{}
 	prevMenu, prevRun, prevUpdate, prevAvailable := readTrayMenu, runTrayCommand, openTrayUpdate, trayUpdateAvailable
 	prevEmit, prevSupported := emitDesktopNotification, desktopSupported
-	readTrayMenu = func() tray.Menu { return tray.BuildMenu(snap, tray.MenuOptions{LANToggle: true}) }
+	readTrayMenu = func() traymenu.Menu { return traymenu.BuildMenu(snap, traymenu.MenuOptions{LANToggle: true}) }
 	runTrayCommand = func(args []string) (string, error) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -55,8 +55,8 @@ func useStubTray(t *testing.T, snap *tray.Snapshot) *stubTray {
 	return s
 }
 
-func trayTestSnapshot() *tray.Snapshot {
-	return &tray.Snapshot{
+func trayTestSnapshot() *traymenu.Snapshot {
+	return &traymenu.Snapshot{
 		Running:       true,
 		NginxRunning:  true,
 		ServicesKnown: true,
@@ -158,7 +158,7 @@ func TestHandleTrayAction_UpdateOpensATerminal(t *testing.T) {
 	snap.LatestVersion = "v9.9.9"
 	s := useStubTray(t, snap)
 
-	postTrayAction(tray.ActionUpdate)
+	postTrayAction(traymenu.ActionUpdate)
 	if s.updates != 1 || len(s.ran) != 0 {
 		t.Errorf("updates = %d, ran %v; want the update terminal and no lerd command", s.updates, s.ran)
 	}
@@ -167,7 +167,7 @@ func TestHandleTrayAction_UpdateOpensATerminal(t *testing.T) {
 func TestHandleTrayAction_UpToDateOnlySaysSo(t *testing.T) {
 	s := useStubTray(t, trayTestSnapshot())
 
-	resp := decodeTrayAction(t, postTrayAction(tray.ActionUpdate))
+	resp := decodeTrayAction(t, postTrayAction(traymenu.ActionUpdate))
 	if s.updates != 0 || !resp.OK || resp.Title != "Lerd is up to date" {
 		t.Errorf("updates = %d, response = %+v", s.updates, resp)
 	}
@@ -177,7 +177,7 @@ func TestHandleTrayAction_UpdateAsksPastTheCachedAnswer(t *testing.T) {
 	s := useStubTray(t, trayTestSnapshot())
 	s.fresh = true
 
-	postTrayAction(tray.ActionUpdate)
+	postTrayAction(traymenu.ActionUpdate)
 	if s.updates != 1 {
 		t.Errorf("updates = %d; a release the cached menu missed must still open the update", s.updates)
 	}

@@ -1,6 +1,6 @@
-//go:build !nogui && !windows
+//go:build !windows
 
-package tray
+package traymenu
 
 import (
 	"testing"
@@ -9,7 +9,9 @@ import (
 )
 
 func TestLocalSettings_ReadsTheGlobalConfig(t *testing.T) {
-	isolateState(t)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
 	cfg, err := config.LoadGlobal()
 	if err != nil {
 		t.Fatal(err)

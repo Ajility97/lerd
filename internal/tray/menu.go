@@ -94,27 +94,26 @@ func buildMenu(mono bool) *menuState {
 	return m
 }
 
-// dots draw a model state the way the native menu shows it.
-var dots = map[State]string{StateRunning: "🟢", StateStopped: "🔴", StateWarning: "🟡", StateDisabled: "⚪"}
-
-// dotted renders an item as a native title, its state as a leading dot.
-func dotted(it MenuItem) string {
-	if d, ok := dots[it.State]; ok {
-		return d + " " + it.Label
-	}
-	return it.Label
-}
-
-// itemRows turns model items into pool rows.
-func itemRows(items []MenuItem, title func(MenuItem) string) []row {
-	rows := make([]row, 0, len(items))
-	for _, it := range items {
-		rows = append(rows, row{title: title(it), tooltip: it.Tooltip, args: it.Args})
+// serviceRows renders one row per service. Paused services show yellow: they
+// were stopped deliberately, so red would read as broken.
+func serviceRows(snap *Snapshot) []row {
+	rows := make([]row, 0, len(snap.Services))
+	for _, svc := range snap.Services {
+		dot, verb := "🔴", "start"
+		switch {
+		case svc.Paused:
+			dot = "🟡"
+		case svc.Status == "active":
+			dot, verb = "🟢", "stop"
+		}
+		rows = append(rows, row{
+			title:   fmt.Sprintf("%s %s", dot, svc.Name),
+			tooltip: fmt.Sprintf("Click to %s %s", verb, svc.Name),
+			args:    []string{"service", verb, svc.Name},
+		})
 	}
 	return rows
 }
-
-func serviceRows(snap *Snapshot) []row { return itemRows(serviceItems(snap), dotted) }
 
 // serviceSection returns the rows the Services section should show and whether
 // it should be touched at all. A poll whose services call did not come back has
@@ -129,22 +128,69 @@ func serviceSection(snap *Snapshot) ([]row, bool) {
 
 // phpRows renders the installed PHP versions, ticking the current default.
 func phpRows(snap *Snapshot) []row {
-	return itemRows(phpItems(snap), func(it MenuItem) string {
-		if *it.Checked {
-			return "✔ " + it.Label
+	rows := make([]row, 0, len(snap.PHPVersions))
+	for _, p := range snap.PHPVersions {
+		title := p.Version
+		if p.Version == snap.PHPDefault {
+			title = "✔ " + p.Version
 		}
-		return it.Label
-	})
-}
-
-func workersTitle(snap *Snapshot) (string, bool) {
-	if it, ok := workersItem(snap); ok {
-		return "  " + dotted(it), true
+		rows = append(rows, row{
+			title:   title,
+			tooltip: "Make PHP " + p.Version + " the default",
+			args:    []string{"use", p.Version},
+		})
 	}
-	return "", false
+	return rows
 }
 
-func statusDot(ok bool) string { return dots[stateOf(ok)] }
+// servicesTitle summarises the section on the parent row so the count reads
+// without opening the submenu.
+func servicesTitle(snap *Snapshot) string {
+	if len(snap.Services) == 0 {
+		return "Services"
+	}
+	running := 0
+	for _, svc := range snap.Services {
+		if svc.Status == "active" && !svc.Paused {
+			running++
+		}
+	}
+	return fmt.Sprintf("Services (%d/%d)", running, len(snap.Services))
+}
+
+func phpTitle(snap *Snapshot) string {
+	if snap.PHPDefault == "" {
+		return "PHP"
+	}
+	return "PHP " + snap.PHPDefault
+}
+
+// workersTitle renders the worker line and reports whether it should show at
+// all. A stopped worker is normal on a paused or idle-suspended site, so the
+// alarm comes from the health endpoint's verdict, never from a raw count; with
+// nothing running and nothing broken the line stays hidden rather than
+// standing permanently red.
+func workersTitle(snap *Snapshot) (string, bool) {
+	switch down := len(snap.WorkersDown); {
+	case down == 1:
+		return fmt.Sprintf("  🔴 worker down (%s)", snap.WorkersDown[0]), true
+	case down > 1:
+		return fmt.Sprintf("  🔴 %d workers down", down), true
+	case snap.WorkersRunning == 1:
+		return "  🟢 1 worker", true
+	case snap.WorkersRunning > 1:
+		return fmt.Sprintf("  🟢 %d workers", snap.WorkersRunning), true
+	default:
+		return "", false
+	}
+}
+
+func statusDot(ok bool) string {
+	if ok {
+		return "🟢"
+	}
+	return "🔴"
+}
 
 // toggleTitle renders a settings toggle, e.g. "Notifications: ✔ On".
 func toggleTitle(label string, on bool) string {
@@ -180,7 +226,14 @@ func (m *menuState) apply(snap *Snapshot) {
 
 	m.mNginx.SetTitle(fmt.Sprintf("  %s nginx", statusDot(snap.NginxRunning)))
 
-	m.mDNS.SetTitle("  " + dotted(dnsItem(snap)))
+	switch {
+	case snap.DNSDisabled:
+		m.mDNS.SetTitle("  ⚪ dns (disabled)")
+	case !snap.DNSOK && snap.DNSDegraded:
+		m.mDNS.SetTitle("  🟡 dns")
+	default:
+		m.mDNS.SetTitle(fmt.Sprintf("  %s dns", statusDot(snap.DNSOK)))
+	}
 
 	// The worker count comes from the services call too, so both lines wait for
 	// a poll that actually read it rather than redrawing from a blank.

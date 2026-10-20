@@ -1,4 +1,4 @@
-package tray
+package traymenu
 
 import (
 	"encoding/json"

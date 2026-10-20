@@ -12,7 +12,7 @@ import (
 
 	"github.com/geodro/lerd/internal/cli"
 	"github.com/geodro/lerd/internal/platform"
-	"github.com/geodro/lerd/internal/tray"
+	"github.com/geodro/lerd/internal/traymenu"
 	lerdUpdate "github.com/geodro/lerd/internal/update"
 	"github.com/geodro/lerd/internal/version"
 )
@@ -39,8 +39,8 @@ func trayGet(path string) (io.ReadCloser, error) {
 // Seams for tests: the menu, the lerd commands an action runs, and the update
 // terminal.
 var (
-	readTrayMenu = func() tray.Menu {
-		return tray.ReadMenu(trayGet, tray.LocalSettings, tray.MenuOptions{LANToggle: !platform.Current.UsesMachineVM})
+	readTrayMenu = func() traymenu.Menu {
+		return traymenu.ReadMenu(trayGet, traymenu.LocalSettings, traymenu.MenuOptions{LANToggle: !platform.Current.UsesMachineVM})
 	}
 	runTrayCommand = runLerdCommand
 	openTrayUpdate = func() error {
@@ -98,7 +98,7 @@ func handleTrayAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if item.Action == tray.ActionUpdate {
+	if item.Action == traymenu.ActionUpdate {
 		if menu.LatestVersion == "" && !trayUpdateAvailable() {
 			writeJSON(w, trayActionResult{OK: true, Title: "Lerd is up to date"})
 			return
@@ -123,7 +123,7 @@ func handleTrayAction(w http.ResponseWriter, r *http.Request) {
 
 	stderr, err := runTrayCommand(item.Args)
 	res := trayActionResult{OK: err == nil}
-	if title, msg, show := tray.ActionMessage(item.Args, err, stderr); show {
+	if title, msg, show := traymenu.ActionMessage(item.Args, err, stderr); show {
 		res.Title, res.Body = title, msg
 	}
 	if err != nil {

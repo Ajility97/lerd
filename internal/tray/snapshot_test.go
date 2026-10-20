@@ -44,6 +44,8 @@ func writeJSON(body string) http.HandlerFunc {
 	}
 }
 
+const runningStatus = `{"nginx":{"running":true},"dns":{"ok":true,"enabled":true},"php_default":"8.4"}`
+
 func TestFetchSnapshot_ServicesAreKnownWhenTheCallSucceeds(t *testing.T) {
 	stubAPI(t, map[string]http.HandlerFunc{
 		"/api/status":   writeJSON(runningStatus),

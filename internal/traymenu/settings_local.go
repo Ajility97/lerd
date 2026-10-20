@@ -1,6 +1,6 @@
 //go:build !windows
 
-package tray
+package traymenu
 
 import (
 	"github.com/geodro/lerd/internal/config"
