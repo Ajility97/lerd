@@ -109,9 +109,12 @@ autoProxy=true
 
 [general]
 instanceIdleTimeout=-1
+
+[experimental]
+hostAddressLoopback=true
 ```
 
-`instanceIdleTimeout=-1` keeps the distro running after the last terminal closes; without it WSL stops it within seconds and every site goes down.
+`instanceIdleTimeout=-1` keeps the distro running after the last terminal closes; without it WSL stops it within seconds and every site goes down. `hostAddressLoopback=true` lets Windows itself open a LAN share at the address `lerd lan:share` prints, the machine's own IP, which mirrored networking otherwise keeps from reaching WSL.
 
 Then `wsl --shutdown` again.
 

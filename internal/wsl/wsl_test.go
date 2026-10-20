@@ -149,6 +149,10 @@ func TestWSLConfigLines_AppliedAllAndIdempotent(t *testing.T) {
 	if !strings.Contains(content, "[general]\ninstanceIdleTimeout=-1") {
 		t.Errorf("idle timeout not disabled under [general]: %q", content)
 	}
+	// Without it Windows cannot open a LAN share at its own IP.
+	if !strings.Contains(content, "[experimental]\nhostAddressLoopback=true") {
+		t.Errorf("host address loopback not on under [experimental]: %q", content)
+	}
 	// Re-applying changes nothing.
 	for _, kv := range WSLConfigLines {
 		if _, changed := EnsureSectionLine(content, kv.Section, kv.Key, kv.Line); changed {

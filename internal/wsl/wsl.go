@@ -100,14 +100,15 @@ func insertAt(lines []string, i int, line string) string {
 }
 
 // WSLConfigLines are lerd's .wslconfig settings: mirrored networking so Windows
-// reaches the sites, and no idle timeout, which would stop every container once
-// the last terminal closes. localhostForwarding and pageReporting only warn.
+// reaches the sites, also by its own LAN IP as a LAN share prints it, and no idle
+// timeout, which would stop every container once the last terminal closes.
 var WSLConfigLines = []struct{ Section, Key, Line string }{
 	{"wsl2", "networkingMode", "networkingMode=mirrored"},
 	{"wsl2", "dnsTunneling", "dnsTunneling=true"},
 	{"wsl2", "firewall", "firewall=true"},
 	{"wsl2", "autoProxy", "autoProxy=true"},
 	{"general", "instanceIdleTimeout", "instanceIdleTimeout=-1"},
+	{"experimental", "hostAddressLoopback", "hostAddressLoopback=true"},
 }
 
 // HasEventsLoggerJournald reports whether a containers.conf already sets
