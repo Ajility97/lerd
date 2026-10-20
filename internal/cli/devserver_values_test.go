@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -30,9 +31,9 @@ func TestWriteDevServerValues_CarriesAddressesAndPort(t *testing.T) {
 	dir := t.TempDir()
 	tool := viteToolForTest(t)
 	addr := devServerAddr{
-		Origin:  "https://winter.test",
-		Hosts:   []string{"winter.test", ".winter.test"},
-		Origins: []string{"https://winter.test"},
+		Origin:         "https://winter.test",
+		Hosts:          []string{"winter.test", ".winter.test"},
+		OriginPatterns: []string{`^https://([a-z0-9-]+\.)*winter\.test$`},
 	}
 
 	rel, err := writeDevServerValues(dir, tool, addr, 5173)
@@ -84,9 +85,9 @@ func TestDevServerConfigKeepsTheServerOnPlainHTTP(t *testing.T) {
 	dir := t.TempDir()
 	tool := viteToolForTest(t)
 	addr := devServerAddr{
-		Origin:  "https://winter.test",
-		Hosts:   []string{"winter.test"},
-		Origins: []string{"https://winter.test"},
+		Origin:         "https://winter.test",
+		Hosts:          []string{"winter.test"},
+		OriginPatterns: []string{`^https://([a-z0-9-]+\.)*winter\.test$`},
 	}
 
 	rel, err := writeDevServerValues(dir, tool, addr, 5173)
@@ -114,5 +115,46 @@ func TestDevServerConfigKeepsTheServerOnPlainHTTP(t *testing.T) {
 	}
 	if !strings.Contains(string(wrapper), "https: false") {
 		t.Errorf("the wrapper leaves https to the project:\n%s", wrapper)
+	}
+}
+
+// The patterns only work once the shipped config turns them into RegExps, so
+// load the real module and ask its origin list what a tenant page gets.
+func TestShippedDevServerValuesLetSubdomainsFetch(t *testing.T) {
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node is not installed")
+	}
+	dir := t.TempDir()
+	addr := devServerAddrFor(true, "myapp.test", []string{"myapp.test"})
+	rel, err := writeDevServerValues(dir, viteToolForTest(t), addr, 5173)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := `import(process.argv[1]).then((m) => {
+	const list = m.default.server.cors.origin;
+	const ok = (u) => list.some((p) => (p instanceof RegExp ? p.test(u) : p === u));
+	console.log(["https://myapp.test", "https://tenant.myapp.test", "https://evilmyapp.test", "http://tenant.myapp.test"].map(ok).join(" "));
+});`
+	out, err := exec.Command("node", "-e", script, filepath.Join(dir, rel)).CombinedOutput()
+	if err != nil {
+		t.Fatalf("node: %v\n%s", err, out)
+	}
+	if got := strings.TrimSpace(string(out)); got != "true true false false" {
+		t.Errorf("apex, tenant, look-alike, wrong scheme allowed = %q, want true true false false", got)
+	}
+}
+
+func TestShippedDevServerWrapperTurnsPatternsIntoRegExps(t *testing.T) {
+	dir := gitRepo(t, "/node_modules\n")
+	if err := os.WriteFile(filepath.Join(dir, "vite.config.js"), []byte("export default {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rel, err := writeDevServerWrapper(dir, viteToolForTest(t), devServerAddrFor(true, "myapp.test", []string{"myapp.test"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := os.ReadFile(filepath.Join(dir, rel))
+	if !strings.Contains(string(body), ".map((p) => new RegExp(p))") {
+		t.Errorf("shipped wrapper leaves the origin patterns as strings:\n%s", body)
 	}
 }

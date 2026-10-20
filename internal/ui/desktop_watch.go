@@ -2,6 +2,8 @@ package ui
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
 	"time"
@@ -57,4 +59,32 @@ func watchDir(ctx context.Context, dir string, names []string, settle time.Durat
 		}
 	}()
 	return nil
+}
+
+// pollFile calls onChange whenever path's size or modification time moves, for
+// a file whose directory cannot be watched without opening its neighbours.
+func pollFile(ctx context.Context, path string, every time.Duration, onChange func()) {
+	stamp := func() string {
+		info, err := os.Stat(path)
+		if err != nil {
+			return ""
+		}
+		return fmt.Sprint(info.Size(), info.ModTime().UnixNano())
+	}
+	last := stamp()
+	go func() {
+		ticker := time.NewTicker(every)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if now := stamp(); now != last {
+					last = now
+					onChange()
+				}
+			}
+		}
+	}()
 }

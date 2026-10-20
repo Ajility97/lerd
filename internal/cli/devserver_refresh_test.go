@@ -151,7 +151,7 @@ func TestRefreshDevServersFollowsAnAddedDomain(t *testing.T) {
 	if !strings.Contains(string(body), `".alias.test"`) {
 		t.Errorf("generated config does not answer for the new domain:\n%s", body)
 	}
-	if !strings.Contains(string(body), `"http://alias.test"`) {
+	if !strings.Contains(string(body), `alias\\.test$"`) {
 		t.Errorf("generated config does not let a page on the new domain fetch assets:\n%s", body)
 	}
 	if fake.restartedUnit != "lerd-vite-myapp" {

@@ -164,7 +164,7 @@ The port is pinned, because the vhost proxies to it and the tool would otherwise
 
 The tool reads those addresses once, when it starts, so lerd writes them back and restarts the dev server whenever they move: `lerd secure` and `lerd unsecure`, `lerd domain add` and `lerd domain remove`, and grouping a site under a main. A dev server that is not running is left down, and a change that leaves the addresses exactly as they were restarts nothing.
 
-A site with more than one domain serves its assets from the primary one, since a dev server can advertise only a single origin. The generated config lists every domain, both as a host the server answers for (along with its subdomains, matching the vhost's wildcard) and as an origin allowed to fetch from it, so a page opened on a second domain loads normally instead of having its assets refused.
+A site with more than one domain serves its assets from the primary one, since a dev server can advertise only a single origin. The generated config lists every domain, each along with its subdomains to match the vhost's wildcard, both as a host the server answers for and as an origin allowed to fetch from it, so a page opened on a second domain or on a tenant subdomain such as `acme.myapp.test` loads normally instead of having its assets refused.
 
 Some plugin middleware registers itself ahead of the tool's own base handling and only answers unprefixed, which would 404 on URLs it advertised itself. nginx retries any 404 under the prefix once with the prefix removed, so those routes work without anything having to name them.
 

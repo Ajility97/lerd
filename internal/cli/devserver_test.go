@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -173,9 +174,25 @@ func TestDevServerAddrCoversEveryDomainAndItsSubdomains(t *testing.T) {
 	if got, want := strings.Join(addr.Hosts, " "), ".myapp.test .alias.test"; got != want {
 		t.Errorf("hosts = %q, want %q", got, want)
 	}
-	if got, want := strings.Join(addr.Origins, " "), "https://myapp.test https://alias.test"; got != want {
-		t.Errorf("cors origins = %q, want %q", got, want)
+	for _, page := range []string{"https://myapp.test", "https://tenant.myapp.test", "https://a.b.myapp.test", "https://alias.test", "https://x.alias.test"} {
+		if !anyOriginMatches(addr.OriginPatterns, page) {
+			t.Errorf("cors refuses %s, which the vhost serves", page)
+		}
 	}
+	for _, page := range []string{"http://myapp.test", "https://evilmyapp.test", "https://myapp.test.evil", "https://myappXtest"} {
+		if anyOriginMatches(addr.OriginPatterns, page) {
+			t.Errorf("cors accepts %s, which is not the site", page)
+		}
+	}
+}
+
+func anyOriginMatches(patterns []string, origin string) bool {
+	for _, p := range patterns {
+		if regexp.MustCompile(p).MatchString(origin) {
+			return true
+		}
+	}
+	return false
 }
 
 // A site served over plain HTTP has to be described that way, or the page ends
@@ -186,8 +203,8 @@ func TestDevServerAddrFollowsAPlainSite(t *testing.T) {
 	if addr.Origin != "http://myapp.test" {
 		t.Errorf("origin = %q, want http://myapp.test", addr.Origin)
 	}
-	if got, want := strings.Join(addr.Origins, " "), "http://myapp.test"; got != want {
-		t.Errorf("cors origins = %q, want %q", got, want)
+	if !anyOriginMatches(addr.OriginPatterns, "http://tenant.myapp.test") || anyOriginMatches(addr.OriginPatterns, "https://myapp.test") {
+		t.Errorf("cors patterns %q do not follow the plain site", addr.OriginPatterns)
 	}
 }
 
@@ -209,7 +226,8 @@ func TestWriteDevServerWrapperDeclaresCorsForEveryDomain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(body), `cors: { origin: ["http://myapp.test","http://alias.test"] }`) {
+	patterns, _ := json.Marshal(addr.OriginPatterns)
+	if !strings.Contains(string(body), "cors: { origin: "+string(patterns)+" }") || len(addr.OriginPatterns) != 2 {
 		t.Errorf("wrapper does not allow both domains to fetch from the server:\n%s", body)
 	}
 }

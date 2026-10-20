@@ -11,12 +11,14 @@ import (
 const UIThemeSourceDesktop = "desktop"
 
 // Desktop is the desktop environment the dashboard can dress itself after: the
-// colours it publishes, and the directory a change to them shows up in. A zero
-// Desktop means there is none to follow.
+// colours it publishes, and the directory a change to them shows up in, or the
+// one file to poll where watching its directory is not safe. A zero Desktop
+// means there is none to follow.
 type Desktop struct {
 	Theme      *UITheme
 	WatchDir   string
 	WatchNames []string
+	PollFile   string
 }
 
 // CurrentDesktop returns the desktop whose colours the dashboard follows, trying
