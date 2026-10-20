@@ -14,9 +14,9 @@ type Snapshot struct {
 	DNSOK                bool
 	DNSDegraded          bool // lerd-dns healthy but the system resolver is bypassed, typically a VPN
 	DNSDisabled          bool // explicit dns.enabled=false from API; zero value falls through to ok/error
-	PHPVersions          []phpInfo
+	PHPVersions          []PHPInfo
 	PHPDefault           string
-	Services             []serviceInfo
+	Services             []ServiceInfo
 	ServicesKnown        bool     // the services call answered; an empty list means none, not unread
 	WorkersRunning       int      // per-site worker units currently up
 	WorkersDown          []string // sites lerd considers unhealthy, not merely stopped
@@ -29,11 +29,11 @@ type Snapshot struct {
 	LatestVersion        string // non-empty (e.g. "v0.8.5") when a newer version is available
 }
 
-type phpInfo struct {
+type PHPInfo struct {
 	Version string
 }
 
-type serviceInfo struct {
+type ServiceInfo struct {
 	Name               string `json:"name"`
 	Status             string `json:"status"`
 	Paused             bool   `json:"paused,omitempty"`
@@ -47,7 +47,7 @@ type serviceInfo struct {
 
 // isWorker reports whether an /api/services entry is a synthetic per-site
 // worker unit rather than a real service preset.
-func (s serviceInfo) isWorker() bool {
+func (s ServiceInfo) isWorker() bool {
 	return s.QueueSite != "" || s.ScheduleWorkerSite != "" ||
 		s.StripeListenerSite != "" || s.ReverbSite != "" ||
 		s.HorizonSite != "" || s.WorkerSite != ""
@@ -56,9 +56,9 @@ func (s serviceInfo) isWorker() bool {
 // Getter fetches one lerd API path, over HTTP for a tray or in process for lerd-ui.
 type Getter func(path string) (io.ReadCloser, error)
 
-// readSnapshot reads the tray's state from lerd's API through get, and the
+// ReadSnapshot reads the tray's state from lerd's API through get, and the
 // toggles through settings, which is only asked once the API has answered.
-func readSnapshot(get Getter, settings func() Settings) *Snapshot {
+func ReadSnapshot(get Getter, settings func() Settings) *Snapshot {
 	snap := &Snapshot{}
 
 	type statusResp struct {
@@ -92,7 +92,7 @@ func readSnapshot(get Getter, settings func() Settings) *Snapshot {
 		snap.DNSDisabled = !sr.DNS.Enabled
 		snap.PHPDefault = sr.PHPDefault
 		for _, p := range sr.PHPFPMs {
-			snap.PHPVersions = append(snap.PHPVersions, phpInfo{Version: p.Version})
+			snap.PHPVersions = append(snap.PHPVersions, PHPInfo{Version: p.Version})
 		}
 	}
 	body.Close()
@@ -110,7 +110,7 @@ func readSnapshot(get Getter, settings func() Settings) *Snapshot {
 	// the same payload are counted rather than discarded; the API lists them
 	// only while they are up, so the count needs no extra call.
 	if body, err := get("/api/services"); err == nil {
-		var all []serviceInfo
+		var all []ServiceInfo
 		if json.NewDecoder(body).Decode(&all) == nil {
 			snap.ServicesKnown = true
 			for _, svc := range all {
@@ -206,7 +206,7 @@ func stateOf(ok bool) State {
 
 // ReadMenu reads lerd's state through get and settings and resolves the menu.
 func ReadMenu(get Getter, settings func() Settings, opts MenuOptions) Menu {
-	return BuildMenu(readSnapshot(get, settings), opts)
+	return BuildMenu(ReadSnapshot(get, settings), opts)
 }
 
 // BuildMenu resolves the menu for snap. A client keeps its tray for as long as

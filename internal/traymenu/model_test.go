@@ -15,10 +15,10 @@ func runningSnapshot() *Snapshot {
 		Running:       true,
 		NginxRunning:  true,
 		DNSOK:         true,
-		PHPVersions:   []phpInfo{{Version: "8.3"}, {Version: "8.4"}},
+		PHPVersions:   []PHPInfo{{Version: "8.3"}, {Version: "8.4"}},
 		PHPDefault:    "8.4",
 		ServicesKnown: true,
-		Services: []serviceInfo{
+		Services: []ServiceInfo{
 			{Name: "mysql", Status: "active"},
 			{Name: "redis", Status: "inactive"},
 			{Name: "meilisearch", Status: "inactive", Paused: true},
@@ -187,7 +187,7 @@ func TestReadSnapshot_ThroughAGetter(t *testing.T) {
 	get := func(path string) (io.ReadCloser, error) {
 		return io.NopCloser(strings.NewReader(bodies[path])), nil
 	}
-	snap := readSnapshot(get, func() Settings { return Settings{Dumps: true} })
+	snap := ReadSnapshot(get, func() Settings { return Settings{Dumps: true} })
 
 	if !snap.Running || len(snap.Services) != 1 || snap.WorkersRunning != 1 || !snap.DumpsEnabled {
 		t.Errorf("snapshot = %+v", snap)
@@ -197,7 +197,7 @@ func TestReadSnapshot_ThroughAGetter(t *testing.T) {
 func TestReadSnapshot_DownWhenStatusFails(t *testing.T) {
 	read := false
 	get := func(string) (io.ReadCloser, error) { return nil, errors.New("refused") }
-	snap := readSnapshot(get, func() Settings { read = true; return Settings{} })
+	snap := ReadSnapshot(get, func() Settings { read = true; return Settings{} })
 
 	if snap.Running || !snap.ServicesKnown || read {
 		t.Errorf("snapshot = %+v, settings read = %v; want a stopped lerd and no settings read", snap, read)
@@ -239,6 +239,25 @@ func TestActionMessage(t *testing.T) {
 		title, body, show := ActionMessage(c.args, c.err, c.stderr)
 		if title != c.title || body != c.body || show != c.show {
 			t.Errorf("ActionMessage(%v, %v) = %q, %q, %v; want %q, %q, %v", c.args, c.err, title, body, show, c.title, c.body, c.show)
+		}
+	}
+}
+
+func TestServiceInfo_IsWorker(t *testing.T) {
+	if (ServiceInfo{Name: "mysql", Status: "active"}).isWorker() {
+		t.Error("a real service preset must not count as a worker")
+	}
+	workers := []ServiceInfo{
+		{Name: "queue-a", QueueSite: "a.test"},
+		{Name: "schedule-a", ScheduleWorkerSite: "a.test"},
+		{Name: "stripe-a", StripeListenerSite: "a.test"},
+		{Name: "reverb-a", ReverbSite: "a.test"},
+		{Name: "horizon-a", HorizonSite: "a.test"},
+		{Name: "vite-a", WorkerSite: "a.test"},
+	}
+	for _, w := range workers {
+		if !w.isWorker() {
+			t.Errorf("%s should count as a per-site worker", w.Name)
 		}
 	}
 }
