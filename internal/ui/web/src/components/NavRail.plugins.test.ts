@@ -33,3 +33,19 @@ it('draws a launcher for each plugin page and opens it', async () => {
   expect(get(dashboardOpen)?.dashboard).toBe('/plugins/hello/ui/index.html');
   expect(location.hash).toBe('#plugin/hello');
 });
+
+// A rule sets the plugin pages apart from lerd's own launchers, and only when
+// there is a plugin page to set apart.
+it('draws a divider before the plugin pages, and none without them', async () => {
+  const { findByLabelText, container, unmount } = render(NavRail);
+  const button = await findByLabelText('Hello');
+  const divider = container.querySelector('[data-rail-divider]');
+  expect(divider).not.toBeNull();
+  expect(divider!.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  unmount();
+
+  globalThis.fetch = (async () => new Response('[]')) as unknown as typeof fetch;
+  const again = render(NavRail);
+  await new Promise((r) => setTimeout(r, 0));
+  expect(again.container.querySelector('[data-rail-divider]')).toBeNull();
+});

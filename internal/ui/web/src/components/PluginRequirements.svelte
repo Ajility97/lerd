@@ -5,13 +5,15 @@
     requires: string[];
     // The ones this machine lacks, drawn in red.
     missing?: string[];
+    // bare drops the leading label, for a place that already names the row.
+    bare?: boolean;
   }
 
-  let { requires, missing = [] }: Props = $props();
+  let { requires, missing = [], bare = false }: Props = $props();
 </script>
 
-<div class="flex flex-wrap items-center gap-1 mt-1">
-  <span class="text-[11px] text-gray-400">{m.system_plugins_requires()}</span>
+<div class="flex flex-wrap items-center gap-1 {bare ? '' : 'mt-1'}">
+  {#if !bare}<span class="text-[11px] text-gray-400">{m.system_plugins_requires()}</span>{/if}
   {#each requires as req (req)}
     {#if missing.includes(req)}
       <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-sm bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400" title={m.system_plugins_notInstalled()}>{req}</span>

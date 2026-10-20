@@ -109,6 +109,10 @@
           />
         </IconButton>
       {/each}
+      {#if $railPlugins.length > 0}
+        <!-- Plugin pages are the user's own additions, set apart from lerd's like the rail's first rule does. -->
+        <span aria-hidden="true" data-rail-divider class="shrink-0 w-10 my-2 border-t border-lerd-headerborder"></span>
+      {/if}
       {#each $railPlugins as p (p.name)}
         <IconButton title={p.page?.title ?? p.name} active={$dashboardOpen?.plugin === p.name} onclick={() => openPlugin(p)}>
           <PluginIcon icon={p.page?.icon} />

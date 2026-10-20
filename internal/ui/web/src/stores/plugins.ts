@@ -12,6 +12,7 @@ export interface PluginInfo {
   description?: string;
   page?: PluginPage;
   site_tab?: PluginPage;
+  overview_card?: PluginPage;
 }
 
 export const plugins = writable<PluginInfo[]>([]);
@@ -30,28 +31,40 @@ export async function loadPlugins() {
   }
 }
 
-// A plugin whose script a site's pages can carry, and whether they do.
+// One thing a plugin can put on a site, its page script or its Overview card,
+// and whether the site has it switched on.
+export type PagePluginKind = 'page_script' | 'overview_card';
 export interface PagePlugin {
   name: string;
   description?: string;
+  kind: PagePluginKind;
   on: boolean;
 }
 
+// The switches per site name, shared so the Overview shows a card the moment
+// the header's menu switches it on.
+export const siteSwitches = writable<Record<string, PagePlugin[]>>({});
+const keep = (site: string, list: PagePlugin[]) => {
+  siteSwitches.update((all) => ({ ...all, [site]: list }));
+  return list;
+};
+
 export async function loadPagePlugins(site: string): Promise<PagePlugin[]> {
   const list = await apiJson<PagePlugin[]>('/api/page-plugins?site=' + encodeURIComponent(site));
-  return Array.isArray(list) ? list : [];
+  // A lerd-ui from before Overview cards sends no kind: those were page scripts.
+  return keep(site, Array.isArray(list) ? list.map((p) => ({ ...p, kind: p.kind ?? 'page_script' })) : []);
 }
 
-// setPagePlugin resolves to the site's page plugins after the switch, or
-// throws with lerd's reason.
-export async function setPagePlugin(site: string, plugin: string, on: boolean): Promise<PagePlugin[]> {
+// setPagePlugin resolves to the site's switches after this one, or throws
+// with lerd's reason.
+export async function setPagePlugin(site: string, plugin: string, kind: PagePluginKind, on: boolean): Promise<PagePlugin[]> {
   const res = await apiFetch('/api/page-plugins', {
     method: 'POST',
-    body: JSON.stringify({ site, plugin, on }),
+    body: JSON.stringify({ site, plugin, kind, on }),
     headers: { 'Content-Type': 'application/json' }
   });
   if (!res.ok) throw new Error((await res.text()).trim() || res.statusText);
-  return res.json();
+  return keep(site, await res.json());
 }
 
 // A row on the plugin manager. A plugin that failed to load has an error and
@@ -63,7 +76,10 @@ export interface ManagedPlugin {
   adds?: string[];
   requires?: string[];
   error?: string;
-  // The catalog commit it was installed at; absent when not listed.
+  // Its rail icon, when it has a page.
+  icon?: string;
+  // Where the catalog installed it from; absent when not listed.
+  repo?: string;
   commit?: string;
   // A newer approved commit, when there is one.
   update?: string;

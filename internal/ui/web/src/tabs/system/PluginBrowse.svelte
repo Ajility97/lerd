@@ -4,8 +4,9 @@
   import DetailButton from '$components/DetailButton.svelte';
   import ConfirmModal from '$components/ConfirmModal.svelte';
   import EmptyState from '$components/EmptyState.svelte';
-  import Icon from '$components/Icon.svelte';
-  import PluginRequirements from '$components/PluginRequirements.svelte';
+  import Pager from '$components/Pager.svelte';
+  import CatalogCard from './CatalogCard.svelte';
+  import PluginDetailModal from './PluginDetailModal.svelte';
   import { loadCatalog, installListedPlugin, type CatalogEntry } from '$stores/plugins';
   import { notifyLocalFailure, notifyLocalInfo } from '$lib/notify';
   import { m } from '../../paraglide/messages.js';
@@ -25,8 +26,16 @@
   let loaded = $state(false);
   let query = $state('');
   let sort = $state('updated');
+  let category = $state('');
+  let page = $state(0);
+  let open = $state<CatalogEntry | null>(null);
   let confirm = $state<CatalogEntry | null>(null);
   let installing = $state('');
+
+  // A page fills a few rows of the grid at any width; search, category and sort
+  // start again from the first.
+  const PAGE_SIZE = 12;
+  const categories = $derived([...new Set(entries.map((e) => e.category).filter((c): c is string => !!c))].sort());
 
   // The same orders plugins.lerd.sh offers, newest or most first, by name on a tie.
   const byName = (a: CatalogEntry, b: CatalogEntry) => a.name.localeCompare(b.name);
@@ -46,8 +55,17 @@
   const shown = $derived.by(() => {
     const q = query.trim().toLowerCase();
     return entries
+      .filter((e) => !category || e.category === category)
       .filter((e) => !q || [e.name, e.description, e.author, ...(e.tags ?? [])].join(' ').toLowerCase().includes(q))
       .sort(SORTS[sort] ?? SORTS.updated);
+  });
+  const current = $derived(Math.min(page, Math.max(0, Math.ceil(shown.length / PAGE_SIZE) - 1)));
+  const paged = $derived(shown.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE));
+  $effect(() => {
+    void query;
+    void category;
+    void sort;
+    page = 0;
   });
 
   async function load() {
@@ -63,9 +81,13 @@
 
   onMount(async () => {
     await load();
-    if (!focus) return;
+    // A plugins.lerd.sh "Install in Lerd" link lands on the plugin's own page.
+    const i = shown.findIndex((e) => e.name === focus);
+    if (i < 0) return;
+    page = Math.floor(i / PAGE_SIZE);
     await tick();
     document.getElementById('plugin-card-' + focus)?.scrollIntoView({ block: 'center' });
+    open = shown[i];
   });
 
   async function install() {
@@ -80,6 +102,7 @@
       }
       notifyLocalInfo('plugin_install', m.system_plugins_title(), m.system_plugins_installed());
       await load();
+      open = entries.find((x) => x.name === entry.name) ?? null;
     } finally {
       installing = '';
       confirm = null;
@@ -88,68 +111,84 @@
 </script>
 
 <div class="space-y-3">
-  <div class="flex flex-wrap gap-2">
-    <input
-      type="search"
-      bind:value={query}
-      placeholder={m.system_plugins_search()}
-      aria-label={m.system_plugins_search()}
-      class="flex-1 min-w-48 text-sm bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2.5 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-lerd-red/50"
-    />
-    <Dropdown value={sort} options={sortOptions} onchange={(v) => (sort = v)} />
-  </div>
+  {#if loaded && !loadError && entries.length > 0}
+    <div class="flex flex-wrap items-center gap-2">
+      <input
+        type="search"
+        bind:value={query}
+        placeholder={m.system_plugins_search()}
+        aria-label={m.system_plugins_search()}
+        class="flex-1 min-w-48 h-7 text-xs bg-white dark:bg-lerd-card border border-gray-200 dark:border-lerd-border rounded-md px-2.5 text-gray-700 dark:text-gray-200 placeholder:text-gray-400 focus:outline-hidden focus:border-lerd-red/50"
+      />
+      <Dropdown value={sort} options={sortOptions} onchange={(v) => (sort = v)} align="right" />
+    </div>
+    {#if categories.length > 1}
+      <div class="flex flex-wrap gap-1.5" role="group" aria-label={m.system_plugins_category()}>
+        {#each ['', ...categories] as c (c)}
+          <button
+            type="button"
+            aria-pressed={category === c}
+            onclick={() => (category = c)}
+            class="h-6 px-2.5 rounded-md border text-[11px] font-medium transition-colors {category === c
+              ? 'border-lerd-red/50 text-lerd-red bg-lerd-red/5'
+              : 'border-gray-200 dark:border-lerd-border text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}"
+          >{c || m.system_plugins_allCategories()}</button>
+        {/each}
+      </div>
+    {/if}
+  {/if}
 
   {#if loadError}
     <EmptyState title={m.system_plugins_catalogFailed()} size="sm">
       {#snippet hint()}<span class="break-words">{loadError}</span>{/snippet}
     </EmptyState>
+  {:else if loaded && entries.length === 0}
+    <EmptyState title={m.system_plugins_catalogEmpty()} size="sm" />
   {:else if loaded && shown.length === 0}
     <EmptyState title={m.system_plugins_noMatch()} size="sm" />
   {:else}
-    <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
-      {#each shown as e (e.name)}
-        <article
-          id="plugin-card-{e.name}"
-          class="flex flex-col rounded-lg border overflow-hidden bg-white dark:bg-lerd-card {e.name === focus
-            ? 'border-lerd-red ring-1 ring-lerd-red'
-            : 'border-gray-200 dark:border-lerd-border'}"
-        >
-          {#if e.images?.length}
-            <img src={e.images[0]} alt="" loading="lazy" class="aspect-video w-full object-cover object-left-top bg-gray-100 dark:bg-white/5 border-b border-gray-200 dark:border-lerd-border" />
-          {:else}
-            <div class="aspect-video flex items-center justify-center bg-gray-100 dark:bg-white/5 border-b border-gray-200 dark:border-lerd-border text-gray-400">
-              <Icon name="cube" />
-            </div>
-          {/if}
-          <div class="flex-1 flex flex-col gap-1 p-3">
-            <div class="flex items-baseline justify-between gap-2">
-              <span class="text-sm font-medium text-gray-900 dark:text-white truncate">{e.name}</span>
-              {#if e.author}<span class="text-xs text-gray-400 truncate">{e.author}</span>{/if}
-            </div>
-            {#if e.description}<p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{e.description}</p>{/if}
-            {#if e.requires?.length}<PluginRequirements requires={e.requires} missing={e.missing ?? []} />{/if}
-            <div class="mt-auto pt-2 flex items-center justify-between gap-2">
-              <span class="text-xs text-gray-400 tabular-nums">{e.stars ? '★ ' + e.stars.toLocaleString() : ''}</span>
-              {#if e.installed}
-                <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">{m.system_plugins_installedBadge()}</span>
-              {:else if e.runs_here === false}
-                <span class="text-xs text-gray-500 dark:text-gray-400">{m.system_plugins_platformOnly({ list: platformNames(e.platforms) })}</span>
-              {:else if !e.compatible}
-                <span class="text-xs text-gray-500 dark:text-gray-400">{m.system_plugins_needsLerd({ constraint: e.lerd ?? '' })}</span>
-              {:else if e.missing?.length}
-                <span class="text-xs text-red-600 dark:text-red-400">{m.system_plugins_missing({ list: e.missing.join(', ') })}</span>
-              {:else}
-                <DetailButton tone="primary" onclick={() => (confirm = e)} loading={installing === e.name} disabled={installing !== ''}>
-                  {m.common_install()}
-                </DetailButton>
-              {/if}
-            </div>
-          </div>
-        </article>
+    <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(250px,1fr))]">
+      {#each paged as e (e.name)}
+        <CatalogCard entry={e} focused={e.name === focus} onopen={() => (open = e)} />
       {/each}
     </div>
+    <Pager page={current} total={shown.length} size={PAGE_SIZE} onchange={(p) => (page = p)} />
   {/if}
 </div>
+
+{#if open}
+  {@const e = open}
+  <PluginDetailModal
+    name={e.name}
+    description={e.description}
+    author={e.author}
+    images={e.images}
+    repo={e.repo}
+    commit={e.commit}
+    requires={e.requires}
+    missing={e.missing}
+    platforms={e.platforms}
+    lerd={e.lerd}
+    tags={e.tags}
+    onclose={() => (open = null)}
+  >
+    {#snippet actions()}
+      {#if e.installed}
+        <span class="text-xs font-medium text-emerald-600 dark:text-emerald-400">{m.system_plugins_installedBadge()}</span>
+      {:else if e.runs_here === false}
+        <span class="text-xs text-gray-500 dark:text-gray-400">{m.system_plugins_platformOnly({ list: platformNames(e.platforms) })}</span>
+      {:else if !e.compatible}
+        <span class="text-xs text-gray-500 dark:text-gray-400">{m.system_plugins_needsLerd({ constraint: e.lerd ?? '' })}</span>
+      {:else if e.missing?.length}
+        <span class="text-xs text-red-600 dark:text-red-400">{m.system_plugins_missing({ list: e.missing.join(', ') })}</span>
+      {:else}
+        <DetailButton tone="primary" onclick={() => (confirm = e)} loading={installing === e.name} disabled={installing !== ''}>
+          {m.common_install()}
+        </DetailButton>
+      {/if}
+    {/snippet}
+  </PluginDetailModal>
+{/if}
 
 <ConfirmModal
   open={confirm !== null}

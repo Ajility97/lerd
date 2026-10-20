@@ -5,11 +5,12 @@
   import Icon from './Icon.svelte';
   import { tooltip } from '$lib/tooltip';
   import { notifyLocalFailure } from '$lib/notify';
-  import { loadPagePlugins, setPagePlugin, type PagePlugin } from '$stores/plugins';
+  import { loadPagePlugins, setPagePlugin, siteSwitches, type PagePlugin } from '$stores/plugins';
   import { m } from '../paraglide/messages.js';
 
-  // Switches plugin page scripts on or off for one site. Draws nothing until an
-  // installed plugin ships a page script, so the header stays as it was.
+  // Switches what plugins put on one site: scripts on its pages and cards on
+  // its Overview. Draws nothing until an installed plugin has either, so the
+  // header stays as it was.
 
   interface Props {
     site: string;
@@ -17,20 +18,24 @@
   }
   let { site, class: cls = '' }: Props = $props();
 
-  let list = $state<PagePlugin[]>([]);
   let busy = $state('');
+  const list = $derived($siteSwitches[site] ?? []);
   const anyOn = $derived(list.some((p) => p.on));
+  const groups = $derived(
+    [
+      { title: m.sites_pagePlugins_scripts(), hint: m.sites_pagePlugins_scriptsHint(), items: list.filter((p) => p.kind === 'page_script') },
+      { title: m.sites_pagePlugins_cards(), hint: '', items: list.filter((p) => p.kind === 'overview_card') }
+    ].filter((g) => g.items.length > 0)
+  );
 
   onMount(() => {
-    loadPagePlugins(site)
-      .then((l) => (list = l))
-      .catch(() => {});
+    loadPagePlugins(site).catch(() => {});
   });
 
   async function flip(p: PagePlugin) {
-    busy = p.name;
+    busy = p.kind + ':' + p.name;
     try {
-      list = await setPagePlugin(site, p.name, !p.on);
+      await setPagePlugin(site, p.name, p.kind, !p.on);
     } catch (err) {
       notifyLocalFailure('page_plugin', m.sites_pagePlugins_label(), err instanceof Error ? err.message : String(err));
     } finally {
@@ -41,7 +46,7 @@
 
 {#if list.length > 0}
   <div class="{cls} items-center">
-    <Popover label={m.sites_pagePlugins_label()} align="right" width={280}>
+    <Popover label={m.sites_pagePlugins_label()} align="right" width={320}>
       {#snippet triggerButton(toggle, open)}
         <button
           type="button"
@@ -57,16 +62,25 @@
         </button>
       {/snippet}
       {#snippet children()}
-        <div class="p-3 space-y-2">
-          <p class="text-xs text-gray-500 dark:text-gray-400">{m.sites_pagePlugins_hint()}</p>
-          {#each list as p (p.name)}
-            <div class="flex items-center gap-3">
-              <div class="flex-1 min-w-0">
-                <div class="text-sm text-gray-900 dark:text-white">{p.name}</div>
-                {#if p.description}<div class="text-xs text-gray-500 dark:text-gray-400 truncate">{p.description}</div>{/if}
-              </div>
-              <Toggle on={p.on} loading={busy === p.name} disabled={busy !== ''} title={p.name} onclick={() => flip(p)} />
-            </div>
+        <div class="py-1.5 divide-y divide-gray-100 dark:divide-lerd-border">
+          {#each groups as g (g.title)}
+            <section class="px-3 py-2">
+              <h4 class="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{g.title}</h4>
+              {#if g.hint}<p class="mt-0.5 text-[11px] leading-snug text-gray-500 dark:text-gray-400">{g.hint}</p>{/if}
+              <ul class="mt-1.5 space-y-0.5">
+                {#each g.items as p (p.name)}
+                  <li class="flex items-start gap-3 rounded-md py-1.5">
+                    <div class="flex-1 min-w-0">
+                      <div class="text-sm font-medium text-gray-900 dark:text-white">{p.name}</div>
+                      {#if p.description}<div class="text-xs leading-snug text-gray-500 dark:text-gray-400 line-clamp-2">{p.description}</div>{/if}
+                    </div>
+                    <span class="pt-1">
+                      <Toggle on={p.on} loading={busy === p.kind + ':' + p.name} disabled={busy !== ''} title={p.name} onclick={() => flip(p)} />
+                    </span>
+                  </li>
+                {/each}
+              </ul>
+            </section>
           {/each}
         </div>
       {/snippet}

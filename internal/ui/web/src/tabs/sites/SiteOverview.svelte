@@ -4,7 +4,9 @@
   import SiteServiceCard from './SiteServiceCard.svelte';
   import SiteSuggestedServiceCard from './SiteSuggestedServiceCard.svelte';
   import SiteRequestTiming from './SiteRequestTiming.svelte';
-  import type { Site } from '$stores/sites';
+  import PluginFrame from '$components/PluginFrame.svelte';
+  import { plugins, siteSwitches, loadPagePlugins } from '$stores/plugins';
+  import { activeWorktreeDomain, type Site } from '$stores/sites';
   import { m } from '../../paraglide/messages.js';
 
   interface Props {
@@ -16,6 +18,16 @@
   const svcNames = $derived(site.services || []);
   const suggested = $derived(site.suggested_services || []);
   const declared = $derived(site.declared_services || []);
+
+  // The cards plugins draw here, only the ones switched on for this site.
+  $effect(() => {
+    void loadPagePlugins(site.name).catch(() => {});
+  });
+  const cards = $derived(
+    ($siteSwitches[site.name] ?? [])
+      .filter((s) => s.kind === 'overview_card' && s.on)
+      .flatMap((s) => $plugins.filter((p) => p.name === s.name && p.overview_card))
+  );
 </script>
 
 {#snippet sectionTitle(title: string)}
@@ -49,6 +61,21 @@
       </div>
     </section>
   {/if}
+
+  {#each cards as p (p.name)}
+    <section>
+      {@render sectionTitle(p.overview_card!.title)}
+      <div class="rounded-xl border border-gray-200/80 dark:border-lerd-border bg-white dark:bg-lerd-card overflow-hidden">
+        <PluginFrame
+          plugin={p.name}
+          url={p.overview_card!.url}
+          title={p.overview_card!.title}
+          context={{ site: site.name ?? '', domain: activeWorktreeDomain(site, activeWorktreeBranch), branch: activeWorktreeBranch }}
+          autoHeight
+        />
+      </div>
+    </section>
+  {/each}
 
   <SiteRequestTiming {site} {activeWorktreeBranch} />
 </div>
