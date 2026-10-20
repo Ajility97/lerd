@@ -58,7 +58,9 @@ build-tray:
 install: build build-tray
 	install -Dm755 $(BUILD_DIR)/$(BINARY) $(INSTALL_DIR)/$(BINARY)
 	install -Dm755 $(BUILD_DIR)/lerd-tray $(INSTALL_DIR)/lerd-tray
-	@echo "Installed $(INSTALL_DIR)/$(BINARY) and $(INSTALL_DIR)/lerd-tray"
+	@# wsl:setup copies lerd.exe out from beside lerd, as install.sh places it.
+	install -Dm755 $(BUILD_DIR)/lerd.exe $(INSTALL_DIR)/lerd.exe
+	@echo "Installed $(INSTALL_DIR)/$(BINARY), $(INSTALL_DIR)/lerd-tray and $(INSTALL_DIR)/lerd.exe"
 	@# The watcher tears the whole environment down when it reads a SIGTERM as a
 	@# logout. Restarting it here is not one, so mark it the way lerd's own
 	@# restart paths do, or `make install` stops every container and the VM.
