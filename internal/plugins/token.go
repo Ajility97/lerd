@@ -70,16 +70,25 @@ func createSecret() ([]byte, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
-	// O_EXCL so two processes racing to create it agree on one secret.
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-	if errors.Is(err, fs.ErrExist) {
-		return os.ReadFile(path)
+	// Written whole beside it, then linked into place, which fails if another
+	// process got there first, so nobody reads a secret still being written.
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".plugin-secret-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(tmp.Name())
+	_, err = tmp.Write(secret)
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
 	}
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	if _, err := f.Write(secret); err != nil {
+	err = os.Link(tmp.Name(), path)
+	if errors.Is(err, fs.ErrExist) {
+		return os.ReadFile(path)
+	}
+	if err != nil {
 		return nil, err
 	}
 	return secret, nil

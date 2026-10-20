@@ -3,6 +3,7 @@ package plugins
 import (
 	"os"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -60,5 +61,25 @@ func TestCommand_HandsOverAPIAccess(t *testing.T) {
 	env := strings.Join(cmd.Env, "\n")
 	if !strings.Contains(env, "LERD_API_TOKEN="+want) || !strings.Contains(env, "LERD_API_URL="+APIURL) {
 		t.Errorf("plugin env lacks API access:\n%s", env)
+	}
+}
+
+// Plugins starting together on a fresh install all sign with the one secret
+// that ends up on disk, never with a file still being written.
+func TestToken_FirstRunsAgreeOnTheSecret(t *testing.T) {
+	for range 50 {
+		isolate(t)
+		writePlugin(t, Dir(), "a", "api_version: 1\nname: a\n")
+		tokens := make([]string, 8)
+		var wg sync.WaitGroup
+		for i := range tokens {
+			wg.Go(func() { tokens[i], _ = Token("a") })
+		}
+		wg.Wait()
+		for _, tok := range tokens {
+			if PluginForToken(tok) != "a" {
+				t.Fatalf("token %q does not match the secret on disk", tok)
+			}
+		}
 	}
 }
