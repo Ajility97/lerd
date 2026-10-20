@@ -25,7 +25,7 @@ check() {
     # Lines inside a backtick string (Go raw, JS template) are data, not comments.
     inraw { flush(); if (ticks() % 2) inraw = 0; next }
     /^[[:space:]]*\/\/(go:|\+build|nolint)/ { flush(); next }
-    /^[[:space:]]*(\/\/|\*([[:space:]\/]|$))/ { count(); next }
+    /^[[:space:]]*\/\// { count(); next }
     /^[[:space:]]*(\/\*|<!--)/ {
       count()
       closer = ($0 ~ /^[[:space:]]*\/\*/) ? "*/" : "-->"

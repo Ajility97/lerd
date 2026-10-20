@@ -113,3 +113,9 @@ stage() { printf '%s\n' "$2" > "$1"; git add "$1"; }
   run "$HOOK"
   [ "$status" -eq 1 ]
 }
+
+@test "does not count lines that start with a multiplication" {
+  stage a.ts $'export const total = a\n  * b\n  * c\n  * d\n  * e;'
+  run "$HOOK"
+  [ "$status" -eq 0 ]
+}
