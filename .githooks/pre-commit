@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Rejects a commit that leaves any comment block it touches longer than three
+# lines (CLAUDE.md). Enable once per clone: git config core.hooksPath .githooks
+max=3
+status=0
+
+while IFS= read -r f; do
+  # Line numbers the commit adds, from the +start,count of each zero-context hunk.
+  added=$(git diff --cached -U0 -- "$f" | awk '/^@@/ {
+    split($3, a, ","); n = substr(a[1], 2); c = (a[2] == "" ? 1 : a[2])
+    for (i = 0; i < c; i++) printf "%d ", n + i }')
+  [ -z "$added" ] && continue
+  # The whole block around an added line counts, so growing an old one is caught.
+  out=$(git show ":$f" | awk -v max="$max" -v added="$added" -v file="$f" '
+    BEGIN { n = split(added, l, " "); for (i = 1; i <= n; i++) want[l[i]] = 1 }
+    function flush() {
+      if (len > max && hit) printf "%s:%d: comment block is %d lines, keep it to %d\n", file, start, len, max
+      len = 0; hit = 0
+    }
+    /^[[:space:]]*\/\/(go:|\+build|nolint)/ { flush(); next }
+    /^[[:space:]]*(\/\/|\/\*|\*([[:space:]\/]|$)|<!--)/ {
+      if (len == 0) start = NR
+      len++
+      if (NR in want) hit = 1
+      next
+    }
+    { flush() }
+    END { flush() }')
+  if [ -n "$out" ]; then
+    echo "$out"
+    status=1
+  fi
+done < <(git diff --cached --name-only --diff-filter=AM -- '*.go' '*.ts' '*.js' '*.svelte')
+
+[ $status -eq 0 ] || echo "Shorten them, or commit with --no-verify if a block truly needs the room."
+exit $status
