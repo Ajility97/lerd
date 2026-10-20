@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -110,7 +111,7 @@ func devServerWrapperBody(sitePath string, tool *config.DevServerTool, addr devS
 	// wrote it and a refresh does not see a change that is not there.
 	root := config.CanonicalPath(sitePath)
 	nestedWorktrees := []string{filepath.ToSlash(filepath.Join(root, filepath.Base(root)+"-*")) + "/**"}
-	literals, err := jsLiterals(importPath, devServerPublicURL(tool, addr.Origin), tool.Base, addr.Origin, addr.Hosts, nestedWorktrees, addr.Origins)
+	literals, err := jsLiterals(importPath, devServerPublicURL(tool, addr.Origin), tool.Base, addr.Origin, addr.Hosts, nestedWorktrees, addr.OriginPatterns)
 	if err != nil {
 		return "", "", err
 	}
@@ -143,7 +144,7 @@ func devServerValuesBody(sitePath string, tool *config.DevServerTool, addr devSe
 	if !pathIsIgnored(sitePath, tool.ValuesPath) {
 		return "", "", nil
 	}
-	literals, err := jsLiterals(addr.Origin, addr.Hosts, addr.Origins)
+	literals, err := jsLiterals(addr.Origin, addr.Hosts, addr.OriginPatterns)
 	if err != nil {
 		return "", "", err
 	}
@@ -174,15 +175,14 @@ func writeDevServerValues(sitePath string, tool *config.DevServerTool, addr devS
 // config needs: the one origin asset URLs resolve to, the hosts the server may
 // answer for, and the page origins allowed to fetch from it.
 type devServerAddr struct {
-	Origin  string
-	Hosts   []string
-	Origins []string
+	Origin         string
+	Hosts          []string
+	OriginPatterns []string
 }
 
-// devServerAddrFor mirrors what the vhost serves. Assets resolve to the primary
-// domain, since a dev server can only advertise one; each domain answers along
-// with its subdomains, matching the vhost's wildcard (a leading dot is how the
-// tool spells that); and a page on any of those domains may fetch from it.
+// devServerAddrFor mirrors what the vhost serves: assets resolve to the primary
+// domain, and every domain with its subdomains, the vhost's wildcard, is both a
+// host the server answers for and an origin a page may fetch from it on.
 func devServerAddrFor(secured bool, primary string, domains []string) devServerAddr {
 	scheme := "http"
 	if secured {
@@ -191,7 +191,7 @@ func devServerAddrFor(secured bool, primary string, domains []string) devServerA
 	addr := devServerAddr{Origin: scheme + "://" + primary}
 	for _, d := range domains {
 		addr.Hosts = append(addr.Hosts, "."+d)
-		addr.Origins = append(addr.Origins, scheme+"://"+d)
+		addr.OriginPatterns = append(addr.OriginPatterns, "^"+scheme+`://([a-z0-9-]+\.)*`+regexp.QuoteMeta(d)+"$")
 	}
 	return addr
 }
