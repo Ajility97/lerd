@@ -40,10 +40,8 @@
     siteFilter = site;
     page = 0;
   });
-  // The snapshots ride along with the engine's databases, so the tab reads the
-  // same listing the Databases tab does rather than fetching its own, and skips
-  // a service that has no databases for the same reason it does. An asleep
-  // engine lists nothing, so it is woken the same way and asked once ready.
+  // Snapshots ride along with the engine's databases listing, which an asleep
+  // engine returns empty, so the tab wakes it and loads only once it is ready.
   $effect(() => {
     if (!svc.is_database || !up) return;
     void loadEngine(svc.name);
