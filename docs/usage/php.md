@@ -384,6 +384,8 @@ lerd fetch --local 8.5
 lerd php:rebuild --local
 ```
 
+The image's PECL extensions (`redis`, `imagick`, `igbinary`, `mongodb`, `pcov`, `xdebug`) are installed with [PIE](https://github.com/php/pie), the replacement for the deprecated PECL, which builds each one from its GitHub source. pecl.php.net is only the fallback when PIE cannot install one, and the only source on PHP 7.4 and 8.0, which PIE does not run on.
+
 `lerd fetch` prepares the image; it does not install the version. A version whose image is ready but that has no PHP-FPM service behind it yet is still missing as far as `lerd php:list` and `lerd new` are concerned, and the fetch says so:
 
 ```
