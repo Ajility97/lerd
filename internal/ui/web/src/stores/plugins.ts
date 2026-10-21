@@ -48,11 +48,16 @@ const keep = (site: string, list: PagePlugin[]) => {
   siteSwitches.update((all) => ({ ...all, [site]: list }));
   return list;
 };
+// switched counts the switches made per site, so a read that left before one
+// is dropped rather than landing after it with the old state.
+const switched: Record<string, number> = {};
 
 export async function loadPagePlugins(site: string): Promise<PagePlugin[]> {
-  const list = await apiJson<PagePlugin[]>('/api/page-plugins?site=' + encodeURIComponent(site));
+  const before = switched[site] ?? 0;
+  const raw = await apiJson<PagePlugin[]>('/api/page-plugins?site=' + encodeURIComponent(site));
   // A lerd-ui from before Overview cards sends no kind: those were page scripts.
-  return keep(site, Array.isArray(list) ? list.map((p) => ({ ...p, kind: p.kind ?? 'page_script' })) : []);
+  const list = Array.isArray(raw) ? raw.map((p) => ({ ...p, kind: p.kind ?? 'page_script' })) : [];
+  return (switched[site] ?? 0) === before ? keep(site, list) : list;
 }
 
 // setPagePlugin resolves to the site's switches after this one, or throws
@@ -64,6 +69,7 @@ export async function setPagePlugin(site: string, plugin: string, kind: PagePlug
     headers: { 'Content-Type': 'application/json' }
   });
   if (!res.ok) throw new Error((await res.text()).trim() || res.statusText);
+  switched[site] = (switched[site] ?? 0) + 1;
   return keep(site, await res.json());
 }
 

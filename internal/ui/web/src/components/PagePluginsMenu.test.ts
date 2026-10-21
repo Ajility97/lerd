@@ -62,3 +62,26 @@ it('reads the switches again each time it opens', async () => {
   await fireEvent.click(trigger);
   await waitFor(() => expect((globalThis.fetch as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(before + 1));
 });
+
+// A read that left before a switch must not land after it with the old state.
+it('keeps a switch made while the open-time read is still on its way', async () => {
+  let release: (r: Response) => void = () => {};
+  const posts: unknown[] = [];
+  let gets = 0;
+  globalThis.fetch = vi.fn(async (_url: string, init?: RequestInit) => {
+    if (init?.method === 'POST') {
+      posts.push(JSON.parse(init.body as string));
+      return new Response(JSON.stringify([{ name: 'debug', kind: 'page_script', on: true }]));
+    }
+    gets++;
+    if (gets === 1) return new Response(JSON.stringify([{ name: 'debug', kind: 'page_script', on: false }]));
+    return new Promise<Response>((r) => (release = r));
+  }) as unknown as typeof fetch;
+  const { findByLabelText, getByTitle } = render(PagePluginsMenu, { props: { site: 'shop4' } });
+  await fireEvent.click(await findByLabelText('Plugins on this site'));
+  await fireEvent.click(getByTitle('debug'));
+  await waitFor(() => expect(getByTitle('debug').getAttribute('aria-checked')).toBe('true'));
+  release(new Response(JSON.stringify([{ name: 'debug', kind: 'page_script', on: false }])));
+  await new Promise((r) => setTimeout(r, 20));
+  expect(getByTitle('debug').getAttribute('aria-checked')).toBe('true');
+});
