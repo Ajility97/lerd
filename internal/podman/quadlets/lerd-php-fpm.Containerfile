@@ -5,19 +5,38 @@ FROM docker.io/library/composer:latest AS composer-bin
 # the runtime stage via COPY at the bottom.
 FROM docker.io/library/php:{{.Version}}-fpm-alpine AS builder
 
-# PHP 8.6 removed PEAR, so `pecl` is gone from the upstream image. Where it is
-# missing, the release tarball on pecl.php.net is the same source pecl fetches,
-# so every PECL install below goes through one wrapper instead of branching.
+# PECL is deprecated in favour of PIE, which builds the extension from its
+# GitHub source, so PIE goes first wherever it runs (PHP 8.1+). pecl stays as
+# the fallback and for older versions; 8.6 has no pecl, so it fetches the tarball.
 RUN printf '%s\n' \
       '#!/bin/sh' \
-      'set -e' \
       'spec="$1"' \
-      'if command -v pecl >/dev/null 2>&1; then yes "" | pecl install "$spec"; exit 0; fi' \
-      'dir=$(mktemp -d)' \
-      'wget -qO- "https://pecl.php.net/get/$spec" | tar xz -C "$dir"' \
-      'cd "$dir"/*/' \
-      'phpize && ./configure && make -j"$(nproc)" && make install' \
-      'rm -rf "$dir"' \
+      'from_pie() {' \
+      '  case "$spec" in' \
+      '    xdebug) pkg=xdebug/xdebug ;;' \
+      '    pcov) pkg=pecl/pcov ;;' \
+      '    redis) pkg=phpredis/phpredis ;;' \
+      '    imagick) pkg=imagick/imagick ;;' \
+      '    igbinary) pkg=igbinary/igbinary ;;' \
+      '    mongodb) pkg=mongodb/mongodb-extension ;;' \
+      '    *) echo "no PIE package known for $spec" >&2; return 1 ;;' \
+      '  esac' \
+      '  if [ ! -f /usr/local/bin/pie ]; then' \
+      '    wget -qO /tmp/pie.phar https://github.com/php/pie/releases/download/1.5.2/pie.phar && echo "fe70c59738cf56ec00a818cf9cb9593da171aac86f5f1f859995b8839dfd2cc7  /tmp/pie.phar" | sha256sum -c - && mv /tmp/pie.phar /usr/local/bin/pie || return 1' \
+      '  fi' \
+      '  php /usr/local/bin/pie install --skip-enable-extension "$pkg"' \
+      '}' \
+      'from_pecl() {' \
+      '  if command -v pecl >/dev/null 2>&1; then yes "" | pecl install "$spec"; return; fi' \
+      '  dir=$(mktemp -d)' \
+      '  wget -qO- "https://pecl.php.net/get/$spec" | tar xz -C "$dir" && (cd "$dir"/*/ && phpize && ./configure && make -j"$(nproc)" && make install)' \
+      '  rc=$?; rm -rf "$dir"; return $rc' \
+      '}' \
+      'if [ "$(php -r "echo PHP_VERSION_ID;")" -ge 80100 ]; then' \
+      '  from_pie && exit 0' \
+      '  echo "PIE could not install $spec, falling back to pecl" >&2' \
+      'fi' \
+      'from_pecl' \
     > /usr/local/bin/lerd-pecl-install \
     && chmod +x /usr/local/bin/lerd-pecl-install
 
