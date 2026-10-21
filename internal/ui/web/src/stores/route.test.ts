@@ -19,6 +19,16 @@ describe('parseHash', () => {
     expect(parseHash('#sites/foo.test/logs')).toEqual({ tab: 'sites', rest: 'foo.test/logs' });
   });
 
+  // Plugins is a page of its own outside the rail's tabs; links from before it
+  // left System, such as plugins.lerd.sh's install button, still land on it.
+  it('parses the Plugins page and its old System address', () => {
+    expect(parseHash('#plugins')).toEqual({ tab: 'plugins', rest: '' });
+    expect(parseHash('#plugins/browse/stats')).toEqual({ tab: 'plugins', rest: 'browse/stats' });
+    expect(parseHash('#system/plugins')).toEqual({ tab: 'plugins', rest: '' });
+    expect(parseHash('#system/plugins/browse/stats')).toEqual({ tab: 'plugins', rest: 'browse/stats' });
+    expect(TABS).not.toContain('plugins');
+  });
+
   it('falls back to dashboard for unknown tab', () => {
     expect(parseHash('#nope')).toEqual({ tab: 'dashboard', rest: '' });
   });

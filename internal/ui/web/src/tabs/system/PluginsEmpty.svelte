@@ -40,7 +40,7 @@
         </div>
       </div>
       <div class="mt-auto pt-1">
-        <button type="button" onclick={() => goToTab('system', 'plugins/browse')}
+        <button type="button" onclick={() => goToTab('plugins', 'browse')}
           class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-lerd-red hover:bg-lerd-redhov text-lerd-onred text-xs font-semibold">
           <PluginGlyph name="download" class="w-3.5 h-3.5" />{m.system_plugins_browseAction()}
         </button>

@@ -15,5 +15,5 @@
 {#if icon}
   <span class="block w-5 h-5 bg-current" style:mask style:-webkit-mask={mask} aria-hidden="true"></span>
 {:else}
-  <Icon name="cube" />
+  <Icon name="puzzle" />
 {/if}

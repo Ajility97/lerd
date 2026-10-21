@@ -95,7 +95,7 @@ Time limits: hooks and API 30s, MCP tools 2m, site commands 30m, CLI none. `time
 - API: `curl -fsS http://127.0.0.1:7073/api/plugins/<name>/<path>?site=<site>`.
 - Hooks: cause the event (`lerd service start <svc>`, `lerd link`) and read `hooks.log` in the data folder.
 - Pages, tabs and cards: open the dashboard and check the frame shows real data with no console errors; for a card, `lerd plugin card <name> on` in the project first; for a page script, `lerd plugin page <name> on` and load the site.
-- Failures from any surface show on the plugin in System, Plugins and in `plugin` `list`.
+- Failures from any surface show on the plugin's card on the dashboard's Plugins page and in `plugin` `list`.
 
 ## Sharing it
 

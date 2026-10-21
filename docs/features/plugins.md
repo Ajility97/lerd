@@ -28,7 +28,7 @@ lerd hello:greet shop       # run one of its commands
 | `lerd plugin page <name> on\|off` | Switch a plugin's page script on or off for the site in this directory |
 | `lerd plugin card <name> on\|off` | Switch a plugin's Overview card on or off for the site in this directory |
 
-The dashboard does the same under **System → Plugins**. **Installed** shows each plugin as a card with whether it loaded; opening one shows what it adds, what it requires, where it came from and its last failure, with **Update** and **Remove**, broken plugins included. **Install from a folder or git** opens a dialog that takes a folder path or a git URL. Because installing puts code on the machine, a remote dashboard only shows it once `lerd remote-control full-access on` is set.
+The dashboard does the same on its **Plugins** page, which the puzzle-piece button at the end of the rail's plugin group opens, as do the command palette's **Plugins** and **Browse plugins** and, on a phone, the **Apps** page. **Installed** shows each plugin as a card with whether it loaded; opening one shows what it adds, what it requires, where it came from and its last failure, with **Update** and **Remove**, broken plugins included. **Install from a folder or git** opens a dialog that takes a folder path or a git URL. Because installing puts code on the machine, a remote dashboard only shows it once `lerd remote-control full-access on` is set.
 
 A plugin that fails to load is skipped and listed with its error; it never stops lerd or the other plugins.
 
@@ -280,7 +280,7 @@ A plugin runs as you, with everything you can do, so install only plugins you tr
 
 ## When a plugin fails
 
-Lerd keeps each plugin's latest failure, whichever surface it came from: a hook, a command, a site command, an API endpoint, an MCP tool or a job it is in charge of. Its row in **System > Plugins** shows what failed and the first line of the error, and for a plugin installed from the catalog a **Report to the author** link opens a new issue on its repository, filled in with the plugin's commit, your lerd version and the error. A failing `lerd <plugin>:<command>` prints the same link in the terminal.
+Lerd keeps each plugin's latest failure, whichever surface it came from: a hook, a command, a site command, an API endpoint, an MCP tool or a job it is in charge of. Its card on the **Plugins** page, opened, shows what failed and the first line of the error, and for a plugin installed from the catalog a **Report to the author** link opens a new issue on its repository, filled in with the plugin's commit, your lerd version and the error. A failing `lerd <plugin>:<command>` prints the same link in the terminal.
 
 A failure you were not watching, such as a hook the watcher ran, also raises a **Plugin failures** notification, which can be switched off in the notification settings like any other. The same failure again within the hour stays quiet. Reports go to the plugin's author rather than to lerd, since only they can fix their plugin; the issue says where to send it on if lerd turns out to be at fault.
 

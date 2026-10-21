@@ -24,11 +24,11 @@
   let updating = $state('');
   let confirmName = $state('');
 
-  // #system/plugins is the installed list; #system/plugins/browse[/<name>] the
-  // catalog, which plugins.lerd.sh links straight into.
+  // #plugins is the installed list; #plugins/browse[/<name>] the catalog, which
+  // plugins.lerd.sh links straight into.
   const parts = $derived($routeRest.split('/'));
-  const browsing = $derived(parts[1] === 'browse');
-  const focus = $derived(browsing ? decodeURIComponent(parts[2] ?? '') : '');
+  const browsing = $derived(parts[0] === 'browse');
+  const focus = $derived(browsing ? decodeURIComponent(parts[1] ?? '') : '');
 
   async function update(name: string) {
     updating = name;
@@ -79,10 +79,10 @@
 
 {#snippet views()}
   <div class="flex items-center gap-1">
-    <IconButton size="sm" placement="bottom" title={m.system_plugins_tabInstalled()} active={!browsing} onclick={() => goToTab('system', 'plugins')}>
-      <Icon name="cube" class="w-4 h-4" />
+    <IconButton size="sm" placement="bottom" title={m.system_plugins_tabInstalled()} active={!browsing} onclick={() => goToTab('plugins')}>
+      <Icon name="puzzle" class="w-4 h-4" />
     </IconButton>
-    <IconButton size="sm" placement="bottom" title={m.system_plugins_tabBrowse()} active={browsing} onclick={() => goToTab('system', 'plugins/browse')}>
+    <IconButton size="sm" placement="bottom" title={m.system_plugins_tabBrowse()} active={browsing} onclick={() => goToTab('plugins', 'browse')}>
       <Icon name="download" class="w-4 h-4" />
     </IconButton>
   </div>

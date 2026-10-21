@@ -22,7 +22,7 @@ func pluginFailureNotification(f plugins.Failure) push.Notification {
 		Body:     f.What + ": " + first,
 		Params:   map[string]string{"plugin": f.Plugin, "what": f.What, "message": first},
 		Tag:      "lerd-plugin-failed-" + f.Plugin,
-		URL:      "#system/plugins",
+		URL:      "#plugins",
 		Data:     map[string]string{"plugin": f.Plugin},
 		Urgency:  "normal",
 		TTL:      3600,

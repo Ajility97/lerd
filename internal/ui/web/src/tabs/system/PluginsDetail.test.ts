@@ -6,7 +6,7 @@ let installed: object[];
 const calls: { method: string; url: string; body?: string }[] = [];
 
 beforeEach(() => {
-  location.hash = '#system/plugins';
+  location.hash = '#plugins';
   installed = [
     { name: 'broken', error: 'api_version 9 needs a newer lerd' },
     { name: 'hello', version: '0.1.0', description: 'Says hello', adds: ['commands', 'page'], requires: ['python3', 'jq'], icon: '/plugins/hello/ui/icon.svg' }
@@ -96,7 +96,7 @@ it('switches between installed and browse with icon buttons in the header', asyn
   expect(installedBtn.getAttribute('aria-current')).toBe('page');
   expect(browseBtn.getAttribute('aria-current')).toBeNull();
   await fireEvent.click(browseBtn);
-  expect(location.hash).toBe('#system/plugins/browse');
+  expect(location.hash).toBe('#plugins/browse');
 });
 
 // With nothing installed the page says what plugins add and offers both ways
@@ -108,5 +108,5 @@ it('shows what plugins add and both ways to get one when none is installed', asy
   expect(getByText('Overview cards')).toBeTruthy();
   expect(getByText('lerd plugin new my-plugin')).toBeTruthy();
   await fireEvent.click(getByRole('button', { name: 'Browse plugins' }));
-  expect(location.hash).toBe('#system/plugins/browse');
+  expect(location.hash).toBe('#plugins/browse');
 });

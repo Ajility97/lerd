@@ -52,6 +52,7 @@
   import SystemDetail from '$tabs/SystemDetail.svelte';
   import AppsPage from '$tabs/AppsPage.svelte';
   import DashboardTab from '$tabs/DashboardTab.svelte';
+  import PluginsDetail from '$tabs/system/PluginsDetail.svelte';
 
   function handlePageHide() {
     disconnectWs();
@@ -108,13 +109,16 @@
   const showMobileDetail = $derived(Boolean($routeRest));
   const onApps = $derived($mobileView === 'apps');
   const onDashboard = $derived($tab === 'dashboard');
-  const listHidden = $derived($sidePanelHidden && !onDashboard);
+  // Pages with no list beside them, which take the width the list would.
+  const fullPage = $derived(onDashboard || $tab === 'plugins');
+  const listHidden = $derived($sidePanelHidden && !fullPage);
 
   const sectionLabels = $derived({
     dashboard: m.nav_dashboard(),
     sites: m.nav_sites(),
     services: m.nav_services(),
-    system: m.nav_system()
+    system: m.nav_system(),
+    plugins: m.system_plugins_title()
   });
   const subject = $derived(pageSubject($tab, $routeRest));
   const installed = window.matchMedia('(display-mode: standalone)').matches;
@@ -132,7 +136,7 @@
   >{m.common_skipToContent()}</button>
   <NavRail />
 
-  {#if !onDashboard}
+  {#if !fullPage}
     <SidePanel hidden={listHidden}>
       {#if $tab === 'sites'}
         <SitesTab />
@@ -147,7 +151,7 @@
   <div class="sr-only" aria-live="polite">{$announcement}</div>
   <main id="main" tabindex="-1" class="flex-1 flex flex-col overflow-hidden outline-none">
     <!-- The Sites and Services overviews carry their own h1; an open item and System do not. -->
-    {#if subject || $tab === 'system'}
+    {#if subject || $tab === 'system' || $tab === 'plugins'}
       <h1 class="sr-only">{subject || sectionLabels[$tab]}</h1>
     {/if}
     {#if !showMobileDetail}
@@ -157,7 +161,7 @@
     <!-- One layout is mounted, never both, so a page loads its data once. -->
     {#if $isDesktop}
       <!-- With the list hidden the detail meets the rail: list-hidden curves the body under its header and makes room for the button that brings the list back. -->
-      <div class="flex flex-col flex-1 overflow-hidden relative" class:list-hidden={listHidden}>
+      <div class="flex flex-col flex-1 overflow-hidden relative" class:list-hidden={listHidden} class:rail-edge={$tab === 'plugins'}>
         {#if listHidden}<PanelToggleButton title={m.nav_showList()} />{/if}
         {#if $tab === 'dashboard'}
           <DashboardTab />
@@ -167,7 +171,13 @@
           <ServicesDetail />
         {:else if $tab === 'system'}
           <SystemDetail />
+        {:else if $tab === 'plugins'}
+          <PluginsDetail />
         {/if}
+      </div>
+    {:else if $tab === 'plugins'}
+      <div class="flex-1 flex flex-col overflow-hidden pb-16">
+        <PluginsDetail />
       </div>
     {:else if onApps}
       <div class="flex-1 flex flex-col overflow-hidden pb-16">

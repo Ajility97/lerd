@@ -62,7 +62,7 @@
             ? 'text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
             : 'text-gray-500 dark:text-gray-400 hover:text-lerd-red hover:bg-gray-100 dark:hover:bg-white/5'}"
         >
-          <Icon name="cube" class="w-4 h-4" />
+          <Icon name="puzzle" class="w-4 h-4" />
         </button>
       {/snippet}
       {#snippet children()}

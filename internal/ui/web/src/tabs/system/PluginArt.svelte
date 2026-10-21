@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PUZZLE_PATH as PUZZLE } from '$components/Icon.svelte';
   // The empty plugin views' illustrations, drawn as the dashboard itself: one
   // chrome for the header and rail, the lighter content inset beside it, in the
   // theme's own colours so the picture follows whatever theme is on.
@@ -39,7 +40,7 @@
     <rect x="150" y="74" width="72" height="50" rx="6" class={SLOT} stroke-width="1.5" stroke-dasharray="4 3" />
     <g transform="translate(170 86) rotate(-8)">
       <rect width="56" height="44" rx="9" class="fill-lerd-red" />
-      <path d="M28 10 17 16v12l11 6 11-6V16zM17 16l11 6 11-6M28 22v12" stroke="#fff" stroke-width="1.8" stroke-linejoin="round" />
+      <path d={PUZZLE} transform="translate(14 8) scale(1.15)" stroke="#fff" stroke-width="1.5" stroke-linejoin="round" />
     </g>
     <g transform="translate(10 96) rotate(10)">
       <rect width="36" height="30" rx="7" class={CARD} stroke-width="1.5" />
@@ -61,7 +62,7 @@
     <path d="M199 79v20M189 89h20" class="stroke-lerd-red" stroke-width="2.2" stroke-linecap="round" />
     <g transform="translate(206 104) rotate(-10)">
       <rect width="48" height="38" rx="8" class="fill-lerd-red" />
-      <path d="M24 9 15 14v10l9 5 9-5V14zM15 14l9 5 9-5M24 19v10" stroke="#fff" stroke-width="1.7" stroke-linejoin="round" />
+      <path d={PUZZLE} transform="translate(12 7) scale(1)" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" />
     </g>
     <g transform="translate(222 2) rotate(12)">
       <rect width="36" height="30" rx="7" class={CARD} stroke-width="1.5" />

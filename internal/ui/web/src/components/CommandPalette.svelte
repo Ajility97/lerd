@@ -61,6 +61,8 @@
     list.push({ id: 'page:sites', label: m.nav_sites(), group: 'pages', action: () => goToTab('sites') });
     list.push({ id: 'page:services', label: m.nav_services(), group: 'pages', action: () => goToTab('services') });
     list.push({ id: 'page:system', label: m.nav_system(), group: 'pages', action: () => goToTab('system') });
+    list.push({ id: 'page:plugins', label: m.system_plugins_title(), group: 'pages', action: () => goToTab('plugins') });
+    list.push({ id: 'page:plugins-browse', label: m.system_plugins_browseAction(), group: 'pages', action: () => goToTab('plugins', 'browse') });
 
     for (const s of $sites) {
       list.push({

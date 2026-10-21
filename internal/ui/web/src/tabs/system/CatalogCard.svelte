@@ -25,7 +25,7 @@
     {#if e.images?.length}
       <img src={e.images[0]} alt="" loading="lazy" class="absolute left-4 top-4 w-[calc(100%-1rem)] h-[calc(100%-1rem)] object-cover object-left-top rounded-tl-md border-l border-t border-gray-200 dark:border-white/10 shadow-xl" />
     {:else}
-      <span class="absolute inset-0 flex items-center justify-center text-gray-300 dark:text-gray-600"><Icon name="cube" class="w-8 h-8" /></span>
+      <span class="absolute inset-0 flex items-center justify-center text-gray-300 dark:text-gray-600"><Icon name="puzzle" class="w-8 h-8" /></span>
     {/if}
   </div>
   <div class="flex-1 flex flex-col gap-1 p-3">

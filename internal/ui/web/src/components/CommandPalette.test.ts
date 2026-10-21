@@ -49,4 +49,11 @@ describe('CommandPalette service marks', () => {
     const { container } = render(CommandPalette);
     expect(container.querySelector('.mark-glyph')?.getAttribute('class')).toContain('w-3.5');
   });
+
+  // Plugins live under System, so the palette goes straight to them.
+  it('offers the Plugins page and the catalog', () => {
+    render(CommandPalette);
+    expect(screen.getByText('Plugins')).toBeInTheDocument();
+    expect(screen.getByText('Browse plugins')).toBeInTheDocument();
+  });
 });

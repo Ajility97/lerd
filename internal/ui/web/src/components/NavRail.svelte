@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { tab, goToTab, TABS, type TabId } from '$stores/route';
+  import { tab, goToTab, TABS, type RailTab } from '$stores/route';
   import IconButton from './IconButton.svelte';
   import Icon, { type IconName } from './Icon.svelte';
   import RailLogo from './RailLogo.svelte';
@@ -38,14 +38,14 @@
   // unavailable. Authenticated remote dashboards receive authority.
   const remote = $derived(!$accessMode.localControl);
 
-  const labels = $derived<Record<TabId, string>>({
+  const labels = $derived<Record<RailTab, string>>({
     dashboard: m.nav_dashboard(),
     sites: m.nav_sites(),
     services: m.nav_services(),
     system: m.nav_system()
   });
 
-  const icons: Record<TabId, IconName> = {
+  const icons: Record<RailTab, IconName> = {
     dashboard: 'dashboard',
     sites: 'sites',
     services: 'services',
@@ -109,15 +109,17 @@
           />
         </IconButton>
       {/each}
-      {#if $railPlugins.length > 0}
-        <!-- Plugin pages are the user's own additions, set apart from lerd's like the rail's first rule does. -->
-        <span aria-hidden="true" data-rail-divider class="rail-rule shrink-0 w-10 my-2"></span>
-      {/if}
+      <!-- Plugin pages are the user's own additions, set apart from lerd's under a rule of
+           their own and closed by the way to the Plugins page, so plugins can be found here. -->
+      <span aria-hidden="true" data-rail-divider class="rail-rule shrink-0 w-10 my-2"></span>
       {#each $railPlugins as p (p.name)}
         <IconButton title={p.page?.title ?? p.name} active={$dashboardOpen?.plugin === p.name} onclick={() => openPlugin(p)}>
           <PluginIcon icon={p.page?.icon} />
         </IconButton>
       {/each}
+      <IconButton title={m.system_plugins_title()} active={!$dashboardOpen && $tab === 'plugins'} onclick={() => goToTab('plugins')}>
+        <Icon name="puzzle" />
+      </IconButton>
     </div>
   {/if}
 

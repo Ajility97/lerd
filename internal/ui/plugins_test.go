@@ -108,7 +108,7 @@ func TestPluginEndpoint_Errors(t *testing.T) {
 
 func TestPluginFailureNotification(t *testing.T) {
 	n := pluginFailureNotification(plugins.Failure{Plugin: "echo", Surface: plugins.SurfaceHook, What: "site.linked", Error: "boom\nmore"})
-	if n.Kind != "plugin_failed" || n.URL != "#system/plugins" || n.Params["plugin"] != "echo" || n.Params["message"] != "boom" {
+	if n.Kind != "plugin_failed" || n.URL != "#plugins" || n.Params["plugin"] != "echo" || n.Params["message"] != "boom" {
 		t.Errorf("notification %+v", n)
 	}
 }
