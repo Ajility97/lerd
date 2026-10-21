@@ -6,6 +6,7 @@ import { presets } from '$stores/presets';
 import { services } from '$stores/services';
 import { serviceIcons } from '$stores/serviceIcons';
 import { sites } from '$stores/sites';
+import { accessMode } from '$stores/accessMode';
 
 const MARK = '<svg viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/></svg>';
 
@@ -50,10 +51,17 @@ describe('CommandPalette service marks', () => {
     expect(container.querySelector('.mark-glyph')?.getAttribute('class')).toContain('w-3.5');
   });
 
-  // Plugins live under System, so the palette goes straight to them.
-  it('offers the Plugins page and the catalog', () => {
-    render(CommandPalette);
+  // The palette goes straight to Plugins, but only where plugins may be
+  // installed: a remote dashboard without control would meet a refusal.
+  it('offers the Plugins page and the catalog only with control authority', () => {
+    accessMode.set({ localControl: true, local: true, lanExposed: false, checked: true });
+    const { unmount } = render(CommandPalette);
     expect(screen.getByText('Plugins')).toBeInTheDocument();
     expect(screen.getByText('Browse plugins')).toBeInTheDocument();
+    unmount();
+    accessMode.set({ localControl: false, local: false, lanExposed: true, checked: true });
+    render(CommandPalette);
+    expect(screen.queryByText('Plugins')).toBeNull();
+    expect(screen.queryByText('Browse plugins')).toBeNull();
   });
 });
