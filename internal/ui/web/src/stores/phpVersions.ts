@@ -101,6 +101,23 @@ export interface PhpInstallEvent {
   error?: string;
 }
 
+// readBuildStream turns a build's SSE stream into log lines and the final
+// done payload, shared by install and rebuild.
+async function readBuildStream(res: Response, onEvent: (e: PhpInstallEvent) => void): Promise<void> {
+  await readSSE(res, (event, data) => {
+    if (event === 'done') {
+      try {
+        const r = JSON.parse(data) as { ok?: boolean; version?: string; error?: string };
+        onEvent({ done: true, ok: Boolean(r.ok), version: r.version, error: r.error });
+      } catch {
+        onEvent({ done: true, ok: false, error: 'bad done payload' });
+      }
+    } else {
+      onEvent({ line: data });
+    }
+  });
+}
+
 // streamPhpInstall POSTs to the SSE endpoint and invokes onEvent for each build
 // log line and the final done payload. Mirrors streamWorktreeAdd. Pass a signal
 // to abort the client read when the modal closes; the server build continues and
@@ -114,18 +131,7 @@ export async function streamPhpInstall(
     method: 'POST',
     signal
   });
-  await readSSE(res, (event, data) => {
-    if (event === 'done') {
-      try {
-        const r = JSON.parse(data) as { ok?: boolean; version?: string; error?: string };
-        onEvent({ done: true, ok: Boolean(r.ok), version: r.version, error: r.error });
-      } catch {
-        onEvent({ done: true, ok: false, error: 'bad done payload' });
-      }
-    } else {
-      onEvent({ line: data });
-    }
-  });
+  await readBuildStream(res, onEvent);
 }
 
 // confirmPhpDownload asks before a PHP build spends bandwidth on the prebuilt
@@ -146,18 +152,7 @@ export async function streamPhpRebuild(
     method: 'POST',
     signal
   });
-  await readSSE(res, (event, data) => {
-    if (event === 'done') {
-      try {
-        const r = JSON.parse(data) as { ok?: boolean; version?: string; error?: string };
-        onEvent({ done: true, ok: Boolean(r.ok), version: r.version, error: r.error });
-      } catch {
-        onEvent({ done: true, ok: false, error: 'bad done payload' });
-      }
-    } else {
-      onEvent({ line: data });
-    }
-  });
+  await readBuildStream(res, onEvent);
 }
 
 // BaseImageStatus compares a version's image against the prebuilt base it was

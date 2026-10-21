@@ -1,5 +1,4 @@
-import { m } from '../paraglide/messages.js';
-import { apiFetch } from '$lib/api';
+import { postAction } from '$lib/api';
 
 export type XdebugMode =
   | 'debug'
@@ -20,20 +19,10 @@ export const XDEBUG_MODES: XdebugMode[] = [
   'gcstats'
 ];
 
-async function post(path: string): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await apiFetch(path, { method: 'POST' });
-    const data = (await res.json()) as { ok?: boolean; error?: string };
-    return { ok: Boolean(data.ok), error: data.error };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
-}
-
 export function xdebugOn(version: string, mode: XdebugMode) {
-  return post('/api/xdebug/' + encodeURIComponent(version) + '/on?mode=' + encodeURIComponent(mode));
+  return postAction('/api/xdebug/' + encodeURIComponent(version) + '/on?mode=' + encodeURIComponent(mode));
 }
 
 export function xdebugOff(version: string) {
-  return post('/api/xdebug/' + encodeURIComponent(version) + '/off');
+  return postAction('/api/xdebug/' + encodeURIComponent(version) + '/off');
 }

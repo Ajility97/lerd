@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { localTime } from '$lib/lensRows.svelte';
   import LensSearch from '$components/LensSearch.svelte';
   import { onMount, onDestroy, untrack } from 'svelte';
   import { get } from 'svelte/store';
@@ -92,10 +93,6 @@
 
   let expanded = $state<Record<string, boolean>>({});
   const toggleRow = (id: string) => (expanded[id] = !expanded[id]);
-  function localTime(ts: string): string {
-    const d = new Date(ts);
-    return isNaN(d.getTime()) ? ts : d.toLocaleTimeString();
-  }
 
   const ROSE = 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300';
   const AMBER = 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300';

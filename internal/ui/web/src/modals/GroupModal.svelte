@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SiteAction } from '$lib/siteAction.svelte';
   import { m } from '../paraglide/messages.js';
   import Modal from '$components/Modal.svelte';
   import DetailButton from '$components/DetailButton.svelte';
@@ -6,7 +7,7 @@
   import Icon from '$components/Icon.svelte';
   import Toggle from '$components/Toggle.svelte';
   import { closeModal } from '$stores/modals';
-  import { loadSites, sites, isGroupSecondary, type Site } from '$stores/sites';
+  import { sites, isGroupSecondary, type Site } from '$stores/sites';
   import {
     assignGroup,
     unassignGroup,
@@ -68,16 +69,7 @@
       seeded = true;
     }
   });
-  let loading = $state(false);
-  let error = $state('');
-  let flash = $state('');
-  let flashTimer: ReturnType<typeof setTimeout> | null = null;
-
-  function showFlash(msg: string) {
-    flash = msg;
-    if (flashTimer) clearTimeout(flashTimer);
-    flashTimer = setTimeout(() => (flash = ''), 3000);
-  }
+  const action = new SiteAction();
 
   // Mirror the backend git.SanitizeBranch so a label the UI accepts is one the
   // server's ValidateLabel will too (lowercase, [a-z0-9-], collapsed, 50 max).
@@ -114,27 +106,13 @@
     pickLabel = deriveLabel(current.name || '', m?.name || '');
   }
 
-  async function runAction(fn: () => Promise<{ ok: boolean; error?: string }>, successMsg: string) {
-    loading = true;
-    error = '';
-    try {
-      const r = await fn();
-      if (!r.ok) {
-        error = r.error || m.common_failed();
-        return;
-      }
-      await loadSites();
-      showFlash(successMsg);
-    } finally {
-      loading = false;
-    }
-  }
+  const runAction = (fn: () => Promise<{ ok: boolean; error?: string }>, msg: string) => action.run(fn, msg);
 
   async function addSecondary() {
     const label = sanitizeLabel(pickLabel);
     if (!pickDomain || !label) return;
     await runAction(() => assignGroup(current, pickDomain, label, pickShareDB), m.group_toastAdded());
-    if (!error) {
+    if (!action.error) {
       pickDomain = '';
       pickLabel = '';
       pickShareDB = false;
@@ -145,7 +123,7 @@
     const mainSite = $sites.find((x) => x.domain === pickMain);
     if (!mainSite || !label) return;
     await runAction(() => assignGroup(mainSite, current.domain, label, pickShareDB), m.group_toastGrouped());
-    if (!error) {
+    if (!action.error) {
       pickMain = '';
       pickLabel = '';
       pickShareDB = false;
@@ -170,7 +148,7 @@
       return;
     }
     await runAction(() => setGroupLabel(sec, label), m.group_toastSubdomainUpdated());
-    if (!error) cancelEdit();
+    if (!action.error) cancelEdit();
   }
   async function saveSelfLabel() {
     const label = sanitizeLabel(selfLabel);
@@ -182,7 +160,7 @@
   }
   async function unassignSelf() {
     await runAction(() => unassignGroup(current), m.group_toastRemoved());
-    if (!error) closeModal();
+    if (!action.error) closeModal();
   }
   async function dissolve() {
     await runAction(() => dissolveGroup(current), m.group_toastDissolved());
@@ -201,28 +179,28 @@
           bind:value={selfLabel}
           onkeydown={(e) => e.key === 'Enter' && saveSelfLabel()}
           placeholder={current.group_subdomain}
-          disabled={loading}
+          disabled={action.loading}
           class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-lerd-red/50"
         />
         <span class="text-sm text-gray-400 shrink-0">.{current.group_main_domain}</span>
         <DetailButton
           tone="primary"
           onclick={saveSelfLabel}
-          disabled={loading || !selfLabel.trim()}>{m.common_save()}</DetailButton>
+          disabled={action.loading || !selfLabel.trim()}>{m.common_save()}</DetailButton>
       </div>
       <div class="flex items-center justify-between gap-2 pt-1">
         <span class="text-sm text-gray-600 dark:text-gray-300">{m.group_shareMainDb()}</span>
         <Toggle
           on={Boolean(current.group_shared_db)}
           tone="violet"
-          {loading}
-          disabled={loading}
+          loading={action.loading}
+          disabled={action.loading}
           title={m.group_shareMainDbTitle()}
           onclick={() => toggleSharedDB(current)} />
       </div>
     </div>
     <div class="px-5 py-3 border-t border-gray-100 dark:border-lerd-border flex justify-end">
-      <DetailButton tone="danger" onclick={unassignSelf} disabled={loading}>{m.group_ungroupSite()}</DetailButton>
+      <DetailButton tone="danger" onclick={unassignSelf} disabled={action.loading}>{m.group_ungroupSite()}</DetailButton>
     </div>
   {:else}
     {#if ungrouped}
@@ -265,7 +243,7 @@
             </div>
             <button
               onclick={() => toggleSharedDB(sec)}
-              disabled={loading}
+              disabled={action.loading}
               class="text-[10px] font-medium px-1.5 py-0.5 rounded-sm shrink-0 transition-colors disabled:opacity-50 {sec.group_shared_db
                 ? 'text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20'
                 : 'text-gray-500 dark:text-gray-400 hover:text-violet-500'}"
@@ -282,7 +260,7 @@
             </button>
             <button
               onclick={() => remove(sec)}
-              disabled={loading}
+              disabled={action.loading}
               class="text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
               title={m.group_removeFromGroup()}
               aria-label={m.group_removeFromGroup()}>
@@ -296,9 +274,9 @@
                 if (e.key === 'Escape') cancelEdit();
               }}
               class="flex-1 text-sm font-mono bg-transparent border border-lerd-red/50 rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-lerd-red"
-              disabled={loading} />
+              disabled={action.loading} />
             <span class="text-sm text-gray-400 shrink-0">.{current.domain}</span>
-            <button onclick={() => saveEdit(sec)} disabled={loading} class="text-emerald-500 hover:text-emerald-600 disabled:opacity-50" title={m.common_save()} aria-label={m.common_save()}><Icon name="check" class="w-4 h-4" /></button>
+            <button onclick={() => saveEdit(sec)} disabled={action.loading} class="text-emerald-500 hover:text-emerald-600 disabled:opacity-50" title={m.common_save()} aria-label={m.common_save()}><Icon name="check" class="w-4 h-4" /></button>
             <button onclick={cancelEdit} class="text-gray-400 hover:text-gray-600" title={m.common_cancel()} aria-label={m.common_cancel()}><Icon name="close" class="w-4 h-4" /></button>
           {/if}
         </div>
@@ -313,7 +291,7 @@
           onchange={onPick}
           placeholder={m.group_pickSite()}
           width="full"
-          disabled={loading || candidates.length === 0} />
+          disabled={action.loading || candidates.length === 0} />
       </div>
       {#if pickDomain}
         <div class="flex items-center gap-2">
@@ -321,19 +299,19 @@
             bind:value={pickLabel}
             placeholder={m.group_subdomainPlaceholder()}
             onkeydown={(e) => e.key === 'Enter' && addSecondary()}
-            disabled={loading}
+            disabled={action.loading}
             class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-lerd-red/50" />
           <span class="text-sm text-gray-400 shrink-0">.{current.domain}</span>
-          <DetailButton tone="primary" onclick={addSecondary} disabled={loading || !pickLabel.trim()}>{m.common_add()}</DetailButton>
+          <DetailButton tone="primary" onclick={addSecondary} disabled={action.loading || !pickLabel.trim()}>{m.common_add()}</DetailButton>
         </div>
         <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-          <input type="checkbox" bind:checked={pickShareDB} disabled={loading} class="accent-lerd-red" />
+          <input type="checkbox" bind:checked={pickShareDB} disabled={action.loading} class="accent-lerd-red" />
           {m.group_shareDbCheckbox({ name: current.name || 'main' })}
         </label>
       {/if}
       {#if secondaries.length > 0}
         <div class="flex justify-end pt-1">
-          <DetailButton tone="danger" onclick={dissolve} disabled={loading}>{m.group_dissolve()}</DetailButton>
+          <DetailButton tone="danger" onclick={dissolve} disabled={action.loading}>{m.group_dissolve()}</DetailButton>
         </div>
       {/if}
     </div>
@@ -348,20 +326,20 @@
           onchange={onPickMain}
           placeholder={m.group_pickMain()}
           width="full"
-          disabled={loading || mainCandidates.length === 0} />
+          disabled={action.loading || mainCandidates.length === 0} />
         {#if pickMainSite}
           <div class="flex items-center gap-2">
             <input
               bind:value={pickLabel}
               placeholder={m.group_subdomainPlaceholder()}
               onkeydown={(e) => e.key === 'Enter' && groupUnderMain()}
-              disabled={loading}
+              disabled={action.loading}
               class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-lerd-red/50" />
             <span class="text-sm text-gray-400 shrink-0">.{pickMainSite.domain}</span>
-            <DetailButton tone="primary" onclick={groupUnderMain} disabled={loading || !pickLabel.trim()}>{m.group_groupAction()}</DetailButton>
+            <DetailButton tone="primary" onclick={groupUnderMain} disabled={action.loading || !pickLabel.trim()}>{m.group_groupAction()}</DetailButton>
           </div>
           <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer select-none">
-            <input type="checkbox" bind:checked={pickShareDB} disabled={loading} class="accent-lerd-red" />
+            <input type="checkbox" bind:checked={pickShareDB} disabled={action.loading} class="accent-lerd-red" />
             {m.group_shareDbCheckbox({ name: pickMainSite.name || 'main' })}
           </label>
         {/if}
@@ -369,14 +347,14 @@
     {/if}
   {/if}
 
-  {#if flash}
+  {#if action.flash}
     <div class="px-5 py-2 border-t border-gray-100 dark:border-lerd-border">
-      <p class="text-xs text-emerald-700 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-2 py-1.5 text-center">{flash}</p>
+      <p class="text-xs text-emerald-700 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-2 py-1.5 text-center">{action.flash}</p>
     </div>
   {/if}
-  {#if error}
+  {#if action.error}
     <div class="px-5 py-2 border-t border-gray-100 dark:border-lerd-border">
-      <p class="text-xs text-red-500">{error}</p>
+      <p class="text-xs text-red-500">{action.error}</p>
     </div>
   {/if}
 </Modal>

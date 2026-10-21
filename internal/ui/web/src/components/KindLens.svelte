@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { LensRows, localTime } from '$lib/lensRows.svelte';
   import LensSearch from '$components/LensSearch.svelte';
   import { onMount, onDestroy, untrack } from 'svelte';
   import { get } from 'svelte/store';
@@ -23,8 +24,7 @@
   import LensList from '$components/LensList.svelte';
   import LensGroupLabel from '$components/LensGroupLabel.svelte';
   import { groupLabel } from '$lib/eventGroup';
-  import { createLens, fetchEvent, fetchFacets, type FacetLists } from '$lib/lens';
-  import type { DumpEvent } from '$lib/dumpEvent';
+  import { createLens, fetchFacets, type FacetLists } from '$lib/lens';
   import { m } from '../paraglide/messages.js';
 
   interface Props {
@@ -146,29 +146,9 @@
     await lens.refresh();
   }
 
-  let expanded = $state<Record<string, boolean>>({});
-  // An opened row reads its whole event: the list leaves out the call stack
-  // and a mail's HTML.
-  let details = $state<Record<string, DumpEvent>>({});
-  function toggleRow(id: string) {
-    expanded[id] = !expanded[id];
-    if (!expanded[id]) delete details[id];
-    else if (!details[id]) fetchEvent(id).then((e) => (expanded[id] ? (details[id] = e) : undefined), () => {});
-  }
-  // A row that leaves the page lets go of its whole event, mail HTML included,
-  // and closes, so coming back it opens and reads it again.
-  $effect(() => {
-    const held = new Set($lensGroups.flatMap((g) => g.rows.map((r) => r.event.id)));
-    for (const id of Object.keys(details)) {
-      if (held.has(id)) continue;
-      delete details[id];
-      delete expanded[id];
-    }
-  });
-  function localTime(ts: string): string {
-    const d = new Date(ts);
-    return isNaN(d.getTime()) ? ts : d.toLocaleTimeString();
-  }
+  const rows = new LensRows();
+  const toggleRow = (id: string) => rows.toggle(id);
+  $effect(() => rows.keepOnly($lensGroups));
 
   const fmtMs = (n: number) => (n < 10 ? n.toFixed(2) : n.toFixed(1));
 
@@ -310,8 +290,8 @@
                   {:else if wireKind === 'message'}{#if d.to}<span class="text-[11px] text-gray-400 break-all">→ {d.to}</span>{/if}{#if d.transport}<span class="text-[10px] rounded-sm px-1 py-0.5 {SKY}">{d.transport}</span>{/if}<span class="text-[10px] rounded-sm px-1 py-0.5 {GREY}">{d.channel}</span>{/if}
                 </span>
               </button>
-              {#if expanded[ev.id]}
-                {@const full = (details[ev.id]?.data ?? {}) as Record<string, any>}
+              {#if rows.expanded[ev.id]}
+                {@const full = (rows.details[ev.id]?.data ?? {}) as Record<string, any>}
                 <div class="px-2.5 pb-2 pt-1 border-t border-gray-100 dark:border-lerd-border/50 text-[11px] space-y-1.5">
                   {#if wireKind === 'job' && d.exception}<div class="text-rose-600 dark:text-rose-400 break-all">{d.exception}</div>{/if}
                   {#if wireKind === 'job'}

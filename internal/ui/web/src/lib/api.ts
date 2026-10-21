@@ -1,3 +1,5 @@
+import { m } from '../paraglide/messages.js';
+
 export const apiBase =
   typeof location !== 'undefined' && location.hostname === 'lerd.localhost'
     ? 'http://localhost:7073'
@@ -76,4 +78,21 @@ export function wsUrl(path: string): string {
   const u = new URL(apiUrl(path), location.href);
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
   return u.toString();
+}
+
+export interface ActionResult {
+  ok: boolean;
+  error?: string;
+}
+
+// postAction POSTs to an action endpoint and folds a network failure into the
+// same { ok, error } shape the endpoint answers with.
+export async function postAction(path: string): Promise<ActionResult> {
+  try {
+    const res = await apiFetch(path, { method: 'POST' });
+    const data = (await res.json()) as { ok?: boolean; error?: string };
+    return { ok: Boolean(data.ok), error: data.error };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
+  }
 }
