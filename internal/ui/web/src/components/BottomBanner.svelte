@@ -15,9 +15,10 @@
     icon: Snippet;
     title: string;
     subtitle: string;
-    actionLabel: string;
+    // Left out when there is nothing to offer beyond the message.
+    actionLabel?: string;
     dismissLabel: string;
-    onAction: () => void;
+    onAction?: () => void;
     onDismiss: () => void;
   } = $props();
 </script>
@@ -29,10 +30,12 @@
       <p class="text-xs font-semibold text-sky-900 dark:text-sky-200">{title}</p>
       <p class="text-[11px] text-sky-700 dark:text-sky-300/80 mt-0.5">{subtitle}</p>
     </div>
-    <button
-      onclick={onAction}
-      class="shrink-0 inline-flex items-center text-xs font-medium bg-sky-600 hover:bg-sky-700 text-white rounded-sm px-3 py-1.5 transition-colors"
-    >{actionLabel}</button>
+    {#if actionLabel && onAction}
+      <button
+        onclick={onAction}
+        class="shrink-0 inline-flex items-center text-xs font-medium bg-sky-600 hover:bg-sky-700 text-white rounded-sm px-3 py-1.5 transition-colors"
+      >{actionLabel}</button>
+    {/if}
     <button
       onclick={onDismiss}
       title={dismissLabel}

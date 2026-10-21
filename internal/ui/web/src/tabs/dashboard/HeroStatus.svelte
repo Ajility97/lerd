@@ -11,25 +11,11 @@
     lerdStartDone,
     lerdStartTotal
   } from '$stores/lerdLifecycle';
+  import { startStepLabel as stepLabel } from '$lib/startStep';
   import { m } from '../../paraglide/messages.js';
 
-  // The stage ids the start stream emits, mapped to their own message. A unit
-  // name is shown as-is: it is the same identifier the CLI prints.
-  const startStepLabel = $derived.by(() => {
-    if ($lerdStartUnit) return $lerdStartUnit;
-    switch ($lerdStartStep) {
-      case 'preparing':
-        return m.dashboard_hero_startStep_preparing();
-      case 'images':
-        return m.dashboard_hero_startStep_images();
-      case 'units':
-        return m.dashboard_hero_startStep_units();
-      case 'dns':
-        return m.dashboard_hero_startStep_dns();
-      default:
-        return '';
-    }
-  });
+  // A unit name is shown as-is: it is the same identifier the CLI prints.
+  const startStepLabel = $derived($lerdStartUnit || stepLabel($lerdStartStep));
 
   const startButtonLabel = $derived.by(() => {
     if (!$lerdStarting) return m.dashboard_hero_startLerd();

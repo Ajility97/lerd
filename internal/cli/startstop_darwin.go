@@ -408,7 +408,7 @@ func startPodmanMachineIfNeeded() error {
 				if needsMemory {
 					if hostGiB > 0 && hostGiB <= 8 {
 						feedback.Line(fmt.Sprintf("Host has %d GB RAM; setting Podman Machine to %d MB (tight but workable)…", hostGiB, targetMemoryMiB))
-						feedback.Note("If sites slow down under load, run: podman machine set --memory 4096")
+						feedback.Note("If the VM runs out of memory, run: lerd machine memory 4")
 					} else {
 						feedback.Line(fmt.Sprintf("Setting Podman Machine memory to %d MB…", targetMemoryMiB))
 					}

@@ -21,12 +21,18 @@ func machineLastUpFile() string {
 
 // selectedMachineName mirrors ensurePodmanMachineRunning's selection order
 // (default-marked, else first) so inspect targets the VM lerd actually
-// uses. Returns "" when no machine exists yet.
+// uses. Returns "" when no machine exists yet or the list fails.
 func selectedMachineName() string {
-	out, err := podman.Cmd("machine", "list",
-		"--format", "{{.Name}}").Output()
+	name, _ := selectedMachine()
+	return name
+}
+
+// selectedMachine is selectedMachineName keeping the list's error, bounded so a
+// wedged VM cannot hang the caller.
+func selectedMachine() (string, error) {
+	out, err := machineQuery("machine", "list", "--format", "{{.Name}}")
 	if err != nil {
-		return ""
+		return "", err
 	}
 	var first, def string
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
@@ -44,9 +50,9 @@ func selectedMachineName() string {
 		}
 	}
 	if def != "" {
-		return def
+		return def, nil
 	}
-	return first
+	return first, nil
 }
 
 // currentMachineLastUp returns the LastUp of lerd's Podman Machine, or ""

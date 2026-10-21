@@ -23,6 +23,8 @@ export const lerdStartStep = writable<string>('');
 export const lerdStartUnit = writable<string>('');
 export const lerdStartDone = writable<number>(0);
 export const lerdStartTotal = writable<number>(0);
+// Why the last start stream failed, kept after it ends so the caller can say so.
+export const lerdStartError = writable<string>('');
 
 function resetStartProgress() {
   lerdStartStep.set('');
@@ -34,14 +36,28 @@ function resetStartProgress() {
 // lerdStart runs the same start as `lerd start` and reads its NDJSON progress
 // stream, so the button reports each stage and unit instead of hanging on a
 // request that can take minutes on a cold Podman machine.
-export async function lerdStart(): Promise<boolean> {
+export function lerdStart(): Promise<boolean> {
+  return streamStart('/api/lerd/start', { method: 'POST' });
+}
+
+// lerdResizeMachine restarts the Podman Machine with mib of memory; the start
+// that follows streams the same progress as lerdStart.
+export function lerdResizeMachine(mib: number): Promise<boolean> {
+  return streamStart('/api/machine/memory', { method: 'POST', body: JSON.stringify({ mib }) });
+}
+
+async function streamStart(url: string, init: RequestInit): Promise<boolean> {
   lerdStarting.set(true);
   resetStartProgress();
+  lerdStartError.set('');
   let done = 0;
   let ok = true;
   try {
-    const res = await apiFetch('/api/lerd/start', { method: 'POST' });
-    if (!res.ok || !res.body) return false;
+    const res = await apiFetch(url, init);
+    if (!res.ok || !res.body) {
+      lerdStartError.set((await res.text()).trim() || res.statusText);
+      return false;
+    }
     await readNDJSON<StartEvent>(res.body, (evt) => {
       switch (evt.phase) {
         case 'step':
@@ -55,12 +71,14 @@ export async function lerdStart(): Promise<boolean> {
           break;
         case 'failed':
           ok = false;
+          lerdStartError.set(evt.error ?? '');
           break;
       }
     });
     if (ok) await handOverToVhost();
     return ok;
-  } catch {
+  } catch (e) {
+    lerdStartError.set(e instanceof Error ? e.message : String(e));
     return false;
   } finally {
     lerdStarting.set(false);
