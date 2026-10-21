@@ -13,6 +13,7 @@ import (
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/plugins"
+	"github.com/geodro/lerd/internal/serviceops"
 	"github.com/geodro/lerd/internal/siteops"
 	"github.com/spf13/cobra"
 )
@@ -75,7 +76,7 @@ func NewPluginCmd() *cobra.Command {
 		Short: "Remove an installed plugin, keeping the data it stored",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			if err := plugins.Remove(args[0]); err != nil {
+			if err := serviceops.RemovePlugin(args[0]); err != nil {
 				return err
 			}
 			feedback.Done("Removed plugin " + args[0] + " (its data stays in " + plugins.DataDirFor(args[0]) + ")")

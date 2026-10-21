@@ -134,16 +134,18 @@ else
 	img=${img:-docker.io/library/redis:7.4-alpine}
 	write_plugin "$W/vmsvc" $'api_version: 1\nname: vmsvc\n'
 	mkdir -p "$W/vmsvc/services"
-	printf 'name: vmplugcache\nimage: %s\nports:\n  - "16399:6379"\ndescription: A cache the vmsvc plugin ships\n' "$img" >"$W/vmsvc/services/vmplugcache.yaml"
+	printf 'name: vmplugcache\nimage: %s\nports:\n  - "16399:6379"\ndata_dir: /data\ndescription: A cache the vmsvc plugin ships\n' "$img" >"$W/vmsvc/services/vmplugcache.yaml"
 	check "15.16 [partial] the plugin with a service installs" lerd plugin install "$W/vmsvc"
 	check_out "15.16 its service shows up in lerd service preset" 'vmplugcache' lerd service preset
 	check "15.16 [partial] the service installs" lerd service preset vmplugcache
 	check "15.16 [partial] the service starts" lerd service start vmplugcache
+	check_out "15.16 the service is marked as the plugin's" 'vmplugcache.*\[plugin vmsvc\]' lerd service list
 	check "15.16 the service answers" wait_for 60 bash -c 'podman exec lerd-vmplugcache redis-cli ping | grep -q PONG'
-	lerd plugin remove vmsvc </dev/null >/dev/null 2>&1
-	check_out "15.16 it stays installed when the plugin is removed" 'vmplugcache' lerd service list
-	check "15.16 [partial] it is removed on its own" lerd service remove vmplugcache
-	check_not "15.16 and then it is gone" 'vmplugcache' lerd service list
+	check "15.16 [partial] the plugin is removed" lerd plugin remove vmsvc
+	check_not "15.16 removing the plugin removed its service" 'vmplugcache' lerd service list
+	check_not "15.16 and its unit is stopped" '^active' systemctl --user is-active lerd-vmplugcache
+	check "15.16 its data is kept" test -d "$HOME/.local/share/lerd/data/vmplugcache"
+	lerd service remove vmplugcache --purge </dev/null >/dev/null 2>&1
 fi
 
 # A local catalog: a git repository of the plugin and an index naming one commit.

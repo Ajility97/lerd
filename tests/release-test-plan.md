@@ -1343,8 +1343,8 @@ prove what it draws through the API it reads.
       working
 - [ ] An endpoint that fails is recorded as the plugin's last failure
 - [ ] A service a plugin ships shows up in `lerd service preset`, installs,
-      starts and answers, and stays installed when the plugin is removed until
-      it is removed itself
+      starts and answers, is listed as the plugin's, and removing the plugin
+      stops and removes it while keeping its data
 - [ ] With `LERD_PLUGIN_CATALOG` on a local index, `lerd plugin search` lists
       its plugin, `lerd plugin install` puts in the approved commit and nothing
       newer, and `lerd plugin update` moves to a newly approved one

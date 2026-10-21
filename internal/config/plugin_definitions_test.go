@@ -174,3 +174,26 @@ func TestPluginDefinitionClashes_OwnInstalledCopyIsNotAClash(t *testing.T) {
 		t.Errorf("a second plugin shipping the same names clashes with the first, got %v", got)
 	}
 }
+
+// A service installed from a plugin's preset records the plugin, so removing
+// the plugin can take it and the dashboard can say where it came from; a
+// preset lerd serves itself records none, even when a plugin ships the name.
+func TestPluginPreset_ResolvedServiceRecordsItsPlugin(t *testing.T) {
+	storeSandbox(t)
+	pluginDefinitions(t, map[string]string{"services/queuebox.yaml": pluginPresetYAML})
+
+	p, err := LoadPreset("queuebox")
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc, err := p.Resolve("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if svc.Plugin != "acme" {
+		t.Errorf("Plugin = %q, want acme", svc.Plugin)
+	}
+	if got := PresetPlugin("mysql"); got != "" {
+		t.Errorf("PresetPlugin(mysql) = %q, want none for lerd's own preset", got)
+	}
+}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/plugins"
+	"github.com/geodro/lerd/internal/serviceops"
 	"github.com/geodro/lerd/internal/siteops"
 )
 
@@ -434,7 +435,7 @@ func handlePluginManager(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, managedPlugin{Name: p.Name, Version: p.Version, Description: p.Description, Adds: p.Surfaces(), Requires: p.Requirements()})
 	case r.Method == http.MethodDelete && name != "":
-		if err := plugins.Remove(name); err != nil {
+		if err := serviceops.RemovePlugin(name); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}

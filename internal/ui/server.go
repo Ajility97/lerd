@@ -1439,6 +1439,9 @@ type ServiceResponse struct {
 	// extra-ports affordance off this, not is_default, so every service we
 	// provide can publish extra ports while genuinely custom services can't.
 	PresetOwned bool `json:"preset_owned,omitempty"`
+	// Plugin is the plugin the service was installed from, which removing
+	// takes the service with it.
+	Plugin string `json:"plugin,omitempty"`
 	// Tunable is true when the service exposes a user-editable runtime config
 	// override (see config.ServiceTuningMount), so the UI can show a Tuning tab.
 	Tunable bool `json:"tunable,omitempty"`
@@ -1695,6 +1698,7 @@ func buildServiceResponseWithPortList(services map[string]config.ServiceConfig, 
 		EntityKinds:       serviceops.EntityKinds(name),
 		Custom:            custom != nil,
 		PresetOwned:       config.PresetExists(name),
+		Plugin:            serviceRecordPlugin(custom),
 		DefaultPort:       defaultPort,
 		DependsOn:         serviceops.DependencyDisplayNames(dependsOn),
 	}
@@ -7111,4 +7115,12 @@ func handleSettingsPHPRuntime(w http.ResponseWriter, r *http.Request) {
 		out["error"] = err.Error()
 	}
 	done(out)
+}
+
+// serviceRecordPlugin is the plugin a custom service came from, "" for the rest.
+func serviceRecordPlugin(svc *config.CustomService) string {
+	if svc == nil {
+		return ""
+	}
+	return svc.Plugin
 }

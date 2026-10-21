@@ -108,6 +108,19 @@ func readPresetBytes(name string) ([]byte, bool) {
 	return nil, false
 }
 
+// PresetPlugin names the plugin a preset comes from, "" when lerd's own layers
+// serve it, since those win over a plugin's of the same name.
+func PresetPlugin(name string) string {
+	if _, ok := readOwnPresetBytes(name); ok {
+		return ""
+	}
+	path := pluginDefinitionPath(PluginServices, name)
+	if path == "" {
+		return ""
+	}
+	return filepath.Base(filepath.Dir(filepath.Dir(path)))
+}
+
 // readOwnPresetBytes reads a preset from lerd's own layers, the store cache and
 // the embedded bundle, leaving out what plugins add.
 func readOwnPresetBytes(name string) ([]byte, bool) {

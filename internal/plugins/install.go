@@ -110,10 +110,14 @@ func place(stage, staged, want string, replace bool, src *Source) (*Plugin, erro
 	return ReadPlugin(dest)
 }
 
+// ValidName reports whether name can be a plugin's, and so a folder name
+// inside the plugins dir that climbs nowhere.
+func ValidName(name string) bool { return nameRe.MatchString(name) }
+
 // Remove deletes an installed plugin's folder, broken or not, and keeps the
 // data it stored in DataDirFor.
 func Remove(name string) error {
-	if !nameRe.MatchString(name) {
+	if !ValidName(name) {
 		return fmt.Errorf("invalid plugin name %q", name)
 	}
 	dir := filepath.Join(Dir(), name)

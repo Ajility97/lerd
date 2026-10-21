@@ -139,7 +139,7 @@ A service shows up in the service picker beside lerd's own and is installed from
 
 A plugin that ships a service must say in its README where each one comes from: the image it runs and the project that publishes it, so whoever installs the plugin knows what they are pulling before they pull it. The catalog only approves plugins that do.
 
-A plugin only adds names. One that ships a service or framework lerd already has, from itself, the store, your own definitions or another plugin, is refused at install with the names it clashes on. Should the store publish the same name later, the store's definition wins. Removing the plugin takes its definitions away, while a service you installed from it stays installed until you remove it.
+A plugin only adds names. One that ships a service or framework lerd already has, from itself, the store, your own definitions or another plugin, is refused at install with the names it clashes on. Should the store publish the same name later, the store's definition wins. A service installed from a plugin's definition is marked as that plugin's, as `[plugin <name>]` in `lerd service list` and "from plugin" on its dashboard card, and can still be removed on its own like any other. Removing the plugin takes its definitions away and stops and removes every service installed from them, so nothing it brought keeps running; each service's data is kept, the way `lerd service remove` keeps it, and goes with `lerd service remove <name> --purge` once the plugin is gone.
 
 ---
 
