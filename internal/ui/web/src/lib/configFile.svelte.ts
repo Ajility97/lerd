@@ -87,10 +87,13 @@ export class ConfigFile {
     const source = this.#source;
     const latest = this.latestBackup;
     if (!source || !latest) return;
+    // Bound before the read: a file switch while it is out must not move the
+    // restore's refresh onto the file shown by then.
+    const done = this.refreshLater();
     this.restoring = true;
     try {
       const content = await source.backup(latest.name);
-      open(latest.name, content, this.refreshLater());
+      open(latest.name, content, done);
     } catch (e: unknown) {
       this.actionError = errorText(e);
     } finally {

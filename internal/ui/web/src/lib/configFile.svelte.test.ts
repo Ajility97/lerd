@@ -129,3 +129,23 @@ describe('ConfigFile across a file switch', () => {
     expect(second.get).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('ConfigFile restore across a file switch', () => {
+  it('keeps the restore on the file whose backup it read when the switch lands mid read', async () => {
+    let resolveBackup!: (v: string) => void;
+    const first = source({ backup: vi.fn(() => new Promise<string>((r) => (resolveBackup = r))) });
+    const f = new ConfigFile();
+    await f.load(first);
+    const open = vi.fn();
+    const restoring = f.restore(open);
+    const second = source({ get: vi.fn().mockResolvedValue({ content: 'other', path: '/b', exists: true }) });
+    await f.load(second);
+    f.text = 'edited';
+    resolveBackup('older');
+    await restoring;
+    const done = open.mock.calls[0]?.[2] as (() => Promise<void>) | undefined;
+    await done?.();
+    expect(f.text).toBe('edited');
+    expect(second.get).toHaveBeenCalledTimes(1);
+  });
+});
