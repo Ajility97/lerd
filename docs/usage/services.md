@@ -118,6 +118,8 @@ The shift is decided at quadlet-write time, from whether the port can be bound r
 
 ### Which services the Overview shows
 
+The service cards fill as many columns as the Overview pane has room for, not the window: two until the pane is 48rem wide, three until 64rem, four beyond. A tiled window with the site list open keeps two wide cards rather than three or four narrow ones.
+
 The site Overview treats a service as in use when the project lists it in `.lerd.yaml`, when the env file names its container (`lerd-redis`), or when the site registry records that `lerd env` last wired it. Native sites and [host-proxy sites](host-proxy.md) reach services at `127.0.0.1`, so their env files name the loopback address; the registry record is what keeps those services on the Overview and out of the suggestion row. Container sites are read from the same record.
 
 A recorded service stays listed while its quadlet is installed, whether the container is running or stopped, and a custom service is included the same way. A service that is only recorded, not declared, has a declare button on its card rather than a remove button: declare it first, then remove it. Removing a service from the Overview is remembered, so the registry entry left behind does not put it back, and a service whose quadlet is gone leaves no badge behind. A site last wired by an older lerd has no record yet: run `lerd env` in the project once and the Overview lists the services that command wired.

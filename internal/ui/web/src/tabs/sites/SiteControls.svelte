@@ -501,8 +501,7 @@
       {/each}
     {/if}
 
-    <div class="flex-grow-1"></div>
-
+    <div class="ml-auto flex items-center gap-3 shrink-0">
     {#if canDoctor}
       <button
               type="button"
@@ -520,6 +519,7 @@
     {/if}
 
     <CommandsDropdown domain={site.domain} branch={activeWorktreeBranch} />
+    </div>
   </div>
   </div>
 </div>

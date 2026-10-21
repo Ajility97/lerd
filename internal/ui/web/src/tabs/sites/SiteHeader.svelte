@@ -53,6 +53,8 @@
   import GitStatusBadge from '$components/GitStatusBadge.svelte';
   import GitSync from '$components/GitSync.svelte';
   import BrowserLogsSiteToggle from '$components/BrowserLogsSiteToggle.svelte';
+  import DumpBridgeToggle from '$components/DumpBridgeToggle.svelte';
+  import ProfilerToggle from '$components/ProfilerToggle.svelte';
   import PagePluginsMenu from '$components/PagePluginsMenu.svelte';
   import { debugCaptureEnabled } from '$stores/queries';
   import { loadGitStatus, checkoutFor, gitDirty, type GitCheckout } from '$lib/gitStatus';
@@ -754,6 +756,14 @@
           onToggleLan={flipLAN}
           visibleClass="hidden @2xl:flex"
         />
+      {/if}
+
+      <!-- These switches sit in the site list's header; with the list hidden they come here, beside Xdebug. -->
+      {#if $sidePanelHidden && $isDesktop && $accessMode.localControl}
+        <div class="hidden @md:flex items-center">
+          <span class="w-8 h-8 flex items-center justify-center"><DumpBridgeToggle /></span>
+          <span class="w-8 h-8 flex items-center justify-center"><ProfilerToggle /></span>
+        </div>
       {/if}
 
       {#if showXdebug && !site.paused}
