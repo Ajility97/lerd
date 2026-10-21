@@ -71,7 +71,7 @@ const engine: DatabaseEngine = {
   ]
 };
 
-const svc = { name: 'mysql', is_database: true } as Service;
+const svc = { name: 'mysql', status: 'active', is_database: true } as Service;
 
 const {
   loadAutoSnapshot,
@@ -79,7 +79,8 @@ const {
   loadEngine,
   keepSnapshot,
   deleteSnapshot,
-  restoreSnapshot
+  restoreSnapshot,
+  keepServiceAwake
 } = vi.hoisted(
   () => ({
     loadAutoSnapshot: vi.fn(async () => {}),
@@ -87,9 +88,14 @@ const {
     loadEngine: vi.fn(async () => {}),
     keepSnapshot: vi.fn(async () => ({ ok: true })),
     deleteSnapshot: vi.fn(async () => ({ ok: true })),
-    restoreSnapshot: vi.fn(async () => ({ ok: true }))
+    restoreSnapshot: vi.fn(async () => ({ ok: true })),
+    keepServiceAwake: vi.fn(() => () => {})
   })
 );
+vi.mock('$stores/dashboard', async (orig) => {
+  const actual = (await orig()) as object;
+  return { ...actual, keepServiceAwake };
+});
 vi.mock('$stores/autoSnapshot', async (orig) => {
   const actual = (await orig()) as object;
   return { ...actual, loadAutoSnapshot, saveAutoSnapshot };
@@ -127,6 +133,8 @@ describe('ServiceSnapshotsTab', () => {
     keepSnapshot.mockClear();
     deleteSnapshot.mockClear();
     restoreSnapshot.mockClear();
+    loadEngine.mockClear();
+    keepServiceAwake.mockClear();
     autoSnapshot.set(structuredClone(policy));
     databases.set([engine]);
   });
@@ -348,5 +356,28 @@ describe('ServiceSnapshotsTab', () => {
     await waitFor(() =>
       expect(keepSnapshot).toHaveBeenCalledWith('mysql', 'shop_db', 'auto-20260720-100000', true)
     );
+  });
+
+  // An asleep engine lists no databases, so the tab wakes it and only asks for
+  // its snapshots once it is ready, rather than reporting none.
+  it('wakes a sleeping engine and loads its snapshots once it is ready', async () => {
+    databases.set([]);
+    const sleeping = { ...svc, status: 'inactive', idle_suspended: true } as Service;
+    const { getByText, queryByText, rerender } = render(ServiceSnapshotsTab, { props: { svc: sleeping } });
+    expect(keepServiceAwake).toHaveBeenCalledWith('mysql');
+    expect(loadEngine).not.toHaveBeenCalled();
+    expect(getByText('Loading...')).toBeInTheDocument();
+    expect(queryByText('No snapshots yet.')).toBeNull();
+
+    await rerender({ svc });
+    await waitFor(() => expect(loadEngine).toHaveBeenCalledWith('mysql'));
+  });
+
+  it('asks to start a stopped engine instead of reporting no snapshots', () => {
+    databases.set([]);
+    const stopped = { ...svc, status: 'inactive' } as Service;
+    const { getByText } = render(ServiceSnapshotsTab, { props: { svc: stopped } });
+    expect(getByText('Start the engine to view its databases.')).toBeInTheDocument();
+    expect(loadEngine).not.toHaveBeenCalled();
   });
 });
