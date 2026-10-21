@@ -180,7 +180,8 @@ rid_of() { curl -ks -D - -o /dev/null --max-time 30 "https://$host/" "$@" | tr -
 recent_since() { ui "http://127.0.0.1:7073/api/sites/$host/analytics?range=1h" | python3 -c "import json,sys; rows=[r for r in json.load(sys.stdin)['recent'] if r['at_millis']>$1]; sys.exit(0 if rows and $2 else 1)"; }
 fpms() { podman ps --format '{{.Names}}' | grep -E '^lerd-php[0-9]+-fpm$'; }
 spx_dir=$HOME/.local/share/lerd/spx
-started=$(date +%s%3N)
+# %3N is GNU only: uutils date (Ubuntu 26.04) prints full nanoseconds.
+started=$(( $(date +%s%N) / 1000000 ))
 
 lerd dump on </dev/null >/dev/null 2>&1
 rid=$(rid_of)
@@ -188,7 +189,7 @@ check_out "10.91 a PHP response names its request in X-Lerd-Rid" '^[0-9a-f]{8,64
 check "10.91 the request's captured events carry that id" wait_for 15 bash -c "curl -s 'http://127.0.0.1:7073/api/dumps?rid=$rid' | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin) else 1)'"
 check "10.91 its Recent requests row carries the id and a clean path" wait_for 30 recent_since "$started" "any(r.get('rid')=='$rid' and r['uri']=='/' for r in rows)"
 lerd dump off </dev/null >/dev/null 2>&1
-off=$(date +%s%3N)
+off=$(( $(date +%s%N) / 1000000 ))
 curl -ks -o /dev/null --max-time 30 "https://$host/"
 check "10.91 with capture off the path stays clean" wait_for 30 recent_since "$off" "all('|' not in r['uri'] and not r.get('rid') for r in rows)"
 
