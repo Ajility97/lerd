@@ -256,16 +256,7 @@ func StopAllPublicShares() {
 // The proxy derives the public-facing host from the incoming Host header, so the
 // same implementation serves a LAN IP or a public hostname alike.
 func startPublicShareProxyFor(domain string, port int, secured bool) (*http.Server, error) {
-	cfg, _ := config.LoadGlobal()
-	httpPort, httpsPort := 80, 443
-	if cfg != nil {
-		if cfg.Nginx.HTTPPort != 0 {
-			httpPort = cfg.Nginx.HTTPPort
-		}
-		if cfg.Nginx.HTTPSPort != 0 {
-			httpsPort = cfg.Nginx.HTTPSPort
-		}
-	}
+	httpPort, httpsPort := config.NginxPorts()
 	return startLANShareProxy(domain, port, httpPort, httpsPort, secured, reachPublic)
 }
 

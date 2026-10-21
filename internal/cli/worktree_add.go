@@ -611,6 +611,14 @@ func worktreePathForBranch(site *config.Site, branch string) (string, error) {
 // list, so the worktree-add prompt can offer asset workers the user hasn't
 // explicitly opted into yet.
 func EligibleBuildReplacers(site *config.Site, path string) []string {
+	return buildReplacersAt(site, path, nil)
+}
+
+// buildReplacersAt filters the site's framework workers down to those that can
+// provide assets at path: replaces_build, per_worktree for a worktree, a
+// matching Check rule and a supported platform. wanted, when set, narrows the
+// pick to those names.
+func buildReplacersAt(site *config.Site, path string, wanted map[string]bool) []string {
 	if site.Framework == "" {
 		return nil
 	}
@@ -621,7 +629,7 @@ func EligibleBuildReplacers(site *config.Site, path string) []string {
 	isWorktree := path != site.Path
 	var out []string
 	for name, w := range fw.Workers {
-		if !w.ReplacesBuild {
+		if !w.ReplacesBuild || (wanted != nil && !wanted[name]) {
 			continue
 		}
 		if isWorktree && !w.IsPerWorktree() {
@@ -639,18 +647,9 @@ func EligibleBuildReplacers(site *config.Site, path string) []string {
 	return out
 }
 
-// OptedInBuildReplacers returns names of workers (a) opted into via
-// .lerd.yaml workers:, (b) declared replaces_build:true in the framework
-// yaml, and (c) able to run at the given path. When path != site.Path the
-// per_worktree:true gate applies; for the parent it doesn't.
-func OptedInBuildReplacers(site *config.Site, path string) []string {
-	if site.Framework == "" {
-		return nil
-	}
-	fw, ok := config.GetFrameworkForDir(site.Framework, site.Path)
-	if !ok {
-		return nil
-	}
+// optedInWorkerNames returns the worker names the site's .lerd.yaml opts into,
+// or nil when it opts into none.
+func optedInWorkerNames(site *config.Site) map[string]bool {
 	proj, _ := config.LoadProjectConfig(site.Path)
 	if proj == nil || len(proj.Workers) == 0 {
 		return nil
@@ -659,25 +658,19 @@ func OptedInBuildReplacers(site *config.Site, path string) []string {
 	for _, n := range proj.Workers {
 		wanted[n] = true
 	}
-	isWorktree := path != site.Path
-	var out []string
-	for name, w := range fw.Workers {
-		if !wanted[name] || !w.ReplacesBuild {
-			continue
-		}
-		if isWorktree && !w.IsPerWorktree() {
-			continue
-		}
-		if w.Check != nil && !config.MatchesRule(path, *w.Check) {
-			continue
-		}
-		if ok, _ := workerSupportedOnPlatform(w); !ok {
-			continue
-		}
-		out = append(out, name)
+	return wanted
+}
+
+// OptedInBuildReplacers returns names of workers (a) opted into via
+// .lerd.yaml workers:, (b) declared replaces_build:true in the framework
+// yaml, and (c) able to run at the given path. When path != site.Path the
+// per_worktree:true gate applies; for the parent it doesn't.
+func OptedInBuildReplacers(site *config.Site, path string) []string {
+	wanted := optedInWorkerNames(site)
+	if wanted == nil {
+		return nil
 	}
-	sort.Strings(out)
-	return out
+	return buildReplacersAt(site, path, wanted)
 }
 
 // AutoStartOptedInWorktreeWorkers writes (and starts, on Linux) every
@@ -759,13 +752,9 @@ func OptedInHostWorkers(site *config.Site, worktreePath string) []string {
 	if !ok {
 		return nil
 	}
-	proj, _ := config.LoadProjectConfig(site.Path)
-	if proj == nil || len(proj.Workers) == 0 {
+	wanted := optedInWorkerNames(site)
+	if wanted == nil {
 		return nil
-	}
-	wanted := make(map[string]bool, len(proj.Workers))
-	for _, n := range proj.Workers {
-		wanted[n] = true
 	}
 	var out []string
 	for name, w := range fw.Workers {

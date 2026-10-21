@@ -219,7 +219,9 @@ func resolveDBLenient(cwd, flagService, flagDatabase string) (*dbEnv, error) {
 	return env, nil
 }
 
-func loadDBEnv(cwd string) (*dbEnv, error) {
+// readDBEnvValues reads the site's .env into a plain key/value map, quotes
+// stripped, for working out which database it talks to.
+func readDBEnvValues(cwd string) (map[string]string, error) {
 	envPath := filepath.Join(cwd, ".env")
 	f, err := os.Open(envPath)
 	if err != nil {
@@ -238,6 +240,14 @@ func loadDBEnv(cwd string) (*dbEnv, error) {
 		vals[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"'`)
 	}
 	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return vals, nil
+}
+
+func loadDBEnv(cwd string) (*dbEnv, error) {
+	vals, err := readDBEnvValues(cwd)
+	if err != nil {
 		return nil, err
 	}
 
@@ -751,24 +761,8 @@ func parseDBURL(rawURL string) *dbEnv {
 
 // loadDBEnvLenient reads DB connection info from .env without requiring DB_DATABASE.
 func loadDBEnvLenient(cwd string) (*dbEnv, error) {
-	envPath := filepath.Join(cwd, ".env")
-	f, err := os.Open(envPath)
+	vals, err := readDBEnvValues(cwd)
 	if err != nil {
-		return nil, fmt.Errorf("no .env found in %s", cwd)
-	}
-	defer f.Close()
-
-	vals := map[string]string{}
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "#") || !strings.Contains(line, "=") {
-			continue
-		}
-		k, v, _ := strings.Cut(line, "=")
-		vals[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"'`)
-	}
-	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
 

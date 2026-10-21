@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/feedback"
@@ -70,25 +69,6 @@ func newXdebugStatusCmd() *cobra.Command {
 	}
 }
 
-func xdebugVersion(args []string) (string, error) {
-	if len(args) == 1 {
-		return args[0], nil
-	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-	v, err := phpDet.DetectVersion(cwd)
-	if err != nil {
-		cfg, err := config.LoadGlobal()
-		if err != nil {
-			return "", err
-		}
-		return cfg.PHP.DefaultVersion, nil
-	}
-	return v, nil
-}
-
 // xdebugRestartTarget names what the toggle restarts so a message points at the
 // thing that actually serves requests on this runtime.
 func xdebugRestartTarget(version, mode string) string {
@@ -105,7 +85,7 @@ func xdebugRestartsSiteContainers(mode string) bool {
 }
 
 func runXdebugToggle(args []string, enable bool, mode, start string) error {
-	version, err := xdebugVersion(args)
+	version, err := phpExtVersion(args)
 	if err != nil {
 		return err
 	}

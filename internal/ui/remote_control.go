@@ -11,6 +11,7 @@ import (
 
 	lerdcli "github.com/geodro/lerd/internal/cli"
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/lanip"
 	"github.com/geodro/lerd/internal/nginx"
 	"github.com/geodro/lerd/internal/platform"
 	"golang.org/x/crypto/bcrypt"
@@ -404,7 +405,7 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		lanIP := ""
 		if exposed {
-			lanIP = uiPrimaryLANIP()
+			lanIP = lanip.Primary()
 		}
 		writeJSON(w, map[string]any{
 			"exposed":            exposed,
@@ -520,31 +521,6 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-}
-
-// uiPrimaryLANIP duplicates the dial-trick from cli/dns.go because importing
-// cli from ui would risk a cycle. Cheap.
-func uiPrimaryLANIP() string {
-	conn, err := net.Dial("udp4", "1.1.1.1:80")
-	if err == nil {
-		defer conn.Close()
-		return conn.LocalAddr().(*net.UDPAddr).IP.String()
-	}
-	ifaces, _ := net.Interfaces()
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, _ := iface.Addrs()
-		for _, addr := range addrs {
-			if ipnet, ok := addr.(*net.IPNet); ok {
-				if v4 := ipnet.IP.To4(); v4 != nil && !v4.IsLoopback() {
-					return v4.String()
-				}
-			}
-		}
-	}
-	return ""
 }
 
 // handleRemoteControl serves /api/remote-control. The middleware already
@@ -685,7 +661,7 @@ func handleRemoteSetupGenerate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	lanIP := uiPrimaryLANIP()
+	lanIP := lanip.Primary()
 	target := lanIP
 	if target == "" {
 		target = "<server-ip>"

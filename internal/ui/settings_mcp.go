@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"encoding/json"
 	"net/http"
 	"os"
 
@@ -22,24 +21,17 @@ var (
 // handleSettingsMCP registers lerd's MCP server with every supported AI
 // assistant, or removes it, exactly as mcp:enable-global and mcp:disable-global do.
 func handleSettingsMCP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
+	enabled, ok := readEnabledBody(w, r)
+	if !ok {
 		return
 	}
 	apply := mcpDisable
-	if body.Enabled {
+	if enabled {
 		apply = mcpEnable
 	}
 	if err := apply(); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "mcp_global": body.Enabled})
+	writeJSON(w, map[string]any{"ok": true, "mcp_global": enabled})
 }

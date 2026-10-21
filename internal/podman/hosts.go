@@ -3,7 +3,6 @@ package podman
 import (
 	"bytes"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/lanip"
 )
 
 // Fallback for podman rootless + pasta/netavark/slirp4netns when no other
@@ -168,7 +168,7 @@ func probeReachableHostIP() string {
 	if !ContainerRunningQuiet("lerd-nginx") {
 		return ""
 	}
-	for _, ip := range hostCandidates(parseHostGatewayFromExec("lerd-nginx"), primaryLANIP()) {
+	for _, ip := range hostCandidates(parseHostGatewayFromExec("lerd-nginx"), lanip.Primary()) {
 		if probeHostFromNginx(ip, hostProbePort) {
 			return ip
 		}
@@ -415,33 +415,4 @@ func outputWithTimeout(cmd *exec.Cmd, timeout time.Duration) ([]byte, error) {
 		<-done
 		return nil, fmt.Errorf("%s timed out after %s", cmd.Path, timeout)
 	}
-}
-
-// primaryLANIP returns the local IPv4 address that the kernel would use to
-// reach a public destination. Duplicates internal/dns/setup_common.go's
-// helper because importing dns from podman would create a cycle.
-func primaryLANIP() string {
-	conn, err := net.Dial("udp4", "1.1.1.1:80")
-	if err == nil {
-		defer conn.Close()
-		return conn.LocalAddr().(*net.UDPAddr).IP.String()
-	}
-	ifaces, ifErr := net.Interfaces()
-	if ifErr != nil {
-		return ""
-	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, _ := iface.Addrs()
-		for _, addr := range addrs {
-			if ipnet, ok := addr.(*net.IPNet); ok {
-				if v4 := ipnet.IP.To4(); v4 != nil && !v4.IsLoopback() {
-					return v4.String()
-				}
-			}
-		}
-	}
-	return ""
 }

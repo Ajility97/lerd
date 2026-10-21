@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/geodro/lerd/internal/cfgedit"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/podman"
 )
@@ -168,37 +169,7 @@ func restoreTuningSnapshot(name string, snap tuningSnapshot) error {
 // tuning/ for *.conf, and same-filesystem renames remain atomic because
 // both directories live under DataDir().
 func writeTuningFileAtomic(path string, data []byte, mode os.FileMode) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("creating tuning dir: %w", err)
-	}
-	stageDir := config.ServiceTuningBkpDir()
-	if err := os.MkdirAll(stageDir, 0o755); err != nil {
-		return fmt.Errorf("creating stage dir: %w", err)
-	}
-	tmp, err := os.CreateTemp(stageDir, filepath.Base(path)+".tmp.*")
-	if err != nil {
-		return fmt.Errorf("creating temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("writing temp file: %w", err)
-	}
-	if err := tmp.Chmod(mode); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("chmod temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("closing temp file: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("renaming into place: %w", err)
-	}
-	return nil
+	return cfgedit.File{Path: path, BkpDir: config.ServiceTuningBkpDir()}.StagedWrite(data, mode)
 }
 
 // uniqueTuningBackupPath returns a backup path inside the shared backup

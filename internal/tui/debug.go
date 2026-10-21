@@ -429,25 +429,9 @@ func appendGroupedLens(m *Model, focused bool, innerW int, out []string) ([]stri
 	cursorLine := len(out)
 	row := 0
 	for _, g := range groups {
-		meta := fmt.Sprintf("  %s · %d", shortTime(g.ts), len(g.events))
-		if g.worker != "" {
-			meta = "  worker" + meta
-		}
-		head := "  " + accentStyle.Render(g.label) + dimStyle.Render(meta)
-		if g.nPlusOne {
-			head += "  " + failingStyle.Render("N+1")
-		}
-		add(head)
+		add(debugGroupHead(g))
 
-		var dup map[string]int
-		if kind == lerddumps.KindQuery {
-			dup = map[string]int{}
-			for _, ev := range g.events {
-				if q, ok := ev.Query(); ok {
-					dup[normalizeSQL(q.SQL)]++
-				}
-			}
-		}
+		dup := repeatedQueries(kind, g.events)
 
 		for _, ev := range g.events {
 			marker := "  "
@@ -826,4 +810,33 @@ func fmtMS(n float64) string {
 		return fmt.Sprintf("%.2f", n)
 	}
 	return fmt.Sprintf("%.1f", n)
+}
+
+// debugGroupHead is a request group's heading line: its label, when it ran,
+// how many events it holds, and an N+1 flag.
+func debugGroupHead(g debugGroup) string {
+	meta := fmt.Sprintf("  %s · %d", shortTime(g.ts), len(g.events))
+	if g.worker != "" {
+		meta = "  worker" + meta
+	}
+	head := "  " + accentStyle.Render(g.label) + dimStyle.Render(meta)
+	if g.nPlusOne {
+		head += "  " + failingStyle.Render("N+1")
+	}
+	return head
+}
+
+// repeatedQueries counts each normalised SQL statement in a query group, so a
+// row can flag the ones that ran more than once. Nil for other kinds.
+func repeatedQueries(kind string, events []lerddumps.Event) map[string]int {
+	if kind != lerddumps.KindQuery {
+		return nil
+	}
+	dup := map[string]int{}
+	for _, ev := range events {
+		if q, ok := ev.Query(); ok {
+			dup[normalizeSQL(q.SQL)]++
+		}
+	}
+	return dup
 }

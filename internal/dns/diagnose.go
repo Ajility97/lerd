@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/lanip"
 	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/services"
 	"github.com/geodro/lerd/pkg/distro"
@@ -477,7 +478,7 @@ func dnsmasqFound(lookPath func(string) (string, error), fallbacks []string) boo
 func defaultLanExposedIP() string {
 	cfg, _ := config.LoadGlobal()
 	if cfg != nil && cfg.LAN.Exposed {
-		return primaryLANIP()
+		return lanip.Primary()
 	}
 	return ""
 }

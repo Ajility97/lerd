@@ -602,68 +602,7 @@ const pausedPageHTML = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Site Paused — Lerd</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body {
-      background: #0f1117;
-      color: #e5e7eb;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-    }
-    .card {
-      background: #1a1d27;
-      border: 1px solid #2d3142;
-      border-radius: 14px;
-      padding: 2.5rem 3rem;
-      max-width: 420px;
-      width: calc(100% - 2rem);
-      text-align: center;
-    }
-    .logo {
-      width: 48px;
-      height: 48px;
-      margin: 0 auto 1.25rem;
-      background: #FF2D20;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 1.2rem;
-      color: #fff;
-    }
-    h1 { font-size: 1.2rem; font-weight: 600; margin: 0 0 0.5rem; }
-    .host {
-      font-size: 0.85rem;
-      color: #FF2D20;
-      font-family: ui-monospace, 'Cascadia Code', monospace;
-      margin: 0 0 1rem;
-      word-break: break-all;
-    }
-    p {
-      font-size: 0.85rem;
-      color: #9ca3af;
-      margin: 0 0 1.5rem;
-      line-height: 1.5;
-    }
-    .actions { display: flex; gap: 0.5rem; }
-    a, button {
-      flex: 1;
-      display: inline-block;
-      text-decoration: none;
-      text-align: center;
-      border-radius: 8px;
-      padding: 0.6rem 0;
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.15s;
-      border: none;
-    }
-    .btn-primary { background: #FF2D20; color: #fff; }
+` + nginx.StatusPageFrameCSS + nginx.StatusPageTextCSS + nginx.StatusPageButtonCSS + `    .btn-primary { background: #FF2D20; color: #fff; }
     .btn-primary:hover:not(:disabled) { background: #e02419; }
     .btn-primary:disabled { background: #374151; cursor: not-allowed; color: #9ca3af; }
     .btn-secondary { background: #262a36; color: #e5e7eb; border: 1px solid #2d3142; }
@@ -734,27 +673,7 @@ var wakingPageHTML = `<!DOCTYPE html>
   <meta http-equiv="refresh" content="1">
   <title>Waking up</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body {
-      background: #0f1117;
-      color: #e5e7eb;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-    }
-    .card {
-      background: #1a1d27;
-      border: 1px solid #2d3142;
-      border-radius: 14px;
-      padding: 2.5rem 3rem;
-      max-width: 420px;
-      width: calc(100% - 2rem);
-      text-align: center;
-    }
-    .spinner {
+` + nginx.StatusPageFrameCSS + `    .spinner {
       width: 40px;
       height: 40px;
       margin: 0 auto 1.25rem;

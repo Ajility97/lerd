@@ -164,16 +164,10 @@ const streamReplayLimit = 3000
 // log SSE pattern. Snapshot of buffered events is replayed up front so the
 // browser tab loads with the recent history visible.
 func handleDumpsStream(w http.ResponseWriter, r *http.Request) {
-	flusher, ok := w.(http.Flusher)
+	flusher, ok := openEventStream(w)
 	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
 
 	_, _ = io.WriteString(w, ": connected\n\n")
 	flusher.Flush()
@@ -309,27 +303,7 @@ func handleDumpsClear(w http.ResponseWriter, r *http.Request) {
 // dumpsops.SetPassthrough. It requires dashboard-control authority because it
 // restarts every installed FPM container.
 func handleDumpsPassthrough(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	if !hasHostActionAuthority(r) {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	var req struct {
-		Enable bool `json:"enable"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-	res, err := dumpsops.SetPassthrough(req.Enable)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, res)
+	serveHostToggle(w, r, dumpsops.SetPassthrough)
 }
 
 // handleDumpsNotifyChanged is a CLI-callable ping. The CLI mutates dump
@@ -390,25 +364,5 @@ func handleDumpsBuffer(w http.ResponseWriter, r *http.Request) {
 // handleDumpsToggle flips Dumps.Enabled by delegating to dumpsops.Apply,
 // then returns the post-state JSON. It requires dashboard-control authority.
 func handleDumpsToggle(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	if !hasHostActionAuthority(r) {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	var req struct {
-		Enable bool `json:"enable"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-	res, err := dumpsops.Apply(req.Enable)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, res)
+	serveHostToggle(w, r, dumpsops.Apply)
 }

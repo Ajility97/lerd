@@ -1060,7 +1060,6 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			} else {
 				envApplyLine(svc, detectedFromEnv)
 			}
-			isDB := svc == "mysql" || svc == "postgres"
 			for _, kv := range def.Vars {
 				k, v, _ := strings.Cut(kv, "=")
 				updates[k] = applySiteHandle(v, tplCtx)
@@ -1069,49 +1068,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				continue
 			}
 			wired[svc] = true
-			if isDB {
-				if err := ensureServiceRunning(svc); err != nil {
-					provisionErrs = append(provisionErrs, fmt.Errorf("%s did not start, so its databases were not created: %w", svc, err))
-				} else {
-					for _, name := range []string{dbName, dbName + "_testing"} {
-						created, err := createDatabase(svc, name)
-						if err != nil {
-							provisionErrs = append(provisionErrs, fmt.Errorf("database %q: %w", name, err))
-						} else if created {
-							envInfo("  Created database %q\n", name)
-						} else {
-							envInfo("  Database %q already exists\n", name)
-						}
-					}
-				}
-				continue
-			}
-			if svc == "rustfs" {
-				// Always sanitise through s3BucketName: rustfs/S3 reject underscores,
-				// uppercase, etc. A historical invalid value in .env (from an older
-				// lerd, a Sail import, or manual edit) gets auto-healed on this run.
-				bucketName := s3BucketName(envMap["AWS_BUCKET"])
-				if bucketName == "lerd" {
-					bucketName = s3BucketName(dbName)
-				}
-				updates["AWS_BUCKET"] = bucketName
-				updates["AWS_URL"] = "http://localhost:9000/" + bucketName
-				if err := ensureServiceRunning(svc); err != nil {
-					feedback.Warn("could not start %s: %v", svc, err)
-				}
-				created, err := createS3Bucket(bucketName)
-				if err != nil {
-					provisionErrs = append(provisionErrs, fmt.Errorf("bucket %q: %w", bucketName, err))
-				} else if created {
-					envInfo("  Created bucket %q\n", bucketName)
-				} else {
-					envInfo("  Bucket %q already exists\n", bucketName)
-				}
-				continue
-			}
-			if err := ensureServiceRunning(svc); err != nil {
-				feedback.Warn("could not start %s: %v", svc, err)
-			}
+			provisionErrs = append(provisionErrs, provisionWiredService(svc, dbName, envMap, updates)...)
 		}
 	} else {
 		// Default Laravel-style detection.
@@ -1149,55 +1106,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				continue
 			}
 			wired[svc] = true
-
-			if isDB {
-				if err := ensureServiceRunning(svc); err != nil {
-					provisionErrs = append(provisionErrs, fmt.Errorf("%s did not start, so its databases were not created: %w", svc, err))
-				} else {
-					for _, name := range []string{dbName, dbName + "_testing"} {
-						created, err := createDatabase(svc, name)
-						if err != nil {
-							provisionErrs = append(provisionErrs, fmt.Errorf("database %q: %w", name, err))
-						} else if created {
-							envInfo("  Created database %q\n", name)
-						} else {
-							envInfo("  Database %q already exists\n", name)
-						}
-					}
-				}
-				continue
-			}
-
-			if svc == "rustfs" {
-				// Always sanitise through s3BucketName: rustfs/S3 reject underscores,
-				// uppercase, etc. A historical invalid value in .env (from an older
-				// lerd, a Sail import, or manual edit) gets auto-healed on this run.
-				bucketName := s3BucketName(envMap["AWS_BUCKET"])
-				if bucketName == "lerd" {
-					bucketName = s3BucketName(dbName)
-				}
-				updates["AWS_BUCKET"] = bucketName
-				updates["AWS_URL"] = "http://localhost:9000/" + bucketName
-				if err := ensureServiceRunning(svc); err != nil {
-					feedback.Warn("could not start %s: %v", svc, err)
-				}
-				// Always attempt bucket creation — ensureServiceRunning may have
-				// timed out on the host probe while the container network is already
-				// up, or rustfs was already running before lerd env ran.
-				created, err := createS3Bucket(bucketName)
-				if err != nil {
-					provisionErrs = append(provisionErrs, fmt.Errorf("bucket %q: %w", bucketName, err))
-				} else if created {
-					envInfo("  Created bucket %q\n", bucketName)
-				} else {
-					envInfo("  Bucket %q already exists\n", bucketName)
-				}
-				continue
-			}
-
-			if err := ensureServiceRunning(svc); err != nil {
-				feedback.Warn("could not start %s: %v", svc, err)
-			}
+			provisionErrs = append(provisionErrs, provisionWiredService(svc, dbName, envMap, updates)...)
 		}
 	}
 
@@ -1593,15 +1502,66 @@ func CloneDatabase(svc, src, dst string) error { return serviceops.CloneDatabase
 // DropDatabase delegates to serviceops.DropDatabase for cli-package callers.
 func DropDatabase(svc, name string) (bool, error) { return serviceops.DropDatabase(svc, name) }
 
-// createDatabase delegates to serviceops.CreateDatabase. Kept as a package-local
-// alias so existing call sites inside the cli package compile unchanged.
-func createDatabase(svc, name string) (bool, error) { return serviceops.CreateDatabase(svc, name) }
+// provisionWiredService starts a service the site's env now points at and
+// creates what the site needs inside it: its databases, or its bucket.
+func provisionWiredService(svc, dbName string, envMap, updates map[string]string) []error {
+	if svc == "mysql" || svc == "postgres" {
+		if err := ensureServiceRunning(svc); err != nil {
+			return []error{fmt.Errorf("%s did not start, so its databases were not created: %w", svc, err)}
+		}
+		var errs []error
+		for _, name := range []string{dbName, dbName + "_testing"} {
+			created, err := createDatabase(svc, name)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("database %q: %w", name, err))
+			} else if created {
+				envInfo("  Created database %q\n", name)
+			} else {
+				envInfo("  Database %q already exists\n", name)
+			}
+		}
+		return errs
+	}
+	if svc == "rustfs" {
+		// Always sanitise through s3BucketName: rustfs/S3 reject underscores,
+		// uppercase, etc., so an invalid value left in .env heals on this run.
+		bucketName := s3BucketName(envMap["AWS_BUCKET"])
+		if bucketName == "lerd" {
+			bucketName = s3BucketName(dbName)
+		}
+		updates["AWS_BUCKET"] = bucketName
+		updates["AWS_URL"] = "http://localhost:9000/" + bucketName
+		if err := ensureServiceRunning(svc); err != nil {
+			feedback.Warn("could not start %s: %v", svc, err)
+		}
+		// Attempt the bucket even when the start probe timed out: the container
+		// network may already be up, or rustfs was running before lerd env.
+		created, err := createS3Bucket(bucketName)
+		if err != nil {
+			return []error{fmt.Errorf("bucket %q: %w", bucketName, err)}
+		}
+		if created {
+			envInfo("  Created bucket %q\n", bucketName)
+		} else {
+			envInfo("  Bucket %q already exists\n", bucketName)
+		}
+		return nil
+	}
+	if err := ensureServiceRunning(svc); err != nil {
+		feedback.Warn("could not start %s: %v", svc, err)
+	}
+	return nil
+}
+
+// createDatabase delegates to serviceops.CreateDatabase. A var so the env flow
+// can be driven in tests without a live podman.
+var createDatabase = serviceops.CreateDatabase
 
 // s3BucketName delegates to serviceops.S3BucketName.
 func s3BucketName(name string) string { return serviceops.S3BucketName(name) }
 
-// createS3Bucket delegates to serviceops.EnsureS3Bucket.
-func createS3Bucket(name string) (bool, error) { return serviceops.EnsureS3Bucket(name) }
+// createS3Bucket delegates to serviceops.EnsureS3Bucket. A var for the same reason.
+var createS3Bucket = serviceops.EnsureS3Bucket
 
 // ensureServiceRunning starts the service if it is not already active, then
 // waits until it is ready to accept connections before returning. A var so the

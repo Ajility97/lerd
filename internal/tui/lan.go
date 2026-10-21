@@ -1,9 +1,10 @@
 package tui
 
 import (
-	"net"
 	"sync"
 	"time"
+
+	"github.com/geodro/lerd/internal/lanip"
 )
 
 // The LAN IP lookup fires on every render when a site has LAN share on, so
@@ -29,51 +30,10 @@ func primaryLANIP() string {
 		return lanIPCache.value
 	}
 
-	if ip := dialProbeIP(); ip != "" {
+	ip := lanip.Primary()
+	if ip != "" {
 		lanIPCache.value = ip
 		lanIPCache.at = time.Now()
-		return ip
 	}
-	if ip := ifaceProbeIP(); ip != "" {
-		lanIPCache.value = ip
-		lanIPCache.at = time.Now()
-		return ip
-	}
-	return ""
-}
-
-func dialProbeIP() string {
-	conn, err := net.Dial("udp4", "1.1.1.1:80")
-	if err != nil {
-		return ""
-	}
-	defer conn.Close()
-	addr, ok := conn.LocalAddr().(*net.UDPAddr)
-	if !ok || addr == nil {
-		return ""
-	}
-	return addr.IP.String()
-}
-
-func ifaceProbeIP() string {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return ""
-	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, _ := iface.Addrs()
-		for _, addr := range addrs {
-			ipnet, ok := addr.(*net.IPNet)
-			if !ok {
-				continue
-			}
-			if v4 := ipnet.IP.To4(); v4 != nil && !v4.IsLoopback() {
-				return v4.String()
-			}
-		}
-	}
-	return ""
+	return ip
 }

@@ -41,6 +41,7 @@ import (
 	"github.com/geodro/lerd/internal/feedback"
 	gitpkg "github.com/geodro/lerd/internal/git"
 	"github.com/geodro/lerd/internal/grouping"
+	"github.com/geodro/lerd/internal/lanip"
 	"github.com/geodro/lerd/internal/nativephp"
 	"github.com/geodro/lerd/internal/nginx"
 	lerdNode "github.com/geodro/lerd/internal/node"
@@ -3711,7 +3712,7 @@ func handleDashboardQR(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	ip := uiPrimaryLANIP()
+	ip := lanip.Primary()
 	if ip == "" {
 		http.NotFound(w, r)
 		return
@@ -5848,58 +5849,36 @@ func handleWorkersHeal(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleSettingsAutostart(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	enabled, ok := readEnabledBody(w, r)
+	if !ok {
 		return
 	}
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-
-	if err := cli.ApplyAutostart(!body.Enabled); err != nil {
+	if err := cli.ApplyAutostart(!enabled); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "autostart_on_login": body.Enabled})
+	writeJSON(w, map[string]any{"ok": true, "autostart_on_login": enabled})
 }
 
 // handleSettingsTray turns the system tray applet on or off, applet and
 // autostart unit included, for desktops that show lerd's state elsewhere.
 func handleSettingsTray(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	enabled, ok := readEnabledBody(w, r)
+	if !ok {
 		return
 	}
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-	if _, err := cli.ApplyTray(body.Enabled); err != nil {
+	if _, err := cli.ApplyTray(enabled); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "tray_enabled": body.Enabled})
+	writeJSON(w, map[string]any{"ok": true, "tray_enabled": enabled})
 }
 
 // handleSettingsStartOnOpen records whether opening the dashboard on a stopped
 // lerd should start it. Config only: the dashboard is what acts on the flag.
 func handleSettingsStartOnOpen(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
+	enabled, ok := readEnabledBody(w, r)
+	if !ok {
 		return
 	}
 	cfg, err := config.LoadGlobal()
@@ -5907,12 +5886,12 @@ func handleSettingsStartOnOpen(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": false, "error": "loading config"})
 		return
 	}
-	cfg.Autostart.OnDashboardOpen = body.Enabled
+	cfg.Autostart.OnDashboardOpen = enabled
 	if err := config.SaveGlobal(cfg); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "start_on_dashboard_open": body.Enabled})
+	writeJSON(w, map[string]any{"ok": true, "start_on_dashboard_open": enabled})
 }
 
 // handleSettingsBetaUpdates opts a stable install into the prerelease line, so
@@ -5920,15 +5899,8 @@ func handleSettingsStartOnOpen(w http.ResponseWriter, r *http.Request) {
 // reads the flag. An install already running a beta follows the beta line with
 // or without it.
 func handleSettingsBetaUpdates(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
+	enabled, ok := readEnabledBody(w, r)
+	if !ok {
 		return
 	}
 	cfg, err := config.LoadGlobal()
@@ -5936,13 +5908,13 @@ func handleSettingsBetaUpdates(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": false, "error": "loading config"})
 		return
 	}
-	cfg.SetBetaChannel(body.Enabled)
+	cfg.SetBetaChannel(enabled)
 	if err := config.SaveGlobal(cfg); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
 	lerdUpdate.ForgetCachedLatest()
-	writeJSON(w, map[string]any{"ok": true, "beta_updates": body.Enabled})
+	writeJSON(w, map[string]any{"ok": true, "beta_updates": enabled})
 }
 
 // uiUnit is the unit this process runs as, and runStart is cli.RunStart
@@ -6861,15 +6833,10 @@ func handleSiteWorktreeAdd(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteActionResponse{Error: "site not found"})
 		return
 	}
-	flusher, ok := w.(http.Flusher)
+	flusher, ok := openEventStream(w)
 	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
 
 	req := cli.WorktreeAddRequest{
 		NewBranch:      strings.TrimSpace(q.Get("new_branch")),
@@ -7002,15 +6969,10 @@ func branchStepsFrom(q url.Values) cli.BranchSteps {
 // streamSteps streams run's output as server-sent events; the done event
 // names any snapshot taken first, so a failure can offer it back.
 func streamSteps(w http.ResponseWriter, run func(io.Writer) (string, error)) {
-	flusher, ok := w.(http.Flusher)
+	flusher, ok := openEventStream(w)
 	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
 
 	sw := &sseLineWriter{w: w, f: flusher}
 	snap, runErr := run(sw)
