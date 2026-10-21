@@ -58,16 +58,10 @@ func logFollowScript(unit string) string {
 // Container units (workers, PHP-FPM, services) use `podman logs -f`.
 // Native service units (dns, watcher, ui) tail the launchd log file.
 func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {
-	flusher, ok := w.(http.Flusher)
+	flusher, ok := openEventStream(w)
 	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
 
 	// Flush an SSE comment so the response headers go out immediately and
 	// the browser's EventSource fires onopen. Without this a silent unit
@@ -94,21 +88,7 @@ func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {
 		}
 		script := `for i in $(seq 1 20); do ` + bin + ` container exists ` + unit + ` 2>/dev/null && break; sleep 0.5; done; exec ` + bin + ` logs -f --tail ` + tail + ` ` + unit
 		cmd := exec.CommandContext(streamCtx, "/bin/sh", "-c", script)
-		pr, pw := io.Pipe()
-		cmd.Stdout = pw
-		cmd.Stderr = pw
-		if err := cmd.Start(); err != nil {
-			fmt.Fprintf(w, "data: error starting logs: %s\n\n", err.Error())
-			flusher.Flush()
-			return
-		}
-		go func() { cmd.Wait(); pw.Close() }() //nolint:errcheck
-		scanner := bufio.NewScanner(pr)
-		scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
-		for scanner.Scan() {
-			fmt.Fprintf(w, "data: %s\n\n", scanner.Text())
-			flusher.Flush()
-		}
+		streamCommandLines(w, flusher, cmd)
 		if cmd.Process != nil {
 			cmd.Process.Kill() //nolint:errcheck
 		}
@@ -116,8 +96,13 @@ func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {
 	}
 
 	// Native service: tail the launchd log file.
+	streamCommandLines(w, flusher, logStreamCmd(r.Context(), unit))
+}
+
+// streamCommandLines runs cmd and sends each line it prints, stdout and stderr
+// together, as an SSE data frame until it exits or the client goes away.
+func streamCommandLines(w http.ResponseWriter, flusher http.Flusher, cmd *exec.Cmd) {
 	pr, pw := io.Pipe()
-	cmd := logStreamCmd(r.Context(), unit)
 	cmd.Stdout = pw
 	cmd.Stderr = pw
 	if err := cmd.Start(); err != nil {
