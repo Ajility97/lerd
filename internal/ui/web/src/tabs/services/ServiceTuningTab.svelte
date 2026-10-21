@@ -49,13 +49,13 @@
   }
 
   function reset() {
-    openTuningResetModal({ name: currentName, path: file.path }, () => file.refresh());
+    openTuningResetModal({ name: currentName, path: file.path }, file.refreshLater());
   }
 
   function save() {
     openTuningSaveModal(
       { name: currentName, content: file.text, original: file.original, exists: file.exists },
-      () => file.refresh()
+      file.refreshLater()
     );
   }
 </script>

@@ -33,13 +33,13 @@
   }
 
   function reset() {
-    openNginxGlobalResetModal({ path: file.path }, () => file.refresh());
+    openNginxGlobalResetModal({ path: file.path }, file.refreshLater());
   }
 
   function save() {
     openNginxGlobalSaveModal(
       { content: file.text, original: file.original, exists: file.exists },
-      () => file.refresh()
+      file.refreshLater()
     );
   }
 </script>

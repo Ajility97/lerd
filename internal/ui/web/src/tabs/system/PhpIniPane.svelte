@@ -52,13 +52,13 @@
   }
 
   function reset() {
-    openPhpIniResetModal({ version: currentScope, label, path: file.path }, () => file.refresh());
+    openPhpIniResetModal({ version: currentScope, label, path: file.path }, file.refreshLater());
   }
 
   function save() {
     openPhpIniSaveModal(
       { version: currentScope, label, content: file.text, original: file.original, exists: file.exists },
-      () => file.refresh()
+      file.refreshLater()
     );
   }
 </script>

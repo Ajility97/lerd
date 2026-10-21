@@ -55,7 +55,7 @@
   }
 
   function reset() {
-    openNginxResetModal({ domain: currentDomain, scope, path: file.path }, () => file.refresh());
+    openNginxResetModal({ domain: currentDomain, scope, path: file.path }, file.refreshLater());
   }
 
   // On success the host closes the editor; reopening reloads the saved file,

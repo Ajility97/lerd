@@ -44,6 +44,8 @@ export class ConfigFile {
   async load(source: ConfigFileSource) {
     this.#source = source;
     const gen = ++this.#generation;
+    // A refresh still out for the previous file no longer owns the busy flag.
+    this.applying = false;
     this.loading = true;
     this.error = '';
     this.actionError = '';
@@ -88,12 +90,22 @@ export class ConfigFile {
     this.restoring = true;
     try {
       const content = await source.backup(latest.name);
-      open(latest.name, content, () => this.refresh());
+      open(latest.name, content, this.refreshLater());
     } catch (e: unknown) {
       this.actionError = errorText(e);
     } finally {
       this.restoring = false;
     }
+  }
+
+  // refreshLater is the callback to hand an action that lands later: it
+  // refreshes the file shown now, and does nothing once the editor has moved
+  // to another file, whose unsaved edits it would otherwise replace.
+  refreshLater(): () => Promise<void> {
+    const gen = this.#generation;
+    return async () => {
+      if (gen === this.#generation) await this.refresh();
+    };
   }
 
   revert() {

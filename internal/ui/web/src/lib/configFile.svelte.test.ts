@@ -93,3 +93,39 @@ describe('ConfigFile', () => {
     expect(f.actionError).toBe('unreadable');
   });
 });
+
+describe('ConfigFile across a file switch', () => {
+  const later = () => {
+    let resolve!: (v: { content: string; path: string; exists: boolean }) => void;
+    const p = new Promise<{ content: string; path: string; exists: boolean }>((r) => (resolve = r));
+    return { p, resolve };
+  };
+
+  it('lets the next file be edited when a refresh of the last one is still out', async () => {
+    const slow = later();
+    const first = source();
+    const f = new ConfigFile();
+    await f.load(first);
+    vi.mocked(first.get).mockReturnValueOnce(slow.p);
+    const refreshing = f.refresh();
+    await f.load(source({ get: vi.fn().mockResolvedValue({ content: 'other', path: '/b', exists: true }) }));
+    expect(f.applying).toBe(false);
+    f.text = 'edited';
+    expect(f.canSave).toBe(true);
+    slow.resolve({ content: 'stale', path: '/a', exists: true });
+    await refreshing;
+    expect(f.text).toBe('edited');
+  });
+
+  it('leaves the file now shown alone when an earlier one lands its action', async () => {
+    const f = new ConfigFile();
+    await f.load(source());
+    const done = f.refreshLater();
+    const second = source({ get: vi.fn().mockResolvedValue({ content: 'other', path: '/b', exists: true }) });
+    await f.load(second);
+    f.text = 'edited';
+    await done();
+    expect(f.text).toBe('edited');
+    expect(second.get).toHaveBeenCalledTimes(1);
+  });
+});
