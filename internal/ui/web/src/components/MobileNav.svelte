@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tab, goToTab, TABS, type TabId } from '$stores/route';
+  import { tab, goToTab, TABS, type RailTab } from '$stores/route';
   import Icon, { type IconName } from './Icon.svelte';
   import { dashboardOpen } from '$stores/dashboard';
   import { mobileView, goToApps } from '$stores/mobileView';
@@ -10,14 +10,14 @@
   // unavailable. Authenticated remote dashboards receive authority.
   const remote = $derived(!$accessMode.localControl);
 
-  const labels = $derived<Record<TabId, string>>({
+  const labels = $derived<Record<RailTab, string>>({
     dashboard: m.nav_dashboard(),
     sites: m.nav_sites(),
     services: m.nav_services(),
     system: m.nav_system()
   });
 
-  const icons: Record<TabId, IconName> = {
+  const icons: Record<RailTab, IconName> = {
     dashboard: 'dashboard',
     sites: 'sites',
     services: 'services',

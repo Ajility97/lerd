@@ -84,10 +84,11 @@ button {
   }
 }
 
-/* List hidden: the header makes room for the restore button, and the body takes
-   the list frame's border, drawn over it since some pages paint their own
-   background, with the curved corner placed under the header. */
-.list-hidden::before {
+/* List hidden: the header makes room for the restore button and the body takes
+   the list's border, with the curved corner under the header. rail-edge draws
+   the border and corner alone, for a page that never has a list beside it. */
+.list-hidden::before,
+.rail-edge::before {
   content: '';
   position: absolute;
   inset: 0 auto 0 0;
@@ -96,9 +97,12 @@ button {
   pointer-events: none;
   background: var(--color-lerd-headerborder);
 }
-.list-hidden .page-header {
+.list-hidden .page-header,
+.rail-edge .page-header {
   position: relative;
   z-index: 6;
+}
+.list-hidden .page-header {
   padding-left: 2.75rem;
 }
 /* Some headers pad an inner row instead of themselves; drop that so the gap
@@ -106,7 +110,8 @@ button {
 .list-hidden .page-header > :first-child {
   padding-left: 0;
 }
-.list-hidden .page-header::after {
+.list-hidden .page-header::after,
+.rail-edge .page-header::after {
   content: '';
   position: absolute;
   top: 100%;
@@ -122,7 +127,8 @@ button {
     var(--color-lerd-header-light) 0.75rem
   );
 }
-.dark .list-hidden .page-header::after {
+.dark .list-hidden .page-header::after,
+.dark .rail-edge .page-header::after {
   background: radial-gradient(
     circle at 100% 100%,
     transparent calc(0.75rem - 1px),
@@ -477,4 +483,19 @@ button {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* The rail's rules fade out at both ends, so they read as a pause between groups
+   rather than a box edge. rail-rule is a rule of its own, rail-rule-top one along
+   the top of a block. */
+.rail-rule,
+.rail-rule-top {
+  --rail-rule: linear-gradient(to right, transparent, var(--color-lerd-headerborder) 30%, var(--color-lerd-headerborder) 70%, transparent);
+}
+.rail-rule {
+  height: 1px;
+  background: var(--rail-rule);
+}
+.rail-rule-top {
+  background: var(--rail-rule) top / 100% 1px no-repeat;
 }

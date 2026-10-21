@@ -1,16 +1,18 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { tooltip } from '$lib/tooltip';
+  import { tooltip, type TooltipPlacement } from '$lib/tooltip';
 
   interface Props {
     title?: string;
     active?: boolean;
     onclick?: (e: MouseEvent) => void;
     size?: 'sm' | 'md' | 'lg';
+    // right suits the nav rail; a header button has the page edge beside it.
+    placement?: TooltipPlacement;
     children: Snippet;
   }
 
-  let { title, active = false, onclick, size = 'md', children }: Props = $props();
+  let { title, active = false, onclick, size = 'md', placement = 'right', children }: Props = $props();
 
   const sizeMap: Record<NonNullable<Props['size']>, string> = {
     sm: 'w-8 h-8',
@@ -27,7 +29,7 @@
   aria-label={title}
   aria-current={active ? 'page' : undefined}
   {onclick}
-  use:tooltip={{ label: title ?? '', placement: 'right' }}
+  use:tooltip={{ label: title ?? '', placement }}
   class="{sizeClass} shrink-0 rounded-xl flex items-center justify-center transition-colors {active
     ? 'bg-lerd-red/10 text-lerd-red'
     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-300'}"

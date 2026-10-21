@@ -19,6 +19,15 @@ describe('IconButton', () => {
     expect(tip).toHaveTextContent('Hello');
   });
 
+  // A button in a page header has the page edge to its right, so its label
+  // goes underneath instead of beside it as on the nav rail.
+  it('places the tooltip below when asked', () => {
+    render(IconButtonHarness, { props: { title: 'Below', active: false, placement: 'bottom' } });
+    screen.getByRole('button', { name: 'Below' }).dispatchEvent(new MouseEvent('mouseenter'));
+    const arrow = document.querySelector('[role="tooltip"] .rotate-45');
+    expect(arrow?.className).toMatch(/border-t/);
+  });
+
   it('applies active styling when active', () => {
     render(IconButtonHarness, { props: { title: 'A', active: true } });
     const btn = screen.getByRole('button', { name: 'A' });

@@ -53,6 +53,7 @@
   import GitStatusBadge from '$components/GitStatusBadge.svelte';
   import GitSync from '$components/GitSync.svelte';
   import BrowserLogsSiteToggle from '$components/BrowserLogsSiteToggle.svelte';
+  import PagePluginsMenu from '$components/PagePluginsMenu.svelte';
   import { debugCaptureEnabled } from '$stores/queries';
   import { loadGitStatus, checkoutFor, gitDirty, type GitCheckout } from '$lib/gitStatus';
   import { marquee } from '$lib/marquee';
@@ -786,6 +787,9 @@
            sites are not covered yet. -->
       {#if $accessMode.localControl && $debugCaptureEnabled && !site.paused && site.runtime !== 'frankenphp'}
         <BrowserLogsSiteToggle site={site.name ?? site.domain} class="hidden @md:flex" />
+      {/if}
+      {#if $accessMode.localControl && !site.paused && site.runtime !== 'frankenphp'}
+        <PagePluginsMenu site={site.name ?? site.domain} class="hidden @md:flex" />
       {/if}
 
       {#if $accessMode.local && $editors.global}

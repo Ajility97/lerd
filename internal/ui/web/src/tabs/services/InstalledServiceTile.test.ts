@@ -145,3 +145,11 @@ describe('InstalledServiceTile', () => {
     expect(container.querySelectorAll('button')).toHaveLength(1);
   });
 });
+
+// A service a plugin installed says so, since removing that plugin removes it.
+it('names the plugin a service was installed from', () => {
+  const { getByText, rerender, queryByText } = render(InstalledServiceTile, { props: { svc: svc({ name: 'ntfy', plugin: 'ntfy-push' }) } });
+  expect(getByText('from plugin ntfy-push')).toBeTruthy();
+  rerender({ svc: svc() });
+  expect(queryByText(/from plugin/)).toBeNull();
+});

@@ -264,6 +264,9 @@ type CustomService struct {
 	// Set by InstallPresetByName. Used so the init wizard can store a
 	// preset reference in .lerd.yaml instead of an inlined definition.
 	Preset string `yaml:"preset,omitempty"`
+	// Plugin is the plugin whose preset this service was installed from;
+	// removing that plugin removes the service too.
+	Plugin string `yaml:"plugin,omitempty"`
 	// PresetVersion is the picked version tag for multi-version presets.
 	// Empty for single-version presets.
 	PresetVersion string `yaml:"preset_version,omitempty"`

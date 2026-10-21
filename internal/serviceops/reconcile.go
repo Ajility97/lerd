@@ -222,6 +222,7 @@ func refreshPresetDefinition(svc *config.CustomService) (*config.CustomService, 
 	fresh.PreMigrateBackup = svc.PreMigrateBackup
 	fresh.Name = svc.Name
 	fresh.Preset = svc.Preset
+	fresh.Plugin = svc.Plugin
 	fresh.PresetVersion = svc.PresetVersion
 	// Ports and the connection URL carry the host-port allocation chosen at
 	// quadlet generation (shifted when the preset default collided), not store

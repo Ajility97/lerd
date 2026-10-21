@@ -39,6 +39,8 @@ export interface Service {
   // True when lerd ships this service as a bundled preset (default-stack or
   // optional). Drives the ports modal's extra-ports affordance.
   preset_owned?: boolean;
+  // The plugin it was installed from; removing that plugin removes it.
+  plugin?: string;
   tunable?: boolean;
   // True for a database engine (mysql/mariadb/postgres/mongo), so the detail
   // view shows its Databases tab.

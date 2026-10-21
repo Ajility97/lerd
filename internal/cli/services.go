@@ -660,7 +660,11 @@ func newServiceListCmd() *cobra.Command {
 					status = "unknown"
 				}
 				ver := podman.ServiceVersionLabel(svc.Image)
-				name := svc.Name + " " + feedback.Dim("[custom]")
+				tag := "[custom]"
+				if svc.Plugin != "" {
+					tag = "[plugin " + svc.Plugin + "]"
+				}
+				name := svc.Name + " " + feedback.Dim(tag)
 				rows = append(rows, []string{name, ver, statusCell(svc.Name, status), serviceUpdateHint(svc.Name, status)})
 				if len(svc.DependsOn) > 0 {
 					rows = append(rows, []string{feedback.Dim("↳ depends on: " + strings.Join(serviceops.DependencyDisplayNames(svc.DependsOn), ", ")), "", "", ""})

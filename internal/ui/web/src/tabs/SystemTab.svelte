@@ -110,6 +110,7 @@
       {m.system_tools_title()}
     </ListRow>
 
+
     {#snippet notifyDot()}<StatusDot color={notifyEffectiveOn ? 'green' : 'red'} />{/snippet}
     <ListRow active={selected === 'notifications'} onclick={() => select('notifications')} leading={notifyDot}>
       {m.notify_settings_title()}

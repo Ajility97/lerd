@@ -39,6 +39,7 @@ export default defineConfig(() => ({
     proxy: {
       '/api': { target: 'http://localhost:7073', changeOrigin: true, ws: true },
       '/icons': 'http://localhost:7073',
+      '/plugins': 'http://localhost:7073',
       '/manifest.webmanifest': 'http://localhost:7073',
       '/sw.js': 'http://localhost:7073',
       '/offline.html': 'http://localhost:7073'

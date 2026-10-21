@@ -157,7 +157,7 @@ Either form leaves stdout to the server: anything lerd needs to say while starti
 
 ## Available MCP tools
 
-The MCP surface is **thirteen grouped tools**, each driven by an `action` argument. Always pass `action`; start by calling `site` with `action: "list"` to discover sites.
+The MCP surface is **fourteen grouped tools**, each driven by an `action` argument. Always pass `action`; start by calling `site` with `action: "list"` to discover sites.
 
 The server also sends short instructions when a client connects, telling the assistant to use these tools rather than the raw commands they wrap. Clients such as Claude Code load tool schemas only when needed, so without those instructions an assistant would see just a tool named `worktree` and run `git worktree add` itself, skipping the dependency install, branch domain and database isolation that `add` handles.
 
@@ -176,8 +176,11 @@ The server also sends short instructions when a client connects, telling the ass
 | `request` | `list` (a site's recent requests and their ids), `lenses` (events per lens for one request, plus the issues they hold: N+1 and slow queries first, then exceptions, error logs, failed HTTP, failed jobs and browser errors), `lens` (one lens's events, paged) |
 | `worktree` | `list`, `add`, `remove`, `wait`, `db_isolate`, `db_share` |
 | `workspace` | `list`, `create`, `rename`, `delete`, `assign`, `move` |
+| `plugin` | `guide` (how to build a plugin, read first), `new`, `list`, `install` (from a local folder) |
 
 The injected context files document each action's arguments and the key conventions in full.
+
+Installed [plugins](plugins.md) add tools of their own, named `<plugin>_<tool>`, and `lerd mcp:inject` writes each plugin's skill beside lerd's as `.claude/skills/lerd-<plugin>/SKILL.md`. Run it again after installing a plugin. To have an assistant build one, see [building a plugin with an AI assistant](plugins.md#building-one-with-an-ai-assistant).
 
 ### Switching branches from an assistant
 

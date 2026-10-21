@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/geodro/lerd/internal/mcp"
+	"github.com/geodro/lerd/internal/plugins"
 )
 
 // TestEveryMCPToolIsDocumented guards against doc drift: the single canonical
@@ -39,7 +40,7 @@ func TestEveryMCPActionIsDocumented(t *testing.T) {
 	}
 }
 
-func TestWriteGlobalAISkills_writesAllThreeFiles(t *testing.T) {
+func TestWriteGlobalAISkills_writesEveryClientFile(t *testing.T) {
 	home := t.TempDir()
 
 	if err := WriteGlobalAISkills(home, false); err != nil {
@@ -48,6 +49,7 @@ func TestWriteGlobalAISkills_writesAllThreeFiles(t *testing.T) {
 
 	expect := []string{
 		filepath.Join(home, ".claude", "skills", "lerd", "SKILL.md"),
+		filepath.Join(home, ".claude", "skills", "lerd", "plugins.md"),
 		filepath.Join(home, ".cursor", "rules", "lerd.mdc"),
 		filepath.Join(home, ".junie", "guidelines.md"),
 	}
@@ -308,6 +310,77 @@ func TestWriteProjectAISkills_writesAllArtefacts(t *testing.T) {
 	}
 	if !ProjectHasLerdSkills(dir) {
 		t.Errorf("ProjectHasLerdSkills should return true after WriteProjectAISkills")
+	}
+}
+
+// A plugin's skill lands beside lerd's own as lerd-<plugin>, and goes with it.
+func TestWriteProjectAISkills_writesAndRemovesPluginSkills(t *testing.T) {
+	isolatePlugins(t)
+	if err := plugins.Scaffold("hello", filepath.Join(plugins.Dir(), "hello")); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := WriteProjectAISkills(dir, false); err != nil {
+		t.Fatalf("WriteProjectAISkills: %v", err)
+	}
+	skill := filepath.Join(dir, ".claude", "skills", "lerd-hello", "SKILL.md")
+	data, err := os.ReadFile(skill)
+	if err != nil || !strings.Contains(string(data), "hello_greet") {
+		t.Fatalf("plugin skill not written: %v %q", err, data)
+	}
+	if err := RemoveProjectAISkills(dir, false); err != nil {
+		t.Fatalf("RemoveProjectAISkills: %v", err)
+	}
+	if _, err := os.Stat(skill); !os.IsNotExist(err) {
+		t.Errorf("plugin skill should be removed with lerd's, err=%v", err)
+	}
+}
+
+// Eject runs after the plugin may be gone, so it cannot learn the skill to
+// remove from the plugins installed now.
+func TestRemoveProjectAISkills_removesTheSkillOfAPluginSinceRemoved(t *testing.T) {
+	isolatePlugins(t)
+	if err := plugins.Scaffold("hello", filepath.Join(plugins.Dir(), "hello")); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := WriteProjectAISkills(dir, false); err != nil {
+		t.Fatalf("WriteProjectAISkills: %v", err)
+	}
+	if err := plugins.Remove("hello"); err != nil {
+		t.Fatal(err)
+	}
+	if err := RemoveProjectAISkills(dir, false); err != nil {
+		t.Fatalf("RemoveProjectAISkills: %v", err)
+	}
+	skill := filepath.Join(dir, ".claude", "skills", "lerd-hello", "SKILL.md")
+	if _, err := os.Stat(skill); !os.IsNotExist(err) {
+		t.Errorf("a removed plugin's skill must go on eject, err=%v", err)
+	}
+}
+
+// A refresh drops the skill of a plugin removed since it was written, so the
+// assistant is not told about tools that no longer exist.
+func TestWriteProjectAISkills_dropsTheSkillOfAPluginSinceRemoved(t *testing.T) {
+	isolatePlugins(t)
+	if err := plugins.Scaffold("hello", filepath.Join(plugins.Dir(), "hello")); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := WriteProjectAISkills(dir, false); err != nil {
+		t.Fatalf("WriteProjectAISkills: %v", err)
+	}
+	if err := plugins.Remove("hello"); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteProjectAISkills(dir, false); err != nil {
+		t.Fatalf("WriteProjectAISkills: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills", "lerd-hello")); !os.IsNotExist(err) {
+		t.Errorf("a removed plugin's skill must go on refresh, err=%v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "skills", "lerd", "SKILL.md")); err != nil {
+		t.Errorf("lerd's own skill must stay: %v", err)
 	}
 }
 
@@ -673,7 +746,7 @@ func TestLerdReference_underSizeCeiling(t *testing.T) {
 	//
 	// 38150 → 38300 for fastcgi_params, which keeps a framework-wide param in
 	// its definition rather than in a per-site location override.
-	const ceiling = 38300
+	const ceiling = 38750 // 38300 → 38750 for the plugin tool and its guide
 	if got := len(lerdReference); got > ceiling {
 		t.Errorf("lerd-reference.md is %d bytes, ceiling is %d — trim before raising", got, ceiling)
 	}

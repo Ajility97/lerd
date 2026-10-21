@@ -697,3 +697,26 @@ func TestReconcileServices_leavesAContainerNewerThanItsUnit(t *testing.T) {
 		t.Fatal("a container already running the current unit was restarted for nothing")
 	}
 }
+
+// A plugin's multi-version service is refreshed through ResolvePinned on every
+// start, and must stay marked as the plugin's so removing the plugin takes it.
+func TestRefreshPresetDefinition_KeepsThePluginMark(t *testing.T) {
+	reconcileEnv(t)
+	dir := filepath.Join(t.TempDir(), "vmsvc")
+	if err := os.MkdirAll(filepath.Join(dir, "services"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	preset := "name: vmcache\ndescription: newer\nversions:\n  - tag: \"7\"\n    image: docker.io/library/redis:7.4\n    canonical: true\n"
+	if err := os.WriteFile(filepath.Join(dir, "services", "vmcache.yaml"), []byte(preset), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	orig := config.PluginDefinitionDirs
+	config.PluginDefinitionDirs = func(kind string) []string { return []string{filepath.Join(dir, kind)} }
+	t.Cleanup(func() { config.PluginDefinitionDirs = orig })
+
+	installed := &config.CustomService{Name: "vmcache", Preset: "vmcache", PresetVersion: "7", Plugin: "vmsvc", Image: "docker.io/library/redis:7.4", Description: "older"}
+	fresh, changed := refreshPresetDefinition(installed)
+	if !changed || fresh.Plugin != "vmsvc" {
+		t.Fatalf("changed %v, Plugin %q: the refresh must keep the plugin's mark", changed, fresh.Plugin)
+	}
+}

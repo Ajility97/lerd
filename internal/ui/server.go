@@ -237,6 +237,12 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/tools/", withCORS(publishAfter(handleTools, eventbus.KindStatus)))
 	mux.HandleFunc("/api/tunnel-qr/", withCORS(handleTunnelQR))
 	mux.HandleFunc("/api/dashboard-qr", withCORS(handleDashboardQR))
+	mux.HandleFunc("/api/plugins", withCORS(handlePluginsList))
+	mux.HandleFunc("/api/plugins/", withCORS(handlePluginAPI))
+	mux.HandleFunc("/plugins/", withCORS(handlePluginUI))
+	mux.HandleFunc("/api/plugin-manager", withCORS(handlePluginManager))
+	mux.HandleFunc("/api/plugin-manager/", withCORS(handlePluginManager))
+	mux.HandleFunc("/api/page-plugins", withCORS(publishAfter(handlePagePlugins, eventbus.KindSites)))
 
 	// Cross-process notifier for CLI/MCP. It requires dashboard-control
 	// authority. PollNow runs in a goroutine so the handler returns under the
@@ -270,6 +276,8 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/services/presets/", withCORS(publishAfter(handleServicePresetInstall, eventbus.KindServices, eventbus.KindStatus)))
 	mux.HandleFunc("/api/services/", withCORS(publishAfter(handleServiceAction, eventbus.KindServices, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/internal/snapshot-run", handleInternalSnapshotNotify)
+	mux.HandleFunc("/api/internal/plugin-failed", handleInternalPluginFailed)
+	notifyPluginFailures()
 	mux.HandleFunc("/api/auto-snapshot", withCORS(handleAutoSnapshot))
 	mux.HandleFunc("/api/auto-snapshot/", withCORS(handleAutoSnapshotSite))
 	mux.HandleFunc("/api/databases", withCORS(handleDatabases))
@@ -441,7 +449,7 @@ func Start(currentVersion string) error {
 	})
 	mux.Handle("/", serveSvelte())
 
-	handler := withWakeHold(withBrowserLogs(withDashboardMounts(withRemoteControlGate(mux))))
+	handler := withWakeHold(withBrowserLogs(withPluginPages(withDashboardMounts(withRemoteControlGate(mux)))))
 
 	// Unix socket listener for the lerd.localhost nginx vhost. Linux only:
 	// on macOS, lerd-nginx runs inside the podman-machine VM and unix
@@ -1038,6 +1046,9 @@ type SiteResponse struct {
 	// project's .lerd.yaml. Used by the dashboard to render service badges
 	// on the site detail panel.
 	Services []string `json:"services,omitempty"`
+	// OverviewCards are the plugins whose card the Overview shows, sent with
+	// the site so a switch made anywhere reaches an Overview already open.
+	OverviewCards []string `json:"overview_cards,omitempty"`
 	// DeclaredServices are the Services listed in .lerd.yaml, which the site
 	// overview offers to remove.
 	DeclaredServices []string `json:"declared_services,omitempty"`
@@ -1318,6 +1329,7 @@ func buildSites() ([]SiteResponse, error) {
 			Branch:               e.Branch,
 			Worktrees:            worktreeResponses,
 			Services:             e.Services,
+			OverviewCards:        e.OverviewCards,
 			DeclaredServices:     e.DeclaredServices,
 			SuggestedServices:    e.SuggestedServices,
 			DBDatabase:           envfile.ReadKey(filepath.Join(e.Path, ".env"), "DB_DATABASE"),
@@ -1427,6 +1439,9 @@ type ServiceResponse struct {
 	// extra-ports affordance off this, not is_default, so every service we
 	// provide can publish extra ports while genuinely custom services can't.
 	PresetOwned bool `json:"preset_owned,omitempty"`
+	// Plugin is the plugin the service was installed from, which removing
+	// takes the service with it.
+	Plugin string `json:"plugin,omitempty"`
 	// Tunable is true when the service exposes a user-editable runtime config
 	// override (see config.ServiceTuningMount), so the UI can show a Tuning tab.
 	Tunable bool `json:"tunable,omitempty"`
@@ -1683,6 +1698,7 @@ func buildServiceResponseWithPortList(services map[string]config.ServiceConfig, 
 		EntityKinds:       serviceops.EntityKinds(name),
 		Custom:            custom != nil,
 		PresetOwned:       config.PresetExists(name),
+		Plugin:            serviceRecordPlugin(custom),
 		DefaultPort:       defaultPort,
 		DependsOn:         serviceops.DependencyDisplayNames(dependsOn),
 	}
@@ -7099,4 +7115,12 @@ func handleSettingsPHPRuntime(w http.ResponseWriter, r *http.Request) {
 		out["error"] = err.Error()
 	}
 	done(out)
+}
+
+// serviceRecordPlugin is the plugin a custom service came from, "" for the rest.
+func serviceRecordPlugin(svc *config.CustomService) string {
+	if svc == nil {
+		return ""
+	}
+	return svc.Plugin
 }

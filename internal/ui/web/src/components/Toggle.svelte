@@ -48,15 +48,17 @@
   disabled={disabled || loading}
   class="relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-lerd-red focus-visible:ring-offset-1 dark:focus-visible:ring-offset-lerd-card disabled:opacity-50 {bgClass}"
 >
+  <!-- The spinner sits in the knob, so a switch in a tight row never spills it. -->
   <span
-    class="inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200 {on || failing
+    class="inline-flex items-center justify-center h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200 {on || failing
       ? 'translate-x-3.5'
       : 'translate-x-0.5'}"
-  ></span>
-  {#if loading}
-    <svg class="animate-spin absolute right-[-14px] w-2.5 h-2.5 text-gray-400" fill="none" viewBox="0 0 24 24">
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-    </svg>
-  {/if}
+  >
+    {#if loading}
+      <svg class="animate-spin w-2.5 h-2.5 text-gray-500" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+    {/if}
+  </span>
 </button>
