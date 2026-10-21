@@ -456,6 +456,7 @@ func (p *Preset) ResolvePinned(tag string) (*CustomService, error) {
 	svc.Files = nil // files live on the preset, read via PresetFiles; never on the resolved service
 	svc.Image = picked.Image
 	svc.Preset = p.Name
+	svc.Plugin = PresetPlugin(p.Name)
 	svc.PresetVersion = picked.Tag
 	// The bare canonical instance always occupies the canonical port; only the
 	// image follows the pinned version, so {{host_port}} must not drift onto a
