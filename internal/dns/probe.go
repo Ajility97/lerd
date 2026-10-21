@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/lanip"
 )
 
 // Check resolves test-lerd-probe.{tld} and reports whether the answer is one
@@ -33,7 +34,7 @@ func Check(tld string) (bool, error) {
 	}
 	lanIP := ""
 	if exposed {
-		lanIP = primaryLANIP()
+		lanIP = lanip.Primary()
 	}
 
 	for _, addr := range addrs {
@@ -108,7 +109,7 @@ func dnsmasqDirectOK(tld string) bool {
 		return true
 	}
 	cfg, _ := config.LoadGlobal()
-	if cfg != nil && cfg.LAN.Exposed && answer == primaryLANIP() {
+	if cfg != nil && cfg.LAN.Exposed && answer == lanip.Primary() {
 		return true
 	}
 	return false

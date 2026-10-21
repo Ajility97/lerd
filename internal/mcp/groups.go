@@ -61,6 +61,7 @@ func toolList() []mcpTool {
 		requestTool(),
 		worktreeTool(),
 		workspaceTool(),
+		pluginAuthorTool(),
 	}
 }
 
@@ -262,6 +263,12 @@ var groupDispatch = map[string]map[string]handlerFn{
 		"assign": execWorkspaceAssign,
 		"move":   execWorkspaceMove,
 	},
+	"plugin": {
+		"guide":   execPluginGuide,
+		"new":     execPluginNew,
+		"list":    execPluginList,
+		"install": execPluginInstall,
+	},
 }
 
 func handleToolCall(params json.RawMessage) (any, *rpcError) {
@@ -297,6 +304,9 @@ func handleToolCall(params json.RawMessage) (any, *rpcError) {
 
 	actions, ok := groupDispatch[p.Name]
 	if !ok {
+		if plugin, tool := findPluginTool(p.Name); tool != nil {
+			return callPluginTool(plugin, tool, args)
+		}
 		return toolErr("unknown tool: " + p.Name), nil
 	}
 	action := strArg(args, "action")

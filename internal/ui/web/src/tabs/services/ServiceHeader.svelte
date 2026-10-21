@@ -399,6 +399,9 @@
         {#if svc.version && !isWorker}
           <span class="text-xs font-normal tabular-nums text-gray-500 dark:text-gray-400">{svc.version}</span>
         {/if}
+        {#if svc.plugin}
+          <span class="text-xs font-normal text-gray-500 dark:text-gray-400">{m.services_fromPlugin({ name: svc.plugin })}</span>
+        {/if}
         <StatusPill
           tone={active ? 'ok' : svc.idle_suspended ? 'asleep' : 'muted'}
           label={pillLabel}

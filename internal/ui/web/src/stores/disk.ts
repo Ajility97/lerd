@@ -1,6 +1,7 @@
 import { m } from '../paraglide/messages.js';
 import { writable } from 'svelte/store';
 import { apiJson, apiFetch } from '$lib/api';
+import { pollWhileVisible } from '$lib/pollWhileVisible';
 
 export interface DiskImage {
   id: string;
@@ -46,7 +47,6 @@ export const diskLoaded = writable<boolean>(false);
 // per-container stats poll, so it refreshes on its own slower cadence.
 const POLL_INTERVAL_MS = 30000;
 
-let pollTimer: ReturnType<typeof setInterval> | null = null;
 let inflight = false;
 
 export async function loadDisk(): Promise<void> {
@@ -66,33 +66,7 @@ export async function loadDisk(): Promise<void> {
 // startDiskPolling mirrors the stats loop: an immediate fetch, then a slow poll
 // gated by the Page Visibility API so a backgrounded tab stops scanning images.
 export function startDiskPolling(): () => void {
-  let stopped = false;
-  function tick() {
-    if (stopped) return;
-    if (typeof document !== 'undefined' && document.hidden) return;
-    void loadDisk();
-  }
-  tick();
-  pollTimer = setInterval(tick, POLL_INTERVAL_MS);
-
-  const onVisibility = () => {
-    if (typeof document === 'undefined') return;
-    if (!document.hidden) tick();
-  };
-  if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', onVisibility);
-  }
-
-  return () => {
-    stopped = true;
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
-    if (typeof document !== 'undefined') {
-      document.removeEventListener('visibilitychange', onVisibility);
-    }
-  };
+  return pollWhileVisible(() => void loadDisk(), POLL_INTERVAL_MS);
 }
 
 export interface CleanupResult {

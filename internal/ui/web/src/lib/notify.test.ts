@@ -28,12 +28,14 @@ class MockNotification {
 }
 
 const swShows: Array<{ title: string; opts?: NotificationOptions }> = [];
+const delivered: Array<{ close: () => void }> = [];
 
 function installSWMock() {
   const reg = {
     showNotification: vi.fn(async (title: string, opts?: NotificationOptions) => {
       swShows.push({ title, opts });
-    })
+    }),
+    getNotifications: vi.fn(async () => delivered)
   };
   Object.defineProperty(globalThis.navigator, 'serviceWorker', {
     configurable: true,
@@ -60,7 +62,7 @@ interface Notification {
 }
 
 describe('notify dispatcher', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     MockNotification.instances = [];
     MockNotification.permission = 'granted';
     swShows.length = 0;
@@ -70,6 +72,8 @@ describe('notify dispatcher', () => {
     localStorage.clear();
     installSWMock();
     vi.resetModules();
+    // Most tests run on a page that already knows it delivers to the browser.
+    (await import('./notify')).notifyDelivery.set('browser');
   });
 
   afterEach(() => {
@@ -100,6 +104,90 @@ describe('notify dispatcher', () => {
     expect(swShows[0].opts?.body).toBe('From: alice@x.com');
     expect(swShows[0].opts?.tag).toBe('lerd-mail-abc');
     expect((swShows[0].opts?.data as { kind?: string })?.kind).toBe('mail');
+  });
+
+  // Notifications left on the desktop count as unread in the launcher badge
+  // (Plasma, the PWA's dock icon), so seeing the dashboard retires them.
+  it('closes delivered notifications and clears the app badge when the window gains focus', async () => {
+    const closes = [vi.fn(), vi.fn()];
+    delivered.push(...closes.map((close) => ({ close })));
+    const clearAppBadge = vi.fn(async () => {});
+    Object.defineProperty(globalThis.navigator, 'clearAppBadge', { configurable: true, value: clearAppBadge });
+    const { initNotify } = await import('./notify');
+
+    initNotify();
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => expect(clearAppBadge).toHaveBeenCalled());
+
+    for (const close of closes) expect(close).toHaveBeenCalled();
+    delivered.length = 0;
+    delete (globalThis.navigator as unknown as { clearAppBadge?: unknown }).clearAppBadge;
+  });
+
+  // Launching the app or reloading it in front fires no focus event, and that
+  // is the commonest way to open it.
+  it('retires delivered notifications at startup when the window already has focus', async () => {
+    const hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    const close = vi.fn();
+    delivered.push({ close });
+    const clearAppBadge = vi.fn(async () => {});
+    Object.defineProperty(globalThis.navigator, 'clearAppBadge', { configurable: true, value: clearAppBadge });
+    const { initNotify } = await import('./notify');
+
+    initNotify();
+    await vi.waitFor(() => expect(clearAppBadge).toHaveBeenCalled());
+
+    expect(close).toHaveBeenCalled();
+    delivered.length = 0;
+    delete (globalThis.navigator as unknown as { clearAppBadge?: unknown }).clearAppBadge;
+    hasFocus.mockRestore();
+  });
+
+  it('closes page-level fallback popups when the window gains focus', async () => {
+    removeSWMock();
+    const close = vi.spyOn(MockNotification.prototype, 'close');
+    const { initNotify } = await import('./notify');
+    const { wsMessage } = await import('./ws');
+
+    initNotify();
+    wsMessage.set({ type: 'notification', notification: { kind: 'mail', title: 'fallback' } });
+    await vi.waitFor(() => expect(MockNotification.instances).toHaveLength(1));
+    window.dispatchEvent(new Event('focus'));
+    await vi.waitFor(() => expect(close).toHaveBeenCalled());
+    close.mockRestore();
+  });
+
+  // The desktop app can load before lerd-ui answers. Guessing "browser" then
+  // put a page popup beside every native one, and Plasma badged the app with them.
+  it('raises no desktop popup while the sink is still unknown', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('lerd-ui is down'));
+    const { initNotify, notificationHistory, notifyDelivery } = await import('./notify');
+    const { wsMessage } = await import('./ws');
+    notifyDelivery.set(null);
+
+    initNotify();
+    await Promise.resolve();
+    wsMessage.set({ type: 'notification', notification: { kind: 'mail', title: 'while unknown' } });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(swShows).toHaveLength(0);
+    expect(get(notificationHistory)).toHaveLength(1);
+    fetchSpy.mockRestore();
+  });
+
+  it('asks for the sink again when the websocket reconnects', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValueOnce(new Error('lerd-ui is down'))
+      .mockResolvedValue(new Response(JSON.stringify({ target: 'native' }), { status: 200 }));
+    const { initNotify, notifyDelivery } = await import('./notify');
+    const { wsConnected } = await import('./ws');
+
+    initNotify();
+    wsConnected.set(true);
+    await vi.waitFor(() => expect(get(notifyDelivery)).toBe('native'));
+    fetchSpy.mockRestore();
   });
 
   it('raises nothing on the desktop while the dashboard window has focus', async () => {
@@ -522,7 +610,7 @@ describe('detectBrowserFamily', () => {
 });
 
 describe('in-app notifications', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     MockNotification.instances = [];
     MockNotification.permission = 'granted';
     swShows.length = 0;
@@ -531,6 +619,7 @@ describe('in-app notifications', () => {
     localStorage.clear();
     installSWMock();
     vi.resetModules();
+    (await import('./notify')).notifyDelivery.set('browser');
   });
 
   afterEach(() => {

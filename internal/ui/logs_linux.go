@@ -36,16 +36,10 @@ func logFollowScript(unit string) string {
 func isContainerUnit(unit string) bool { return unitlog.IsContainerUnit(unit) }
 
 func streamUnitLogs(w http.ResponseWriter, r *http.Request, unit string) {
-	flusher, ok := w.(http.Flusher)
+	flusher, ok := openEventStream(w)
 	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
 
 	// Flush an SSE comment so the response headers go out immediately and
 	// the browser's EventSource fires onopen. Without this a silent unit

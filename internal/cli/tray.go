@@ -5,6 +5,7 @@ import (
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/feedback"
+	"github.com/geodro/lerd/internal/platform"
 	"github.com/geodro/lerd/internal/services"
 	lerdSystemd "github.com/geodro/lerd/internal/systemd"
 	"github.com/geodro/lerd/internal/tray"
@@ -115,6 +116,9 @@ func healArmedTrayUnit() bool {
 // paths. A config that will not load keeps the tray, so a broken file never
 // silently removes a surface the user expects.
 func trayEnabled() bool {
+	if !platform.Current.TrayHost {
+		return false
+	}
 	cfg, err := config.LoadGlobal()
 	return err != nil || cfg.IsTrayEnabled()
 }

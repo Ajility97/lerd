@@ -219,7 +219,9 @@ func resolveDBLenient(cwd, flagService, flagDatabase string) (*dbEnv, error) {
 	return env, nil
 }
 
-func loadDBEnv(cwd string) (*dbEnv, error) {
+// readDBEnvValues reads the site's .env into a plain key/value map, quotes
+// stripped, for working out which database it talks to.
+func readDBEnvValues(cwd string) (map[string]string, error) {
 	envPath := filepath.Join(cwd, ".env")
 	f, err := os.Open(envPath)
 	if err != nil {
@@ -238,6 +240,32 @@ func loadDBEnv(cwd string) (*dbEnv, error) {
 		vals[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"'`)
 	}
 	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	return vals, nil
+}
+
+// containerDBEnv points at the lerd service a site's .env names, using the
+// container's admin credentials rather than the app's DB_USERNAME/DB_PASSWORD,
+// which may name a role the container does not have (root against pgsql).
+func containerDBEnv(conn, db string, vals map[string]string) *dbEnv {
+	svcDefaults := serviceToDBEnv(connToService(conn))
+	service := connToService(conn)
+	if s := lerdServiceFromHost(vals["DB_HOST"]); s != "" {
+		service = s
+	}
+	return &dbEnv{
+		service:    service,
+		connection: conn,
+		database:   db,
+		username:   svcDefaults.username,
+		password:   svcDefaults.password,
+	}
+}
+
+func loadDBEnv(cwd string) (*dbEnv, error) {
+	vals, err := readDBEnvValues(cwd)
+	if err != nil {
 		return nil, err
 	}
 
@@ -262,21 +290,7 @@ func loadDBEnv(cwd string) (*dbEnv, error) {
 		return nil, fmt.Errorf("DB_DATABASE not set in .env")
 	}
 
-	// Always use container admin credentials. Ignoring app-level DB_USERNAME /
-	// DB_PASSWORD avoids authenticating as a role that doesn't exist in the
-	// container (e.g. DB_USERNAME=root against pgsql).
-	svcDefaults := serviceToDBEnv(connToService(conn))
-	service := connToService(conn)
-	if s := lerdServiceFromHost(vals["DB_HOST"]); s != "" {
-		service = s
-	}
-	return &dbEnv{
-		service:    service,
-		connection: conn,
-		database:   db,
-		username:   svcDefaults.username,
-		password:   svcDefaults.password,
-	}, nil
+	return containerDBEnv(conn, db, vals), nil
 }
 
 func runDbImport(file, service, database string, fresh bool) error {
@@ -751,24 +765,8 @@ func parseDBURL(rawURL string) *dbEnv {
 
 // loadDBEnvLenient reads DB connection info from .env without requiring DB_DATABASE.
 func loadDBEnvLenient(cwd string) (*dbEnv, error) {
-	envPath := filepath.Join(cwd, ".env")
-	f, err := os.Open(envPath)
+	vals, err := readDBEnvValues(cwd)
 	if err != nil {
-		return nil, fmt.Errorf("no .env found in %s", cwd)
-	}
-	defer f.Close()
-
-	vals := map[string]string{}
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "#") || !strings.Contains(line, "=") {
-			continue
-		}
-		k, v, _ := strings.Cut(line, "=")
-		vals[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"'`)
-	}
-	if err := scanner.Err(); err != nil {
 		return nil, err
 	}
 
@@ -787,16 +785,5 @@ func loadDBEnvLenient(cwd string) (*dbEnv, error) {
 		db = urlEnv.database
 	}
 
-	svcDefaults := serviceToDBEnv(connToService(conn))
-	service := connToService(conn)
-	if s := lerdServiceFromHost(vals["DB_HOST"]); s != "" {
-		service = s
-	}
-	return &dbEnv{
-		service:    service,
-		connection: conn,
-		database:   db,
-		username:   svcDefaults.username,
-		password:   svcDefaults.password,
-	}, nil
+	return containerDBEnv(conn, db, vals), nil
 }

@@ -1,9 +1,10 @@
 <script lang="ts">
+  import { SiteAction } from '$lib/siteAction.svelte';
   import Modal from '$components/Modal.svelte';
   import DetailButton from '$components/DetailButton.svelte';
   import Icon from '$components/Icon.svelte';
   import { closeModal } from '$stores/modals';
-  import { loadSites, sites, type Site } from '$stores/sites';
+  import { sites, type Site } from '$stores/sites';
   import { status } from '$stores/status';
   import { addDomain, editDomain, removeDomain } from '$stores/domains';
   import { m } from '../paraglide/messages.js';
@@ -34,32 +35,9 @@
   let newDomain = $state('');
   let editIndex = $state(-1);
   let editValue = $state('');
-  let loading = $state(false);
-  let error = $state('');
-  let flash = $state('');
-  let flashTimer: ReturnType<typeof setTimeout> | null = null;
+  const action = new SiteAction();
 
-  function showFlash(msg: string) {
-    flash = msg;
-    if (flashTimer) clearTimeout(flashTimer);
-    flashTimer = setTimeout(() => (flash = ''), 3000);
-  }
-
-  async function runAction(fn: () => Promise<{ ok: boolean; error?: string }>, successMsg: string) {
-    loading = true;
-    error = '';
-    try {
-      const r = await fn();
-      if (!r.ok) {
-        error = r.error || m.common_failed();
-        return;
-      }
-      await loadSites();
-      showFlash(successMsg);
-    } finally {
-      loading = false;
-    }
-  }
+  const runAction = (fn: () => Promise<{ ok: boolean; error?: string }>, msg: string) => action.run(fn, msg);
 
   function startEdit(i: number) {
     editIndex = i;
@@ -77,17 +55,17 @@
       return;
     }
     await runAction(() => editDomain(current, oldName, newName), m.domains_flash_updated());
-    if (!error) cancelEdit();
+    if (!action.error) cancelEdit();
   }
   async function add() {
     const name = newDomain.trim().toLowerCase();
     if (!name) return;
     await runAction(() => addDomain(current, name), m.domains_flash_added());
-    if (!error) newDomain = '';
+    if (!action.error) newDomain = '';
   }
   async function remove(name: string) {
     if (domains.length <= 1) {
-      error = m.domains_cannotRemoveLast();
+      action.error = m.domains_cannotRemoveLast();
       return;
     }
     await runAction(() => removeDomain(current, name), m.domains_flash_removed());
@@ -113,7 +91,7 @@
         </div>
         <button
           onclick={() => removeConflict(c.domain)}
-          disabled={loading}
+          disabled={action.loading}
           class="text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
           title={m.domains_conflict_removeYaml()}
           aria-label="{m.domains_conflict_removeYaml()}: {c.domain}"
@@ -148,7 +126,7 @@
           {#if domains.length > 1}
             <button
               onclick={() => remove(dom)}
-              disabled={loading}
+              disabled={action.loading}
               class="text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
               title={m.common_remove()}
               aria-label="{m.common_remove()} {dom}.{tld}"
@@ -166,10 +144,10 @@
               if (e.key === 'Escape') cancelEdit();
             }}
             class="flex-1 text-sm font-mono bg-transparent border border-lerd-red/50 rounded-sm px-2 py-1 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-lerd-red"
-            disabled={loading}
+            disabled={action.loading}
           />
           <span class="text-sm text-gray-400 shrink-0">.{tld}</span>
-          <button onclick={() => saveEdit(i)} disabled={loading} class="text-emerald-500 hover:text-emerald-600 disabled:opacity-50" title={m.common_save()}>
+          <button onclick={() => saveEdit(i)} disabled={action.loading} class="text-emerald-500 hover:text-emerald-600 disabled:opacity-50" title={m.common_save()}>
             <Icon name="check" class="w-4 h-4" />
           </button>
           <button onclick={cancelEdit} class="text-gray-400 hover:text-gray-600" title={m.common_cancel()}>
@@ -188,22 +166,22 @@
         placeholder={m.domains_add()}
         aria-label={m.domains_add()}
         onkeydown={(e) => e.key === 'Enter' && add()}
-        disabled={loading}
+        disabled={action.loading}
         class="flex-1 text-sm font-mono bg-transparent border border-gray-200 dark:border-lerd-border rounded-sm px-2 py-1.5 text-gray-700 dark:text-gray-300 placeholder-gray-400 dark:placeholder-gray-600 focus:outline-hidden focus:border-lerd-red/50"
       />
       <span class="text-sm text-gray-400 shrink-0">.{tld}</span>
-      <DetailButton tone="primary" onclick={add} disabled={loading || !newDomain.trim()}>{m.common_add()}</DetailButton>
+      <DetailButton tone="primary" onclick={add} disabled={action.loading || !newDomain.trim()}>{m.common_add()}</DetailButton>
     </div>
   </div>
 
-  {#if flash}
+  {#if action.flash}
     <div class="px-5 py-2 border-t border-gray-100 dark:border-lerd-border">
-      <p class="text-xs text-emerald-700 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-2 py-1.5 text-center">{flash}</p>
+      <p class="text-xs text-emerald-700 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg px-2 py-1.5 text-center">{action.flash}</p>
     </div>
   {/if}
-  {#if error}
+  {#if action.error}
     <div class="px-5 py-2 border-t border-gray-100 dark:border-lerd-border">
-      <p class="text-xs text-red-500">{error}</p>
+      <p class="text-xs text-red-500">{action.error}</p>
     </div>
   {/if}
 </Modal>

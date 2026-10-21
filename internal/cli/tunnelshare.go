@@ -408,14 +408,7 @@ func TunnelStart(siteName, branch, toolName, baseDomain string) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	httpPort := cfg.Nginx.HTTPPort
-	if httpPort == 0 {
-		httpPort = 80
-	}
-	httpsPort := cfg.Nginx.HTTPSPort
-	if httpsPort == 0 {
-		httpsPort = 443
-	}
+	httpPort, httpsPort := config.NginxPorts()
 	tool, err := resolveTunnelTool(toolName, cfg.Share.DefaultTool, cfg.Share.NgrokToken, cfg.Share.PinggyToken)
 	if err != nil {
 		return "", err

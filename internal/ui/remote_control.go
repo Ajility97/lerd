@@ -11,6 +11,7 @@ import (
 
 	lerdcli "github.com/geodro/lerd/internal/cli"
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/lanip"
 	"github.com/geodro/lerd/internal/nginx"
 	"github.com/geodro/lerd/internal/platform"
 	"golang.org/x/crypto/bcrypt"
@@ -28,6 +29,8 @@ var loopbackOnlyRoutes = []string{
 	"/api/lerd/stop",            // shuts down all lerd containers
 	"/api/lerd/quit",            // exits the dashboard process
 	"/api/lerd/update-terminal", // spawns a terminal emulator on the host
+	"/api/tray/action",          // stops lerd and runs lerd commands, like the buttons above
+	"/api/desktop/ws",           // the desktop app's feed of desktop notifications
 	"/api/logs/terminal",        // spawns a terminal emulator on the host
 	"/api/browse",               // browses host filesystem
 	"/api/push/test",            // fires notifications onto subscribed devices
@@ -52,6 +55,8 @@ var loopbackOnlyRoutePrefixes = []string{
 	// what a directory would be configured with to do it.
 	"/api/runs",
 	"/api/project",
+	// Installs code that later runs as the user.
+	"/api/plugin-manager",
 }
 
 // loopbackOnlySiteSubactions are the per-site actions (under
@@ -80,6 +85,9 @@ func isLoopbackOnlyPath(path string) bool {
 		if path == p || strings.HasPrefix(path, p+"/") {
 			return true
 		}
+	}
+	if isLoopbackOnlyPluginPath(path) {
+		return true
 	}
 	if !strings.HasPrefix(path, "/api/sites/") {
 		return false
@@ -177,7 +185,7 @@ const csrfHeader = "X-Lerd-CSRF"
 func csrfExemptPath(path string) bool {
 	switch path {
 	case "/api/remote-setup", "/api/webhooks/mailpit", "/api/internal/notify",
-		"/api/internal/snapshot-run":
+		"/api/internal/snapshot-run", "/api/internal/plugin-failed":
 		return true
 	}
 	return strings.HasPrefix(path, "/api/sites/") && strings.HasSuffix(path, "/unpause")
@@ -198,6 +206,9 @@ func csrfExemptPath(path string) bool {
 // preflight for its own origins, so the header's presence is proof enough.
 func passesCSRF(r *http.Request) bool {
 	if v, _ := r.Context().Value(ctxKeyUnixSocket{}).(bool); v {
+		return true
+	}
+	if hasValidPluginToken(r) {
 		return true
 	}
 	switch r.Header.Get("Sec-Fetch-Site") {
@@ -394,7 +405,7 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		lanIP := ""
 		if exposed {
-			lanIP = uiPrimaryLANIP()
+			lanIP = lanip.Primary()
 		}
 		writeJSON(w, map[string]any{
 			"exposed":            exposed,
@@ -510,31 +521,6 @@ func handleLANStatus(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-}
-
-// uiPrimaryLANIP duplicates the dial-trick from cli/dns.go because importing
-// cli from ui would risk a cycle. Cheap.
-func uiPrimaryLANIP() string {
-	conn, err := net.Dial("udp4", "1.1.1.1:80")
-	if err == nil {
-		defer conn.Close()
-		return conn.LocalAddr().(*net.UDPAddr).IP.String()
-	}
-	ifaces, _ := net.Interfaces()
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, _ := iface.Addrs()
-		for _, addr := range addrs {
-			if ipnet, ok := addr.(*net.IPNet); ok {
-				if v4 := ipnet.IP.To4(); v4 != nil && !v4.IsLoopback() {
-					return v4.String()
-				}
-			}
-		}
-	}
-	return ""
 }
 
 // handleRemoteControl serves /api/remote-control. The middleware already
@@ -675,7 +661,7 @@ func handleRemoteSetupGenerate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	lanIP := uiPrimaryLANIP()
+	lanIP := lanip.Primary()
 	target := lanIP
 	if target == "" {
 		target = "<server-ip>"

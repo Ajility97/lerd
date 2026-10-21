@@ -32,7 +32,6 @@ import (
 
 	"github.com/geodro/lerd/internal/activityping"
 	"github.com/geodro/lerd/internal/applog"
-	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/cfgedit"
 	"github.com/geodro/lerd/internal/cli"
 	"github.com/geodro/lerd/internal/config"
@@ -42,6 +41,7 @@ import (
 	"github.com/geodro/lerd/internal/feedback"
 	gitpkg "github.com/geodro/lerd/internal/git"
 	"github.com/geodro/lerd/internal/grouping"
+	"github.com/geodro/lerd/internal/lanip"
 	"github.com/geodro/lerd/internal/nativephp"
 	"github.com/geodro/lerd/internal/nginx"
 	lerdNode "github.com/geodro/lerd/internal/node"
@@ -124,8 +124,12 @@ func Start(currentVersion string) error {
 	// Follow the desktop theme where there is one. The error is the ordinary
 	// answer on a machine with no desktop to read, so it is dropped rather than
 	// logged.
-	if d := config.CurrentDesktop(); d.WatchDir != "" {
+	d := config.CurrentDesktop()
+	if d.WatchDir != "" {
 		_ = watchDir(context.Background(), d.WatchDir, d.WatchNames, 300*time.Millisecond, broker.broadcastThemeList)
+	}
+	if d.PollFile != "" {
+		pollFile(context.Background(), d.PollFile, 2*time.Second, broker.broadcastThemeList)
 	}
 	// Theme files and their stylesheets repaint every open dashboard as they are saved.
 	_ = os.MkdirAll(config.ThemesDir(), 0755)
@@ -233,6 +237,12 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/tools/", withCORS(publishAfter(handleTools, eventbus.KindStatus)))
 	mux.HandleFunc("/api/tunnel-qr/", withCORS(handleTunnelQR))
 	mux.HandleFunc("/api/dashboard-qr", withCORS(handleDashboardQR))
+	mux.HandleFunc("/api/plugins", withCORS(handlePluginsList))
+	mux.HandleFunc("/api/plugins/", withCORS(handlePluginAPI))
+	mux.HandleFunc("/plugins/", withCORS(handlePluginUI))
+	mux.HandleFunc("/api/plugin-manager", withCORS(handlePluginManager))
+	mux.HandleFunc("/api/plugin-manager/", withCORS(handlePluginManager))
+	mux.HandleFunc("/api/page-plugins", withCORS(publishAfter(handlePagePlugins, eventbus.KindSites)))
 
 	// Cross-process notifier for CLI/MCP. It requires dashboard-control
 	// authority. PollNow runs in a goroutine so the handler returns under the
@@ -266,6 +276,8 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/services/presets/", withCORS(publishAfter(handleServicePresetInstall, eventbus.KindServices, eventbus.KindStatus)))
 	mux.HandleFunc("/api/services/", withCORS(publishAfter(handleServiceAction, eventbus.KindServices, eventbus.KindStatus, eventbus.KindSites)))
 	mux.HandleFunc("/api/internal/snapshot-run", handleInternalSnapshotNotify)
+	mux.HandleFunc("/api/internal/plugin-failed", handleInternalPluginFailed)
+	notifyPluginFailures()
 	mux.HandleFunc("/api/auto-snapshot", withCORS(handleAutoSnapshot))
 	mux.HandleFunc("/api/auto-snapshot/", withCORS(handleAutoSnapshotSite))
 	mux.HandleFunc("/api/databases", withCORS(handleDatabases))
@@ -371,6 +383,13 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/lerd/stop", withCORS(handleLerdStop))
 	mux.HandleFunc("/api/lerd/quit", withCORS(handleLerdQuit))
 	mux.HandleFunc("/api/lerd/update-terminal", withCORS(handleLerdUpdateTerminal))
+	// Only the Windows desktop app uses these: it draws lerd's tray and raises its
+	// notifications, which lerd inside WSL cannot do itself.
+	if platform.Current.WindowsSide {
+		mux.HandleFunc("/api/desktop/ws", handleDesktopWS)
+		mux.HandleFunc("/api/tray", withCORS(handleTray))
+		mux.HandleFunc("/api/tray/action", withCORS(publishAfter(handleTrayAction, eventbus.KindStatus, eventbus.KindServices, eventbus.KindSites)))
+	}
 	mux.HandleFunc("/api/remote-control", withCORS(handleRemoteControl))
 	mux.HandleFunc("/api/access-mode", withCORS(handleAccessMode))
 	mux.HandleFunc("/api/lan/status", withCORS(handleLANStatus))
@@ -431,7 +450,7 @@ func Start(currentVersion string) error {
 	})
 	mux.Handle("/", serveSvelte())
 
-	handler := withWakeHold(withBrowserLogs(withDashboardMounts(withRemoteControlGate(mux))))
+	handler := withWakeHold(withBrowserLogs(withPluginPages(withDashboardMounts(withRemoteControlGate(mux)))))
 
 	// Unix socket listener for the lerd.localhost nginx vhost. Linux only:
 	// on macOS, lerd-nginx runs inside the podman-machine VM and unix
@@ -1028,6 +1047,9 @@ type SiteResponse struct {
 	// project's .lerd.yaml. Used by the dashboard to render service badges
 	// on the site detail panel.
 	Services []string `json:"services,omitempty"`
+	// OverviewCards are the plugins whose card the Overview shows, sent with
+	// the site so a switch made anywhere reaches an Overview already open.
+	OverviewCards []string `json:"overview_cards,omitempty"`
 	// DeclaredServices are the Services listed in .lerd.yaml, which the site
 	// overview offers to remove.
 	DeclaredServices []string `json:"declared_services,omitempty"`
@@ -1308,6 +1330,7 @@ func buildSites() ([]SiteResponse, error) {
 			Branch:               e.Branch,
 			Worktrees:            worktreeResponses,
 			Services:             e.Services,
+			OverviewCards:        e.OverviewCards,
 			DeclaredServices:     e.DeclaredServices,
 			SuggestedServices:    e.SuggestedServices,
 			DBDatabase:           envfile.ReadKey(filepath.Join(e.Path, ".env"), "DB_DATABASE"),
@@ -1417,6 +1440,9 @@ type ServiceResponse struct {
 	// extra-ports affordance off this, not is_default, so every service we
 	// provide can publish extra ports while genuinely custom services can't.
 	PresetOwned bool `json:"preset_owned,omitempty"`
+	// Plugin is the plugin the service was installed from, which removing
+	// takes the service with it.
+	Plugin string `json:"plugin,omitempty"`
 	// Tunable is true when the service exposes a user-editable runtime config
 	// override (see config.ServiceTuningMount), so the UI can show a Tuning tab.
 	Tunable bool `json:"tunable,omitempty"`
@@ -1673,6 +1699,7 @@ func buildServiceResponseWithPortList(services map[string]config.ServiceConfig, 
 		EntityKinds:       serviceops.EntityKinds(name),
 		Custom:            custom != nil,
 		PresetOwned:       config.PresetExists(name),
+		Plugin:            serviceRecordPlugin(custom),
 		DefaultPort:       defaultPort,
 		DependsOn:         serviceops.DependencyDisplayNames(dependsOn),
 	}
@@ -2339,17 +2366,7 @@ func handleServiceTuningBackupContent(w http.ResponseWriter, r *http.Request, na
 		return
 	}
 	data, err := serviceops.ReadTuningBackupContent(name, backupName)
-	if err != nil {
-		if os.IsNotExist(err) {
-			http.NotFound(w, r)
-			return
-		}
-		http.Error(w, "reading backup: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(data)
+	writeBackupContent(w, r, data, err)
 }
 
 func handleServiceTuningRestore(w http.ResponseWriter, r *http.Request, name string) {
@@ -3309,17 +3326,7 @@ func handleSiteEnvBackupContent(w http.ResponseWriter, r *http.Request, site *co
 		return
 	}
 	data, err := envCfgFile(dir, envFile).ReadBackup(name)
-	if err != nil {
-		if os.IsNotExist(err) {
-			http.NotFound(w, r)
-			return
-		}
-		http.Error(w, "reading backup: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(data)
+	writeBackupContent(w, r, data, err)
 }
 
 func handleSiteEnvBackups(w http.ResponseWriter, r *http.Request, site *config.Site) {
@@ -3686,7 +3693,7 @@ func handleDashboardQR(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	ip := uiPrimaryLANIP()
+	ip := lanip.Primary()
 	if ip == "" {
 		http.NotFound(w, r)
 		return
@@ -3850,17 +3857,7 @@ func handleSiteNginxBackupContent(w http.ResponseWriter, r *http.Request, domain
 		return
 	}
 	data, err := siteops.ReadCustomNginxBackup(domain, scope, name)
-	if err != nil {
-		if os.IsNotExist(err) {
-			http.NotFound(w, r)
-			return
-		}
-		http.Error(w, "reading backup: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(data)
+	writeBackupContent(w, r, data, err)
 }
 
 // SiteNginxResetResponse is the JSON returned by POST /api/sites/{d}/nginx/reset.
@@ -4003,6 +4000,20 @@ func phpSwitchWarning(res siteops.PHPVersionResult) string {
 			res.Version, strings.Join(res.Missing, ", ")))
 	}
 	return strings.Join(parts, " ")
+}
+
+// applyDomainChange finishes a dashboard domain add, edit or remove once the
+// registry holds the new list, logging what could not follow it.
+func applyDomainChange(w http.ResponseWriter, site *config.Site, oldPrimary string) {
+	warnings, err := grouping.ApplyDomainChange(site, oldPrimary)
+	if err != nil {
+		writeJSON(w, SiteActionResponse{Error: err.Error()})
+		return
+	}
+	for _, warning := range warnings {
+		fmt.Fprintf(os.Stderr, "lerd-ui: %v\n", warning)
+	}
+	writeJSON(w, SiteActionResponse{OK: true})
 }
 
 func handleSiteAction(w http.ResponseWriter, r *http.Request) {
@@ -4619,19 +4630,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
-		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		if site.Secured {
-			_ = certs.ReissueCertForWorktree(*site)
-		}
-		_ = podman.WriteContainerHosts()
-		_ = nginx.ReloadAndSettle()
-		if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-			fmt.Fprintf(os.Stderr, "lerd-ui: syncing .env to new primary domain: %v\n", err)
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
+		applyDomainChange(w, site, oldPrimary)
 		return
 	case "domain:edit":
 		oldName := r.URL.Query().Get("old")
@@ -4669,24 +4668,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.ReplaceProjectDomain(site.Path, site.Domains, oldDomain, cfg.DNS.TLD)
-		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		if site.Secured {
-			_ = certs.ReissueCertForWorktree(*site)
-		}
-		_ = podman.WriteContainerHosts()
-		_ = nginx.ReloadAndSettle()
-		if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-			fmt.Fprintf(os.Stderr, "lerd-ui: syncing .env to new primary domain: %v\n", err)
-		}
-		if site.IsGroupMain() {
-			if err := grouping.CascadeMainDomainChange(site); err != nil {
-				fmt.Fprintf(os.Stderr, "lerd-ui: cascading group domain change: %v\n", err)
-			}
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
+		applyDomainChange(w, site, oldPrimary)
 		return
 	case "domain:remove":
 		domainName := r.URL.Query().Get("name")
@@ -4749,24 +4731,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
-		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		if site.Secured {
-			_ = certs.ReissueCertForWorktree(*site)
-		}
-		_ = podman.WriteContainerHosts()
-		_ = nginx.ReloadAndSettle()
-		if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-			fmt.Fprintf(os.Stderr, "lerd-ui: syncing .env to new primary domain: %v\n", err)
-		}
-		if site.IsGroupMain() {
-			if err := grouping.CascadeMainDomainChange(site); err != nil {
-				fmt.Fprintf(os.Stderr, "lerd-ui: cascading group domain change: %v\n", err)
-			}
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
+		applyDomainChange(w, site, oldPrimary)
 		return
 	case "group:assign":
 		secondaryDomain := r.URL.Query().Get("secondary")
@@ -5845,58 +5810,36 @@ func handleWorkersHeal(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleSettingsAutostart(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	enabled, ok := readEnabledBody(w, r)
+	if !ok {
 		return
 	}
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-
-	if err := cli.ApplyAutostart(!body.Enabled); err != nil {
+	if err := cli.ApplyAutostart(!enabled); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "autostart_on_login": body.Enabled})
+	writeJSON(w, map[string]any{"ok": true, "autostart_on_login": enabled})
 }
 
 // handleSettingsTray turns the system tray applet on or off, applet and
 // autostart unit included, for desktops that show lerd's state elsewhere.
 func handleSettingsTray(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	enabled, ok := readEnabledBody(w, r)
+	if !ok {
 		return
 	}
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-	if _, err := cli.ApplyTray(body.Enabled); err != nil {
+	if _, err := cli.ApplyTray(enabled); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "tray_enabled": body.Enabled})
+	writeJSON(w, map[string]any{"ok": true, "tray_enabled": enabled})
 }
 
 // handleSettingsStartOnOpen records whether opening the dashboard on a stopped
 // lerd should start it. Config only: the dashboard is what acts on the flag.
 func handleSettingsStartOnOpen(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
+	enabled, ok := readEnabledBody(w, r)
+	if !ok {
 		return
 	}
 	cfg, err := config.LoadGlobal()
@@ -5904,12 +5847,12 @@ func handleSettingsStartOnOpen(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": false, "error": "loading config"})
 		return
 	}
-	cfg.Autostart.OnDashboardOpen = body.Enabled
+	cfg.Autostart.OnDashboardOpen = enabled
 	if err := config.SaveGlobal(cfg); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	writeJSON(w, map[string]any{"ok": true, "start_on_dashboard_open": body.Enabled})
+	writeJSON(w, map[string]any{"ok": true, "start_on_dashboard_open": enabled})
 }
 
 // handleSettingsBetaUpdates opts a stable install into the prerelease line, so
@@ -5917,15 +5860,8 @@ func handleSettingsStartOnOpen(w http.ResponseWriter, r *http.Request) {
 // reads the flag. An install already running a beta follows the beta line with
 // or without it.
 func handleSettingsBetaUpdates(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	var body struct {
-		Enabled bool `json:"enabled"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
+	enabled, ok := readEnabledBody(w, r)
+	if !ok {
 		return
 	}
 	cfg, err := config.LoadGlobal()
@@ -5933,13 +5869,13 @@ func handleSettingsBetaUpdates(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"ok": false, "error": "loading config"})
 		return
 	}
-	cfg.SetBetaChannel(body.Enabled)
+	cfg.SetBetaChannel(enabled)
 	if err := config.SaveGlobal(cfg); err != nil {
 		writeJSON(w, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
 	lerdUpdate.ForgetCachedLatest()
-	writeJSON(w, map[string]any{"ok": true, "beta_updates": body.Enabled})
+	writeJSON(w, map[string]any{"ok": true, "beta_updates": enabled})
 }
 
 // uiUnit is the unit this process runs as, and runStart is cli.RunStart
@@ -6858,15 +6794,10 @@ func handleSiteWorktreeAdd(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteActionResponse{Error: "site not found"})
 		return
 	}
-	flusher, ok := w.(http.Flusher)
+	flusher, ok := openEventStream(w)
 	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
 
 	req := cli.WorktreeAddRequest{
 		NewBranch:      strings.TrimSpace(q.Get("new_branch")),
@@ -6999,15 +6930,10 @@ func branchStepsFrom(q url.Values) cli.BranchSteps {
 // streamSteps streams run's output as server-sent events; the done event
 // names any snapshot taken first, so a failure can offer it back.
 func streamSteps(w http.ResponseWriter, run func(io.Writer) (string, error)) {
-	flusher, ok := w.(http.Flusher)
+	flusher, ok := openEventStream(w)
 	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("X-Accel-Buffering", "no")
 
 	sw := &sseLineWriter{w: w, f: flusher}
 	snap, runErr := run(sw)
@@ -7089,4 +7015,12 @@ func handleSettingsPHPRuntime(w http.ResponseWriter, r *http.Request) {
 		out["error"] = err.Error()
 	}
 	done(out)
+}
+
+// serviceRecordPlugin is the plugin a custom service came from, "" for the rest.
+func serviceRecordPlugin(svc *config.CustomService) string {
+	if svc == nil {
+		return ""
+	}
+	return svc.Plugin
 }

@@ -3,13 +3,10 @@ package cli
 import (
 	"fmt"
 
-	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/grouping"
 	"github.com/geodro/lerd/internal/linker"
-	"github.com/geodro/lerd/internal/nginx"
-	"github.com/geodro/lerd/internal/podman"
 	"github.com/geodro/lerd/internal/siteops"
 	"github.com/spf13/cobra"
 )
@@ -96,35 +93,12 @@ func runDomainAdd(_ *cobra.Command, args []string) error {
 	// Sync to .lerd.yaml.
 	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
 
-	// Regenerate vhost (file stays named after primary domain).
-	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
+	warnings, err := grouping.ApplyDomainChange(site, oldPrimary)
+	if err != nil {
 		return err
 	}
-
-	// If secured, force-reissue the cert through the worktree-aware helper
-	// so the SAN list picks up the new domain without dropping any existing
-	// worktree subdomains (e.g. <branch>.<primary>). A bare IssueCertForce
-	// here would clobber those worktree SANs.
-	if site.Secured {
-		if err := certs.ReissueCertForWorktree(*site); err != nil {
-			feedback.Warn("reissuing certificate: %v", err)
-		}
-	}
-
-	if err := podman.WriteContainerHosts(); err != nil {
-		feedback.Warn("updating container hosts file: %v", err)
-	}
-
-	nginx.ReloadAndSettleOrWarn("")
-
-	if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-		feedback.Warn("syncing .env to new primary domain: %v", err)
-	}
-
-	if site.IsGroupMain() {
-		if err := grouping.CascadeMainDomainChange(site); err != nil {
-			feedback.Warn("cascading group domain change: %v", err)
-		}
+	for _, w := range warnings {
+		feedback.Warn("%v", w)
 	}
 
 	feedback.Begin()
@@ -171,34 +145,12 @@ func runDomainRemove(_ *cobra.Command, args []string) error {
 	// Sync to .lerd.yaml, dropping the removed domain so it doesn't re-register.
 	_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
 
-	// If the primary domain changed (we removed the old primary), rename the vhost file.
-	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
+	warnings, err := grouping.ApplyDomainChange(site, oldPrimary)
+	if err != nil {
 		return err
 	}
-
-	// If secured, force-reissue the cert through the worktree-aware helper
-	// so the SAN list drops the removed domain without losing any existing
-	// worktree subdomains.
-	if site.Secured {
-		if err := certs.ReissueCertForWorktree(*site); err != nil {
-			feedback.Warn("reissuing certificate: %v", err)
-		}
-	}
-
-	if err := podman.WriteContainerHosts(); err != nil {
-		feedback.Warn("updating container hosts file: %v", err)
-	}
-
-	nginx.ReloadAndSettleOrWarn("")
-
-	if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-		feedback.Warn("syncing .env to new primary domain: %v", err)
-	}
-
-	if site.IsGroupMain() {
-		if err := grouping.CascadeMainDomainChange(site); err != nil {
-			feedback.Warn("cascading group domain change: %v", err)
-		}
+	for _, w := range warnings {
+		feedback.Warn("%v", w)
 	}
 
 	feedback.Begin()

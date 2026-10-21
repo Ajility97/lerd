@@ -29,7 +29,7 @@ LDFLAGS    = -s -w \
              -X $(PKG).Commit=$(COMMIT) \
              -X $(PKG).Date=$(DATE)
 
-.PHONY: build build-tray build-ui install-ui-deps test-ui install install-installer licenses test clean release release-snapshot
+.PHONY: build build-windows build-tray build-ui install-ui-deps test-ui install install-installer licenses test dupes clean release release-snapshot
 
 UI_INSTALL_STAMP = $(UI_DIR)/node_modules/.package-lock.json
 
@@ -45,8 +45,12 @@ build-ui: $(UI_INSTALL_STAMP)
 test-ui: $(UI_INSTALL_STAMP)
 	cd $(UI_DIR) && $(JS_PM) run test
 
-build: build-ui
+build: build-ui build-windows
 	CGO_ENABLED=0 go build -tags nogui -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY) ./cmd/lerd
+
+# lerd.exe, the Windows side of a WSL install, built for this machine's arch.
+build-windows:
+	GOOS=windows CGO_ENABLED=0 go build -ldflags="-s -w" -o $(BUILD_DIR)/lerd.exe ./cmd/lerd-windows
 
 build-tray:
 	CGO_ENABLED=1 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/lerd-tray ./cmd/lerd-tray
@@ -54,6 +58,8 @@ build-tray:
 install: build build-tray
 	install -Dm755 $(BUILD_DIR)/$(BINARY) $(INSTALL_DIR)/$(BINARY)
 	install -Dm755 $(BUILD_DIR)/lerd-tray $(INSTALL_DIR)/lerd-tray
+	@# On WSL, wsl:setup copies lerd.exe out from beside lerd, as install.sh places it.
+	@if grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null; then install -Dm755 $(BUILD_DIR)/lerd.exe $(INSTALL_DIR)/lerd.exe && echo "Installed $(INSTALL_DIR)/lerd.exe"; fi
 	@echo "Installed $(INSTALL_DIR)/$(BINARY) and $(INSTALL_DIR)/lerd-tray"
 	@# The watcher tears the whole environment down when it reads a SIGTERM as a
 	@# logout. Restarting it here is not one, so mark it the way lerd's own
@@ -90,6 +96,18 @@ test-installer:
 	bats tests/installer/installer.bats
 
 test-all: test test-ui test-installer
+
+# Copy-paste report like PhpStorm's Duplicated Code, opened in the browser.
+# Pinned so the scan is reproducible; tests are left out because table-driven
+# setup repeats on purpose.
+dupes:
+	npx --yes jscpd@5.3.3 internal cmd \
+		--format go,typescript,javascript,markup \
+		--formats-exts markup:svelte \
+		--ignore '**/*_test.go,**/*.test.ts,**/node_modules/**,**/dist/**,**/demo/**,**/paraglide/**' \
+		--min-tokens 70 --reporters html,json,console --silent \
+		--output $(BUILD_DIR)/dupes
+	xdg-open $(BUILD_DIR)/dupes/jscpd-report.html >/dev/null 2>&1 || true
 
 clean:
 	rm -rf $(BUILD_DIR)

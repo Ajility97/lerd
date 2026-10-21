@@ -106,6 +106,12 @@ type Site struct {
 	// env. A loopback runtime rewrites the host to 127.0.0.1, so the env alone
 	// no longer says which service the site is on.
 	WiredServices []string `yaml:"wired_services,omitempty"`
+	// PagePlugins are the installed plugins whose page script the user switched
+	// on for this site's pages. Off unless listed here.
+	PagePlugins []string `yaml:"page_plugins,omitempty"`
+	// OverviewCards are the installed plugins whose card the user switched on
+	// for this site's Overview. Off unless listed here.
+	OverviewCards []string `yaml:"overview_cards,omitempty"`
 	// BrowserLogs holds the site's browser logs settings when the project
 	// has no .lerd.yaml to carry them.
 	BrowserLogs *BrowserLogs `yaml:"browser_logs,omitempty"`
@@ -283,6 +289,8 @@ type siteYAML struct {
 	DismissedServices     []string            `yaml:"dismissed_services,omitempty"`
 	DeclinedServices      []string            `yaml:"declined_services,omitempty"`
 	WiredServices         []string            `yaml:"wired_services,omitempty"`
+	PagePlugins           []string            `yaml:"page_plugins,omitempty"`
+	OverviewCards         []string            `yaml:"overview_cards,omitempty"`
 	BrowserLogs           *BrowserLogs        `yaml:"browser_logs,omitempty"`
 	Group                 string              `yaml:"group,omitempty"`
 	GroupSubdomain        string              `yaml:"group_subdomain,omitempty"`
@@ -326,6 +334,8 @@ func (s Site) toYAML() siteYAML {
 		DismissedServices:     s.DismissedServices,
 		DeclinedServices:      s.DeclinedServices,
 		WiredServices:         s.WiredServices,
+		PagePlugins:           s.PagePlugins,
+		OverviewCards:         s.OverviewCards,
 		BrowserLogs:           s.BrowserLogs,
 		Group:                 s.Group,
 		GroupSubdomain:        s.GroupSubdomain,
@@ -374,6 +384,8 @@ func (sy siteYAML) toSite() Site {
 		DismissedServices:     sy.DismissedServices,
 		DeclinedServices:      sy.DeclinedServices,
 		WiredServices:         sy.WiredServices,
+		PagePlugins:           sy.PagePlugins,
+		OverviewCards:         sy.OverviewCards,
 		BrowserLogs:           sy.BrowserLogs,
 		Group:                 sy.Group,
 		GroupSubdomain:        sy.GroupSubdomain,
@@ -494,6 +506,12 @@ func cloneSiteRegistry(in *SiteRegistry) *SiteRegistry {
 		}
 		if s.WiredServices != nil {
 			cp.WiredServices = append([]string(nil), s.WiredServices...)
+		}
+		if s.PagePlugins != nil {
+			cp.PagePlugins = append([]string(nil), s.PagePlugins...)
+		}
+		if s.OverviewCards != nil {
+			cp.OverviewCards = append([]string(nil), s.OverviewCards...)
 		}
 		if s.BrowserLogs != nil {
 			cp.BrowserLogs = s.BrowserLogs.clone()
@@ -881,6 +899,43 @@ func SetSiteWiredServices(name string, services []string) error {
 			continue
 		}
 		reg.Sites[i].WiredServices = services
+		return SaveSites(reg)
+	}
+	return fmt.Errorf("site %q not found", name)
+}
+
+// SetSitePagePlugin switches a plugin's page script on or off for a site.
+func SetSitePagePlugin(name, plugin string, on bool) error {
+	return setSitePluginSwitch(name, plugin, on, func(s *Site) *[]string { return &s.PagePlugins })
+}
+
+// SetSiteOverviewCard switches a plugin's card on or off for a site's Overview.
+func SetSiteOverviewCard(name, plugin string, on bool) error {
+	return setSitePluginSwitch(name, plugin, on, func(s *Site) *[]string { return &s.OverviewCards })
+}
+
+// setSitePluginSwitch adds plugin to, or drops it from, the list field picks
+// out on the named site, listing it once and leaving no empty list behind.
+func setSitePluginSwitch(name, plugin string, on bool, field func(*Site) *[]string) error {
+	siteWriteMu.Lock()
+	defer siteWriteMu.Unlock()
+	reg, err := LoadSites()
+	if err != nil {
+		return err
+	}
+	for i := range reg.Sites {
+		if reg.Sites[i].Name != name {
+			continue
+		}
+		f := field(&reg.Sites[i])
+		list := slices.DeleteFunc(slices.Clone(*f), func(p string) bool { return p == plugin })
+		if on {
+			list = append(list, plugin)
+		}
+		if len(list) == 0 {
+			list = nil
+		}
+		*f = list
 		return SaveSites(reg)
 	}
 	return fmt.Errorf("site %q not found", name)

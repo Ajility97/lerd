@@ -376,18 +376,7 @@ func persistImageChoice(name, newImage, op string) error {
 		if v := canonicalVersionForMigrate(name, newImage, op); v != "" {
 			next.CanonicalVersion = v
 		}
-		cfg.Services[name] = next
-		if err := config.SaveGlobal(cfg); err != nil {
-			return fmt.Errorf("saving global config: %w", err)
-		}
-		if err := EnsureDefaultPresetQuadlet(name); err != nil {
-			cfg.Services[name] = prev
-			if rbErr := config.SaveGlobal(cfg); rbErr != nil {
-				return fmt.Errorf("writing quadlet failed: %w; AND rolling config back failed: %v", err, rbErr)
-			}
-			return fmt.Errorf("writing quadlet: %w", err)
-		}
-		return nil
+		return saveDefaultServicePin(cfg, name, prev, next)
 	}
 	svc, err := config.LoadCustomService(name)
 	if err != nil {
@@ -407,6 +396,23 @@ func persistImageChoice(name, newImage, op string) error {
 	}
 	if err := EnsureCustomServiceQuadlet(svc); err != nil {
 		if rbErr := config.SaveCustomService(&prevSvc); rbErr != nil {
+			return fmt.Errorf("writing quadlet failed: %w; AND rolling config back failed: %v", err, rbErr)
+		}
+		return fmt.Errorf("writing quadlet: %w", err)
+	}
+	return nil
+}
+
+// saveDefaultServicePin records a default service's new image choice and
+// rewrites its quadlet, putting the old choice back when the quadlet fails.
+func saveDefaultServicePin(cfg *config.GlobalConfig, name string, prev, next config.ServiceConfig) error {
+	cfg.Services[name] = next
+	if err := config.SaveGlobal(cfg); err != nil {
+		return fmt.Errorf("saving global config: %w", err)
+	}
+	if err := EnsureDefaultPresetQuadlet(name); err != nil {
+		cfg.Services[name] = prev
+		if rbErr := config.SaveGlobal(cfg); rbErr != nil {
 			return fmt.Errorf("writing quadlet failed: %w; AND rolling config back failed: %v", err, rbErr)
 		}
 		return fmt.Errorf("writing quadlet: %w", err)
@@ -506,18 +512,7 @@ func swapImagePin(name, newImage, newPrev string) error {
 		next.PreviousImage = newPrev
 		next.LastOp = "update"
 		next.PreMigrateBackup = ""
-		cfg.Services[name] = next
-		if err := config.SaveGlobal(cfg); err != nil {
-			return fmt.Errorf("saving global config: %w", err)
-		}
-		if err := EnsureDefaultPresetQuadlet(name); err != nil {
-			cfg.Services[name] = prev
-			if rbErr := config.SaveGlobal(cfg); rbErr != nil {
-				return fmt.Errorf("writing quadlet failed: %w; AND rolling config back failed: %v", err, rbErr)
-			}
-			return fmt.Errorf("writing quadlet: %w", err)
-		}
-		return nil
+		return saveDefaultServicePin(cfg, name, prev, next)
 	}
 	svc, err := config.LoadCustomService(name)
 	if err != nil {

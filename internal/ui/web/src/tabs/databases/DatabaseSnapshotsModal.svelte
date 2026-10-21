@@ -5,7 +5,7 @@
   import { tooltip } from '$lib/tooltip';
   import { formatBytes } from '$lib/bytes';
   import { parseSnapshotTimestamp, snapshotBaseName } from '$lib/snapshots';
-  import { snapshotExportUrl, type ImportIssue, type Snapshot } from '$stores/databases';
+  import { snapshotExportUrl, snapshotExpiryLabel, type ImportIssue, type Snapshot } from '$stores/databases';
   import {
     takeSnapshot,
     restoreSnapshot,
@@ -163,21 +163,6 @@
     confirmAction = '';
   }
 
-  // An automatic snapshot says when retention drops it, and a kept one says it
-  // never will, so the list answers "will this still be here tomorrow" on sight.
-  function expiryLabel(snap: Snapshot): string {
-    if (!snap.auto) return '';
-    if (snap.kept) return m.databases_snapshotKept();
-    if (!snap.expires_at) return m.databases_snapshotAuto();
-    const when = new Date(snap.expires_at).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    });
-    return snap.estimated
-      ? m.databases_snapshotExpiresAbout({ when })
-      : m.databases_snapshotExpires({ when });
-  }
-
   async function toggleKeep(snap: Snapshot) {
     const kept = !snap.kept;
     await run(
@@ -283,7 +268,7 @@
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-medium text-gray-800 dark:text-gray-200" title={snap.name}>{snapshotBaseName(snap.name)}</p>
               <p class="text-[11px] text-gray-500 dark:text-gray-400">
-                {#if snapDateLabel(snap)}{snapDateLabel(snap)} · {/if}{formatBytes(snap.size_bytes)}{#if expiryLabel(snap)} · {expiryLabel(snap)}{/if}
+                {#if snapDateLabel(snap)}{snapDateLabel(snap)} · {/if}{formatBytes(snap.size_bytes)}{#if snapshotExpiryLabel(snap)} · {snapshotExpiryLabel(snap)}{/if}
               </p>
             </div>
             {#if snap.auto}

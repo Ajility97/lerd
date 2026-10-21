@@ -294,6 +294,9 @@ func runStatus(_ *cobra.Command, _ []string) error {
 		if svc.Preset != "" {
 			tag = "[preset]"
 		}
+		if svc.Plugin != "" {
+			tag = "[plugin " + svc.Plugin + "]"
+		}
 		label := svc.Name
 		if ver := podman.ServiceVersionLabel(svc.Image); ver != "" {
 			label = svc.Name + " " + ver

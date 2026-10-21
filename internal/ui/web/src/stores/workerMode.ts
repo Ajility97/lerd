@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { apiFetch, sharedJson } from '$lib/api';
 import { m } from '../paraglide/messages.js';
+import { readNDJSON } from '$lib/ndjson';
 
 export type WorkerExecMode = 'exec' | 'container';
 
@@ -65,43 +66,25 @@ export async function setWorkerMode(
     if (!res.ok || !res.body) {
       return { ok: false, error: `${res.status} ${res.statusText}` };
     }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
     let finalError: string | undefined;
     let sawDone = false;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let nl: number;
-      while ((nl = buf.indexOf('\n')) >= 0) {
-        const line = buf.slice(0, nl).trim();
-        buf = buf.slice(nl + 1);
-        if (!line) continue;
-        let evt: WorkerModePhaseEvent;
-        try {
-          evt = JSON.parse(line) as WorkerModePhaseEvent;
-        } catch {
-          continue;
-        }
-        if (evt.phase === 'error') {
-          finalError = evt.error || m.common_failed();
-          workerModeProgress.set({ phase: 'error', message: finalError });
-          continue;
-        }
-        if (evt.phase === 'done') {
-          sawDone = true;
-          continue;
-        }
-        workerModeProgress.set({
-          phase: evt.phase,
-          unit: evt.unit,
-          step: evt.step,
-          message: evt.message
-        });
+    await readNDJSON<WorkerModePhaseEvent>(res.body, (evt) => {
+      if (evt.phase === 'error') {
+        finalError = evt.error || m.common_failed();
+        workerModeProgress.set({ phase: 'error', message: finalError });
+        return;
       }
-    }
+      if (evt.phase === 'done') {
+        sawDone = true;
+        return;
+      }
+      workerModeProgress.set({
+        phase: evt.phase,
+        unit: evt.unit,
+        step: evt.step,
+        message: evt.message
+      });
+    });
     if (!finalError && sawDone) {
       workerExecMode.set(mode);
       return { ok: true };

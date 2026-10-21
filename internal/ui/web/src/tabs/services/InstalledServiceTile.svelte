@@ -50,6 +50,9 @@
         {#if svc.update_available && svc.latest_version && svc.latest_version !== svc.version}
           <span class="shrink-0 font-mono tabular-nums text-emerald-600 dark:text-emerald-400">→ {svc.latest_version}</span>
         {/if}
+        {#if svc.plugin}
+          <span class="truncate">{m.services_fromPlugin({ name: svc.plugin })}</span>
+        {/if}
         {#if svc.site_count > 0}
           <span class="inline-flex shrink-0 items-center gap-1 tabular-nums" title={m.common_sites()}>
             <Icon name="sites" class="w-3 h-3" />

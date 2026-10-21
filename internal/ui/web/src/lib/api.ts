@@ -1,3 +1,5 @@
+import { m } from '../paraglide/messages.js';
+
 export const apiBase =
   typeof location !== 'undefined' && location.hostname === 'lerd.localhost'
     ? 'http://localhost:7073'
@@ -76,4 +78,31 @@ export function wsUrl(path: string): string {
   const u = new URL(apiUrl(path), location.href);
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
   return u.toString();
+}
+
+export interface ActionResult {
+  ok: boolean;
+  error?: string;
+  message?: string;
+}
+
+// sendAction calls an action endpoint, with body as JSON when given, and folds a
+// network failure into the same { ok, error } shape the endpoint answers with.
+export async function sendAction(path: string, method: 'POST' | 'PUT', body?: unknown): Promise<ActionResult> {
+  try {
+    const init: RequestInit = { method };
+    if (body !== undefined) {
+      init.headers = { 'Content-Type': 'application/json' };
+      init.body = JSON.stringify(body);
+    }
+    const res = await apiFetch(path, init);
+    const data = (await res.json()) as ActionResult;
+    return { ok: Boolean(data.ok), error: data.error, message: data.message };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
+  }
+}
+
+export function postAction(path: string, body?: unknown): Promise<ActionResult> {
+  return sendAction(path, 'POST', body);
 }

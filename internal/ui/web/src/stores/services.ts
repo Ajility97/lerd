@@ -7,6 +7,8 @@ import { confirmDownload } from './downloadConfirm';
 import { sites } from './sites';
 import { groupByCategory, type CategoryGroup } from '$lib/presetCategories';
 import { announce, serviceStatusChanges } from '$lib/announce';
+import { readNDJSON } from '$lib/ndjson';
+import { fetchBackupList, fetchBackupText } from '$lib/backups';
 
 // One published port of a service: its container-internal port, its preset
 // default host port, and the current host override (0/undefined = on default).
@@ -39,6 +41,8 @@ export interface Service {
   // True when lerd ships this service as a bundled preset (default-stack or
   // optional). Drives the ports modal's extra-ports affordance.
   preset_owned?: boolean;
+  // The plugin it was installed from; removing that plugin removes it.
+  plugin?: string;
   tunable?: boolean;
   // True for a database engine (mysql/mariadb/postgres/mongo), so the detail
   // view shows its Databases tab.
@@ -427,42 +431,24 @@ export async function streamServiceAction(
       setProgress(name, null);
       return { ok: false, error: 'streaming not supported' };
     }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
     let finalError: string | undefined;
     // A restore the engine complained about is the last thing worth reading, so
     // it outlives the phase that follows it instead of being wiped on success.
     let finalWarning: string | undefined;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let nl: number;
-      while ((nl = buf.indexOf('\n')) >= 0) {
-        const line = buf.slice(0, nl).trim();
-        buf = buf.slice(nl + 1);
-        if (!line) continue;
-        let evt: PhaseEvent;
-        try {
-          evt = JSON.parse(line) as PhaseEvent;
-        } catch {
-          continue;
-        }
-        if (evt.phase === 'error') {
-          finalError = evt.error || m.common_failed();
-          setProgress(name, { phase: 'error', message: finalError, error: true });
-          continue;
-        }
-        if (evt.phase === 'done') continue;
-        if (evt.phase === 'restore_warnings') finalWarning = evt.message || phaseLabel(evt.phase);
-        const message =
-          evt.phase === 'pulling_image' && evt.image
-            ? 'Pulling ' + evt.image + pullSize(evt.bytes)
-            : evt.message || phaseLabel(evt.phase);
-        setProgress(name, { phase: evt.phase, message });
+    await readNDJSON<PhaseEvent>(res.body, (evt) => {
+      if (evt.phase === 'error') {
+        finalError = evt.error || m.common_failed();
+        setProgress(name, { phase: 'error', message: finalError, error: true });
+        return;
       }
-    }
+      if (evt.phase === 'done') return;
+      if (evt.phase === 'restore_warnings') finalWarning = evt.message || phaseLabel(evt.phase);
+      const message =
+        evt.phase === 'pulling_image' && evt.image
+          ? 'Pulling ' + evt.image + pullSize(evt.bytes)
+          : evt.message || phaseLabel(evt.phase);
+      setProgress(name, { phase: evt.phase, message });
+    });
     if (finalError) {
       setTimeout(() => setProgress(name, null), 5000);
     } else if (finalWarning) {
@@ -658,22 +644,11 @@ export async function saveServiceConfig(
 }
 
 export async function loadServiceTuningBackups(name: string): Promise<LoadTuningBackupsResult> {
-  try {
-    const res = await apiFetch(tuningURL(name) + '/backups');
-    if (!res.ok) {
-      return { ok: false, list: [], error: m.common_backupsLoadFailed({ status: res.status }) };
-    }
-    const list = (await res.json()) as ServiceTuningBackup[];
-    return { ok: true, list: Array.isArray(list) ? list : [] };
-  } catch (e) {
-    return { ok: false, list: [], error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
+  return fetchBackupList<ServiceTuningBackup>(tuningURL(name) + '/backups');
 }
 
 export async function loadServiceTuningBackupContent(name: string, backupName: string): Promise<string> {
-  const res = await apiFetch(tuningURL(name) + '/backups/' + encodeURIComponent(backupName));
-  if (!res.ok) throw new Error(m.common_backupLoadFailed({ status: res.status }));
-  return await res.text();
+  return fetchBackupText(tuningURL(name) + '/backups/' + encodeURIComponent(backupName));
 }
 
 export async function restoreServiceTuning(

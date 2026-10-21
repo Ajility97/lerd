@@ -7,6 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/plugins"
 )
 
 // jsonEqual reports whether a and b serialise to the same canonical JSON. Go
@@ -45,6 +48,7 @@ type ctxFile struct {
 	Project string
 	Global  string
 	Format  ctxFormat
+	Plugin  string // the plugin a skill belongs to, recorded when it is written
 	Content func() string
 }
 
@@ -58,6 +62,97 @@ type aiClient struct {
 	NeedsType    bool      // inject "type":"stdio" into the entry (VS Code only)
 	GlobalViaCLI bool      // register global scope via `claude mcp add` instead of a file
 	Contexts     []ctxFile // context/instructions docs this client loads
+	SkillsDir    string    // where the client loads skills from, rel to project root and $HOME; "" = no skills
+}
+
+// clientContexts is the client's own docs plus, for a client that loads skills,
+// one lerd-<plugin>/SKILL.md per installed plugin that ships a skill.
+func clientContexts(c aiClient) []ctxFile {
+	if c.SkillsDir == "" {
+		return c.Contexts
+	}
+	out := append([]ctxFile(nil), c.Contexts...)
+	list, _ := plugins.Load()
+	for _, p := range list {
+		if p.MCP == nil || p.MCP.Skill == "" {
+			continue
+		}
+		path := filepath.Join(c.SkillsDir, "lerd-"+p.Name, "SKILL.md")
+		skill := filepath.Join(p.Dir, p.MCP.Skill)
+		out = append(out, ctxFile{
+			Project: path,
+			Global:  path,
+			Format:  ctxOverwrite,
+			Plugin:  p.Name,
+			Content: func() string {
+				data, _ := os.ReadFile(skill)
+				return string(data)
+			},
+		})
+	}
+	return out
+}
+
+// staleSkillContexts is the skill of every plugin lerd wrote one for that is
+// no longer installed, so eject and refresh can still find it. Nil when the
+// installed plugins cannot be read, so a read error never removes a skill.
+func staleSkillContexts(c aiClient) []ctxFile {
+	if c.SkillsDir == "" {
+		return nil
+	}
+	list, err := plugins.Load()
+	if err != nil {
+		return nil
+	}
+	installed := map[string]bool{}
+	for _, p := range list {
+		installed[p.Name] = true
+	}
+	var out []ctxFile
+	for _, name := range writtenPluginSkills() {
+		if installed[name] {
+			continue
+		}
+		path := filepath.Join(c.SkillsDir, "lerd-"+name, "SKILL.md")
+		out = append(out, ctxFile{Project: path, Global: path, Format: ctxOverwrite, Plugin: name})
+	}
+	return out
+}
+
+// removableContexts is everything eject removes for a client: what lerd
+// writes now plus the skills of plugins removed since.
+func removableContexts(c aiClient) []ctxFile {
+	return append(clientContexts(c), staleSkillContexts(c)...)
+}
+
+// pluginSkillsFile records every plugin lerd has written a skill for. A
+// plugin's skill outlives the plugin in each project it was written to, and
+// only this record can name it once the plugin is gone.
+func pluginSkillsFile() string { return filepath.Join(config.DataDir(), "plugin-skills.json") }
+
+func writtenPluginSkills() []string {
+	var names []string
+	if data, err := os.ReadFile(pluginSkillsFile()); err == nil {
+		_ = json.Unmarshal(data, &names)
+	}
+	return names
+}
+
+func recordPluginSkill(name string) error {
+	names := writtenPluginSkills()
+	for _, n := range names {
+		if n == name {
+			return nil
+		}
+	}
+	data, err := json.Marshal(append(names, name))
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(pluginSkillsFile()), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(pluginSkillsFile(), data, 0o644)
 }
 
 // aiClients is the single source of truth for every assistant lerd integrates
@@ -73,11 +168,19 @@ var aiClients = []aiClient{
 		MCPFormat:    fmtJSONMcpServers,
 		ServerKey:    "mcpServers",
 		GlobalViaCLI: true,
+		SkillsDir:    filepath.Join(".claude", "skills"),
 		Contexts: []ctxFile{{
 			Project: filepath.Join(".claude", "skills", "lerd", "SKILL.md"),
 			Global:  filepath.Join(".claude", "skills", "lerd", "SKILL.md"),
 			Format:  ctxOverwrite,
 			Content: renderClaudeSkill,
+		}, {
+			// A topic guide beside the skill, the way Omarchy's skill keeps one
+			// per area, so plugin authoring loads only when it is needed.
+			Project: filepath.Join(".claude", "skills", "lerd", "plugins.md"),
+			Global:  filepath.Join(".claude", "skills", "lerd", "plugins.md"),
+			Format:  ctxOverwrite,
+			Content: func() string { return plugins.Guide },
 		}},
 	},
 	{
@@ -281,6 +384,11 @@ func writeClientContext(path string, cx ctxFile) error {
 	}
 	if cx.Format == ctxSentinel {
 		return mergeSentinelSection(path, cx.Content())
+	}
+	if cx.Plugin != "" {
+		if err := recordPluginSkill(cx.Plugin); err != nil {
+			return fmt.Errorf("recording the %s skill: %w", cx.Plugin, err)
+		}
 	}
 	return writeIfChanged(path, []byte(cx.Content()))
 }

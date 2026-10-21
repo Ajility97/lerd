@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { LensRows, localTime } from '$lib/lensRows.svelte';
   import LensSearch from '$components/LensSearch.svelte';
   import { onMount, onDestroy, untrack } from 'svelte';
   import { get } from 'svelte/store';
@@ -25,8 +26,8 @@
   import LensList from '$components/LensList.svelte';
   import LensGroupLabel from '$components/LensGroupLabel.svelte';
   import { groupLabel } from '$lib/eventGroup';
-  import { createLens, fetchEvent, fetchFacets, type FacetLists } from '$lib/lens';
-  import type { DumpEvent, QueryData } from '$lib/dumpEvent';
+  import { createLens, fetchFacets, type FacetLists } from '$lib/lens';
+  import type { QueryData } from '$lib/dumpEvent';
   import { inlineBindings } from '$lib/sqlInline';
   import { m } from '../paraglide/messages.js';
 
@@ -121,29 +122,9 @@
   }
 
   const fmtMs = (n: number) => (n < 10 ? n.toFixed(2) : n.toFixed(1));
-  function localTime(ts: string): string {
-    const d = new Date(ts);
-    return isNaN(d.getTime()) ? ts : d.toLocaleTimeString();
-  }
-  let expanded = $state<Record<string, boolean>>({});
-  // An opened row reads its whole event: the list leaves out the call stack
-  // and a mail's HTML.
-  let details = $state<Record<string, DumpEvent>>({});
-  function toggleRow(id: string) {
-    expanded[id] = !expanded[id];
-    if (!expanded[id]) delete details[id];
-    else if (!details[id]) fetchEvent(id).then((e) => (expanded[id] ? (details[id] = e) : undefined), () => {});
-  }
-  // A row that leaves the page lets go of its whole event, mail HTML included,
-  // and closes, so coming back it opens and reads it again.
-  $effect(() => {
-    const held = new Set($lensGroups.flatMap((g) => g.rows.map((r) => r.event.id)));
-    for (const id of Object.keys(details)) {
-      if (held.has(id)) continue;
-      delete details[id];
-      delete expanded[id];
-    }
-  });
+  const rows = new LensRows();
+  const toggleRow = (id: string) => rows.toggle(id);
+  $effect(() => rows.keepOnly($lensGroups));
 </script>
 
 <div class="flex flex-col h-full overflow-hidden">
@@ -258,7 +239,7 @@
                   class="px-2 hover:bg-gray-50 dark:hover:bg-white/5 border-l border-gray-100 dark:border-lerd-border/50"
                 />
               </div>
-              {#if expanded[row.event.id]}
+              {#if rows.expanded[row.event.id]}
                 <div class="px-2.5 pb-2 pt-1 border-t border-gray-100 dark:border-lerd-border/50 text-[11px] space-y-1.5">
                   {#if data.connection}
                     <div class="text-gray-400">{data.connection}{#if data.rw_type}&nbsp;({data.rw_type}){/if}</div>
@@ -269,7 +250,7 @@
                       <code class="text-gray-700 dark:text-gray-300 break-all">{JSON.stringify(data.bindings)}</code>
                     </div>
                   {/if}
-                  <TraceBlock src={row.event.src} trace={(details[row.event.id]?.data as QueryData | undefined)?.trace} />
+                  <TraceBlock src={row.event.src} trace={(rows.details[row.event.id]?.data as QueryData | undefined)?.trace} />
                 </div>
               {/if}
             </div>

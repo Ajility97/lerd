@@ -353,6 +353,34 @@ func (s *serviceConfigSnapshot) restoreQuadlet(name string) error {
 	return EnsureCustomServiceQuadlet(s.custom)
 }
 
+// moveToTargetImage stops the dumped service, sets its old data dir aside and
+// brings it up on targetImage, rolling back to the old image and data on any
+// failure. Returns where the old data dir now lives.
+func moveToTargetImage(unit, name, targetImage string, snapshot *serviceConfigSnapshot, emit func(PhaseEvent)) (string, error) {
+	emit(PhaseEvent{Phase: "stopping_unit", Unit: unit})
+	if err := podman.StopUnit(unit); err != nil {
+		return "", fmt.Errorf("stopping %s: %w", unit, err)
+	}
+
+	emit(PhaseEvent{Phase: "swapping_data_dir", Message: "old data preserved alongside the dump"})
+	backup, err := swapDataDirAside(name)
+	if err != nil {
+		return "", abortMigrate(unit, name, "", nil, err)
+	}
+
+	discloseImagePull(targetImage, emit)
+	if err := podman.PullImageWithProgress(targetImage, func(line string) {
+		emit(PhaseEvent{Phase: "pulling_image", Message: line})
+	}); err != nil {
+		return "", abortMigrate(unit, name, backup, nil, fmt.Errorf("pulling target: %w", err))
+	}
+
+	if err := switchToTargetImage(name, targetImage, emit); err != nil {
+		return "", abortMigrate(unit, name, backup, snapshot, err)
+	}
+	return backup, nil
+}
+
 // abortMigrate is the shared post-failure recovery: restore the old data dir,
 // revert a persisted image switch via the snapshot, and bring the unit back up,
 // joining errors so no fix is silent.
@@ -420,26 +448,9 @@ func migrateMysql(name, targetImage string, emit func(PhaseEvent)) error {
 		return fmt.Errorf("mysqldump: %w", err)
 	}
 
-	emit(PhaseEvent{Phase: "stopping_unit", Unit: unit})
-	if err := podman.StopUnit(unit); err != nil {
-		return fmt.Errorf("stopping %s: %w", unit, err)
-	}
-
-	emit(PhaseEvent{Phase: "swapping_data_dir", Message: "old data preserved alongside the dump"})
-	backup, err := swapDataDirAside(name)
+	backup, err := moveToTargetImage(unit, name, targetImage, snapshot, emit)
 	if err != nil {
-		return abortMigrate(unit, name, "", nil, err)
-	}
-
-	discloseImagePull(targetImage, emit)
-	if err := podman.PullImageWithProgress(targetImage, func(line string) {
-		emit(PhaseEvent{Phase: "pulling_image", Message: line})
-	}); err != nil {
-		return abortMigrate(unit, name, backup, nil, fmt.Errorf("pulling target: %w", err))
-	}
-
-	if err := switchToTargetImage(name, targetImage, emit); err != nil {
-		return abortMigrate(unit, name, backup, snapshot, err)
+		return err
 	}
 
 	emit(PhaseEvent{Phase: "waiting_ready", Unit: unit})
@@ -484,26 +495,9 @@ func migratePostgres(name, targetImage string, emit func(PhaseEvent)) error {
 		return fmt.Errorf("pg_dumpall: %w", err)
 	}
 
-	emit(PhaseEvent{Phase: "stopping_unit", Unit: unit})
-	if err := podman.StopUnit(unit); err != nil {
-		return fmt.Errorf("stopping %s: %w", unit, err)
-	}
-
-	emit(PhaseEvent{Phase: "swapping_data_dir"})
-	backup, err := swapDataDirAside(name)
+	backup, err := moveToTargetImage(unit, name, targetImage, snapshot, emit)
 	if err != nil {
-		return abortMigrate(unit, name, "", nil, err)
-	}
-
-	discloseImagePull(targetImage, emit)
-	if err := podman.PullImageWithProgress(targetImage, func(line string) {
-		emit(PhaseEvent{Phase: "pulling_image", Message: line})
-	}); err != nil {
-		return abortMigrate(unit, name, backup, nil, fmt.Errorf("pulling target: %w", err))
-	}
-
-	if err := switchToTargetImage(name, targetImage, emit); err != nil {
-		return abortMigrate(unit, name, backup, snapshot, err)
+		return err
 	}
 
 	emit(PhaseEvent{Phase: "waiting_ready", Unit: unit})

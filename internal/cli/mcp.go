@@ -172,7 +172,7 @@ func writeProjectArtefacts(abs string, verbose, createMissing bool) error {
 				log("  updated " + filepath.Base(resolveClientConfigPath(full)))
 			}
 		}
-		for _, cx := range c.Contexts {
+		for _, cx := range clientContexts(c) {
 			if cx.Project == "" {
 				continue
 			}
@@ -182,6 +182,11 @@ func writeProjectArtefacts(abs string, verbose, createMissing bool) error {
 					return fmt.Errorf("writing %s: %w", cx.Project, err)
 				}
 				log("  wrote   " + cx.Project)
+			}
+		}
+		for _, cx := range staleSkillContexts(c) {
+			if changed, _ := removeClientContext(filepath.Join(abs, cx.Project), cx); changed {
+				log("  removed " + cx.Project)
 			}
 		}
 	}
@@ -378,7 +383,7 @@ func globalContextPath(home, rel string) string {
 
 func writeGlobalContexts(home string, verbose, createMissing bool) error {
 	for _, c := range aiClients {
-		for _, cx := range c.Contexts {
+		for _, cx := range clientContexts(c) {
 			if cx.Global == "" {
 				continue
 			}
@@ -391,6 +396,12 @@ func writeGlobalContexts(home string, verbose, createMissing bool) error {
 			}
 			if verbose {
 				feedback.Note("wrote " + full)
+			}
+		}
+		for _, cx := range staleSkillContexts(c) {
+			full := globalContextPath(home, cx.Global)
+			if changed, _ := removeClientContext(full, cx); changed && verbose {
+				feedback.Note("removed " + full)
 			}
 		}
 	}
@@ -539,7 +550,7 @@ func RemoveGlobalAISkills(home string, verbose bool) error {
 				log("  cleaned " + resolveClientConfigPath(full))
 			}
 		}
-		for _, cx := range c.Contexts {
+		for _, cx := range removableContexts(c) {
 			if cx.Global == "" {
 				continue
 			}
@@ -576,7 +587,7 @@ func RemoveProjectAISkills(abs string, verbose bool) error {
 				log("  cleaned " + resolveClientConfigPath(full))
 			}
 		}
-		for _, cx := range c.Contexts {
+		for _, cx := range removableContexts(c) {
 			if cx.Project == "" {
 				continue
 			}

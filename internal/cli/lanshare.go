@@ -98,15 +98,7 @@ func LANShareStart(siteName string) (int, error) {
 	}
 	lanShareMu.Unlock()
 
-	cfg, _ := config.LoadGlobal()
-	httpPort := cfg.Nginx.HTTPPort
-	if httpPort == 0 {
-		httpPort = 80
-	}
-	httpsPort := cfg.Nginx.HTTPSPort
-	if httpsPort == 0 {
-		httpsPort = 443
-	}
+	httpPort, httpsPort := config.NginxPorts()
 
 	srv, err := startLANShareProxy(site.PrimaryDomain(), port, httpPort, httpsPort, site.Secured, reachLAN)
 	if err != nil {
@@ -221,17 +213,7 @@ func RestoreLANShareProxies() {
 	if err != nil {
 		return
 	}
-	cfg, _ := config.LoadGlobal()
-	httpPort := 80
-	httpsPort := 443
-	if cfg != nil {
-		if cfg.Nginx.HTTPPort != 0 {
-			httpPort = cfg.Nginx.HTTPPort
-		}
-		if cfg.Nginx.HTTPSPort != 0 {
-			httpsPort = cfg.Nginx.HTTPSPort
-		}
-	}
+	httpPort, httpsPort := config.NginxPorts()
 	for _, s := range reg.Sites {
 		if !shouldRunLANShareProxy(s) {
 			continue
@@ -416,15 +398,7 @@ func LANShareStartWorktree(siteName, branch string) (int, error) {
 	}
 	lanShareMu.Unlock()
 
-	cfg, _ := config.LoadGlobal()
-	httpPort := cfg.Nginx.HTTPPort
-	if httpPort == 0 {
-		httpPort = 80
-	}
-	httpsPort := cfg.Nginx.HTTPSPort
-	if httpsPort == 0 {
-		httpsPort = 443
-	}
+	httpPort, httpsPort := config.NginxPorts()
 
 	srv, err := startLANShareProxy(worktreeDomain, port, httpPort, httpsPort, site.Secured, reachLAN)
 	if err != nil {

@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import { wsMessage, type NotificationEvent } from './ws';
+import { wsConnected, wsMessage, type NotificationEvent } from './ws';
 import { apiFetch } from './api';
 import { onFallbackOrigin } from './vhost';
 import { m } from '../paraglide/messages.js';
@@ -20,6 +20,7 @@ export type NotifyKind =
   | 'mail'
   | 'message'
   | 'worker_failed'
+  | 'plugin_failed'
   | 'job_failed'
   | 'op_done'
   | 'snapshot'
@@ -32,6 +33,7 @@ export const ALL_KINDS: NotifyKind[] = [
   'mail',
   'message',
   'worker_failed',
+  'plugin_failed',
   'job_failed',
   'op_done',
   'snapshot',
@@ -54,6 +56,8 @@ const DEFAULTS: NotifyPrefs = {
     // notification is the only sign it went out. On, like mail.
     message: true,
     worker_failed: true,
+    // A plugin's hooks fail where nobody looks, so this is the only sign.
+    plugin_failed: true,
     // A queued job that fails is a real failure the queue would otherwise
     // swallow, and it is deduped per job class, so it is on by default.
     job_failed: true,
@@ -364,10 +368,9 @@ async function fireNotification(evt: NotificationEvent) {
       pushInApp(entry);
     }
     if (windowFocused()) return;
-    // Under the native sink the daemon has already posted this to the desktop.
-    // A second popup from the page duplicates it and takes the click away from
-    // the desktop app, which the daemon's copy opens through lerd://.
-    if (get(notifyDelivery) === 'native') return;
+    // Under the native sink the daemon already posted this, and a page copy would
+    // steal its lerd:// click. Until the sink is known the page cannot tell.
+    if (get(notifyDelivery) !== 'browser') return;
   }
   if (typeof Notification === 'undefined') return;
   if (Notification.permission !== 'granted') return;
@@ -388,13 +391,15 @@ async function fireNotification(evt: NotificationEvent) {
       /* fall through to page-level Notification */
     }
   }
-  new Notification(title, opts);
+  const n = new Notification(title, opts);
+  pagePopups.add(n);
+  n.onclose = () => pagePopups.delete(n);
 }
 
 // notifyDelivery mirrors the server's notification sink (browser | native) so
 // browser-only UI (the enable banner, permission prompts) can hide itself when
-// the daemon is delivering notifications natively.
-export const notifyDelivery = writable<'browser' | 'native'>('browser');
+// the daemon is delivering notifications natively. null until lerd-ui answers.
+export const notifyDelivery = writable<'browser' | 'native' | null>(null);
 
 // desktopAppInstalled mirrors whether the daemon sees the Lerd desktop app as
 // the lerd:// handler, so the web UI can offer "Open in app".
@@ -420,7 +425,7 @@ export async function loadNotifyDelivery() {
       notifyNativeKinds.set(d.kinds ?? {});
     }
   } catch {
-    /* keep browser default */
+    /* unknown until the next reconnect asks again */
   }
 }
 
@@ -453,15 +458,41 @@ export function handleProtocolLaunch() {
 
 let initialized = false;
 
+// getNotifications() only sees the worker's popups, so the page keeps its own fallbacks.
+const pagePopups = new Set<Notification>();
+
+// Desktop popups nobody clicked stay in the system's notification list, and the
+// launcher badges the app with their count (Plasma, a PWA's dock icon) forever.
+// Once the dashboard is in front of the user they have served their purpose.
+async function retireDelivered() {
+  for (const n of pagePopups) n.close();
+  pagePopups.clear();
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      for (const n of await reg.getNotifications()) n.close();
+    } catch {
+      /* no registration to ask */
+    }
+  }
+  await navigator.clearAppBadge?.().catch(() => {});
+}
+
 export function initNotify() {
   if (initialized) return;
   initialized = true;
   handleProtocolLaunch();
   void loadNotifyDelivery();
+  // A page that loaded while lerd-ui was down learns the sink once it is back.
+  wsConnected.subscribe((up) => {
+    if (up) void loadNotifyDelivery();
+  });
   wsMessage.subscribe((msg) => {
     if (!msg?.notification) return;
     void fireNotification(msg.notification);
   });
+  window.addEventListener('focus', () => void retireDelivered());
+  if (document.hasFocus()) void retireDelivered();
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', (e: MessageEvent) => {
       const data = e.data as { kind?: string; url?: string } | undefined;

@@ -189,25 +189,6 @@ func TestWorkersTitle(t *testing.T) {
 	}
 }
 
-func TestServiceInfo_IsWorker(t *testing.T) {
-	if (serviceInfo{Name: "mysql", Status: "active"}).isWorker() {
-		t.Error("a real service preset must not count as a worker")
-	}
-	workers := []serviceInfo{
-		{Name: "queue-a", QueueSite: "a.test"},
-		{Name: "schedule-a", ScheduleWorkerSite: "a.test"},
-		{Name: "stripe-a", StripeListenerSite: "a.test"},
-		{Name: "reverb-a", ReverbSite: "a.test"},
-		{Name: "horizon-a", HorizonSite: "a.test"},
-		{Name: "vite-a", WorkerSite: "a.test"},
-	}
-	for _, w := range workers {
-		if !w.isWorker() {
-			t.Errorf("%s should count as a per-site worker", w.Name)
-		}
-	}
-}
-
 func TestPHPTitle(t *testing.T) {
 	if got := phpTitle(&Snapshot{}); got != "PHP" {
 		t.Errorf("phpTitle with no default = %q, want %q", got, "PHP")

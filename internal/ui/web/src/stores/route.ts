@@ -1,12 +1,20 @@
 import { writable, derived } from 'svelte/store';
 
-export type TabId = 'dashboard' | 'sites' | 'services' | 'system';
+export type TabId = 'dashboard' | 'sites' | 'services' | 'system' | 'plugins';
 
-export const TABS: TabId[] = ['dashboard', 'sites', 'services', 'system'];
+// The rail's tabs. Plugins is a page too, reached from the rail's plugin group
+// and the palette rather than a tab of its own.
+export type RailTab = Exclude<TabId, 'plugins'>;
+export const TABS: RailTab[] = ['dashboard', 'sites', 'services', 'system'];
+const PAGES: TabId[] = [...TABS, 'plugins'];
+
+// Plugins lived under System before it had a page; its old links still land.
+const LEGACY_PLUGINS = 'system/plugins';
 
 export function parseHash(hash: string): { tab: TabId; rest: string } {
-  const h = hash.startsWith('#') ? hash.slice(1) : hash;
-  for (const t of TABS) {
+  let h = hash.startsWith('#') ? hash.slice(1) : hash;
+  if (h === LEGACY_PLUGINS || h.startsWith(LEGACY_PLUGINS + '/')) h = h.slice('system/'.length);
+  for (const t of PAGES) {
     if (h === t) return { tab: t, rest: '' };
     if (h.startsWith(t + '/')) return { tab: t, rest: h.slice(t.length + 1) };
   }

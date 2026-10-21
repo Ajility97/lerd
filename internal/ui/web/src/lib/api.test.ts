@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { apiUrl, wsUrl, apiFetch, sharedJson } from './api';
+import { apiUrl, wsUrl, apiFetch, sharedJson, sendAction, postAction } from './api';
 
 describe('apiUrl', () => {
   it('passes absolute URLs through', () => {
@@ -79,5 +79,25 @@ describe('sharedJson', () => {
     await sharedJson('/api/settings');
     expect(fetchMock).toHaveBeenCalledTimes(2);
     vi.unstubAllGlobals();
+  });
+});
+
+describe('sendAction', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('sends a JSON body and passes the answer through', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ ok: true, message: 'done' })));
+    vi.stubGlobal('fetch', fetchMock);
+    const res = await sendAction('/api/workspaces/layout', 'PUT', { workspaces: [] });
+    expect(res).toEqual({ ok: true, error: undefined, message: 'done' });
+    const init = fetchMock.mock.calls[0][1]!;
+    expect(init.method).toBe('PUT');
+    expect(init.body).toBe('{"workspaces":[]}');
+    expect(new Headers(init.headers).get('Content-Type')).toBe('application/json');
+  });
+
+  it('folds a network failure into an error result', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
+    expect(await postAction('/api/x')).toEqual({ ok: false, error: 'offline' });
   });
 });

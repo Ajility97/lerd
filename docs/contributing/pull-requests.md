@@ -13,6 +13,16 @@ gofmt -w .   # fix them
 
 The CI will reject PRs with unformatted code.
 
+### Comments
+
+Comments explain why, not what, and a comment block stays within three lines. A pre-commit hook checks every block a commit touches in Go, TypeScript, JavaScript and Svelte files; turn it on once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+A block that has outgrown three lines usually says what the code already says. When one truly needs the room, `git commit --no-verify` skips the check.
+
 ### Tests
 
 Run the full test suite:
@@ -28,6 +38,10 @@ make test
 ```bash
 CGO_ENABLED=1 go vet ./...
 ```
+
+### Duplication
+
+`make dupes` runs jscpd over `internal/` and `cmd/` and opens an HTML report of copy-pasted blocks, like PhpStorm's Duplicated Code inspection. It is not a CI gate; run it before extracting a helper to find every copy, and after, to check none are left. Tests are left out because table-driven setup repeats on purpose.
 
 ### Screenshots for UI changes
 

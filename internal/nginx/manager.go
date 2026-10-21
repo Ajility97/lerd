@@ -25,6 +25,7 @@ import (
 	"github.com/geodro/lerd/internal/envfile"
 	"github.com/geodro/lerd/internal/nativephp"
 	"github.com/geodro/lerd/internal/platform"
+	"github.com/geodro/lerd/internal/plugins"
 	"github.com/geodro/lerd/internal/podman"
 )
 
@@ -196,10 +197,10 @@ type VhostData struct {
 	// profiled. SPX_KEY is injected regardless (gated by the $spx_key map)
 	// so the profiler UI is reachable.
 	Profiling bool
-	// BrowserLogsConf is the server-level browser logs block (the script
-	// injection and the locations proxied to lerd-ui), or "" when capture is
-	// off, which leaves the page untouched.
-	BrowserLogsConf string
+	// PageInjectConf is the server-level block that adds scripts to the site's
+	// pages (browser logs, page plugins) and the locations proxied to lerd-ui
+	// for them, or "" when nothing is injected, which leaves the page untouched.
+	PageInjectConf string
 	// RequestTimeout is the nginx request timeout in seconds rendered into the
 	// fastcgi_*_timeout / proxy_*_timeout directives. Resolved per site by
 	// resolveRequestTimeout (project .lerd.yaml, then global config, then 60s).
@@ -512,45 +513,70 @@ func profilerEnabled() bool {
 	return err == nil && cfg.IsProfilerEnabled()
 }
 
-// browserLogsConf renders a site's browser logs block for its vhost:
-// the script injection before </head> and the two locations that hand the
-// script and the reports to lerd-ui, naming the site in headers nginx sets
-// itself. Empty unless debug capture is on and the site opted in.
-func browserLogsConf(siteName, branch string) string {
-	cfg, err := config.LoadGlobal()
-	if err != nil || !cfg.IsDumpsEnabled() {
-		return ""
-	}
+// pageInjectConf renders one </head> injection for browser logs and the site's
+// page plugins (nginx rewrites it once), plus the locations handing them to
+// lerd-ui with the site in headers nginx sets. Empty leaves the page alone.
+func pageInjectConf(siteName, branch string) string {
 	site, err := config.FindSite(siteName)
 	if err != nil || site == nil {
 		return ""
 	}
-	settings := config.BrowserLogsFor(*site)
-	if !settings.Enabled {
-		return ""
-	}
-	path := config.BrowserLogsPath
-	location := func(suffix string) string {
-		return fmt.Sprintf(`
+	var tags, blocks string
+	headers := fmt.Sprintf(`
+        proxy_http_version 1.1;
+        proxy_set_header X-Lerd-Site "%s";
+        proxy_set_header X-Lerd-Branch "%s";
+        proxy_set_header X-Lerd-Host $host;`, siteName, branch)
+
+	if cfg, err := config.LoadGlobal(); err == nil && cfg.IsDumpsEnabled() && config.BrowserLogsFor(*site).Enabled {
+		path := config.BrowserLogsPath
+		// The script tag carries the id of the request that served the page, and a
+		// page on another origin may read it off a response, so the browser's
+		// events link to the PHP request behind them.
+		tags += fmt.Sprintf(`<script src="%s.js" data-rid="$upstream_http_x_lerd_rid"></script>`, path)
+		blocks += "\n    add_header Access-Control-Expose-Headers X-Lerd-Rid always;\n"
+		for _, suffix := range []string{"", ".js"} {
+			blocks += fmt.Sprintf(`
     location = %[1]s%[2]s {
         access_log off;
         client_max_body_size 64k;
-        proxy_pass %[3]s%[1]s%[2]s;
-        proxy_http_version 1.1;
-        proxy_set_header X-Lerd-Site "%[4]s";
-        proxy_set_header X-Lerd-Branch "%[5]s";
-        proxy_set_header X-Lerd-Host $host;
+        proxy_pass %[3]s%[1]s%[2]s;%[4]s
     }
-`, path, suffix, lerdUIUpstream(), siteName, branch)
+`, path, suffix, lerdUIUpstream(), headers)
+		}
 	}
-	// The script tag carries the id of the request that served the page, and a
-	// page on another origin may read it off a response, so the browser's
-	// events link to the PHP request behind them.
+
+	if names := pagePlugins(site); len(names) > 0 {
+		for _, name := range names {
+			tags += fmt.Sprintf(`<script src="%s%s/page.js" defer></script>`, plugins.PagePath, name)
+		}
+		blocks += fmt.Sprintf(`
+    location ^~ %s {
+        access_log off;
+        client_max_body_size 1m;
+        proxy_pass %s;%s
+    }
+`, plugins.PagePath, lerdUIUpstream(), headers)
+	}
+
+	if tags == "" {
+		return ""
+	}
 	return fmt.Sprintf(`
-    sub_filter '</head>' '<script src="%s.js" data-rid="$upstream_http_x_lerd_rid"></script></head>';
-    sub_filter_once on;
-    add_header Access-Control-Expose-Headers X-Lerd-Rid always;
-`, path) + location("") + location(".js")
+    sub_filter '</head>' '%s</head>';
+    sub_filter_once on;`, tags) + blocks
+}
+
+// pagePlugins is the site's switched-on page plugins that are still installed
+// and still ship a page script, in the order the site lists them.
+func pagePlugins(site *config.Site) []string {
+	var out []string
+	for _, name := range site.PagePlugins {
+		if p, err := plugins.Find(name); err == nil && p.UI != nil && p.UI.PageScript != "" {
+			out = append(out, name)
+		}
+	}
+	return out
 }
 
 // resolvePublicDir returns the document root subdirectory for a site, resolved
@@ -623,7 +649,7 @@ func renderFPMVhost(site config.Site, phpVersion string, ssl bool) ([]byte, erro
 		FrameworkFastCGI: frameworkFastCGI,
 		FrontController:  resolveFrontController(site),
 	}
-	data.BrowserLogsConf = browserLogsConf(site.Name, "")
+	data.PageInjectConf = pageInjectConf(site.Name, "")
 	if ssl {
 		data.CertDomain = site.PrimaryDomain()
 	}
@@ -704,7 +730,7 @@ func renderContainerVhost(site config.Site, container string, port int, backendS
 		BackendSSL:      backendSSL,
 		RequestTimeout:  resolveRequestTimeout(site.Path, site.PHPVersion),
 	}
-	data.BrowserLogsConf = browserLogsConf(site.Name, "")
+	data.PageInjectConf = pageInjectConf(site.Name, "")
 	if ssl {
 		data.CertDomain = site.PrimaryDomain()
 	}
@@ -806,7 +832,7 @@ func renderHostProxyVhost(site config.Site, tmplName string, ssl bool) ([]byte, 
 		BackendSSL:     site.HostSSL,
 		RequestTimeout: resolveRequestTimeout(site.Path, ""),
 	}
-	data.BrowserLogsConf = browserLogsConf(site.Name, "")
+	data.PageInjectConf = pageInjectConf(site.Name, "")
 	if ssl {
 		data.CertDomain = site.PrimaryDomain()
 	}
@@ -851,48 +877,8 @@ func worktreeVhostConfig(domain, path, phpVersion, siteName string) (publicDir, 
 	return publicDir, fpmContainer, frameworkNginx, frameworkFastCGI, fpmPort
 }
 
-// GenerateWorktreeVhost renders the HTTP vhost template for a worktree checkout
-// and writes it to conf.d/<domain>.conf.
-func GenerateWorktreeVhost(domain, path, phpVersion, siteName, branch string) error {
-	tmplData, err := GetTemplate("vhost.conf.tmpl")
-	if err != nil {
-		return err
-	}
-
-	tmpl, err := template.New("vhost").Parse(string(tmplData))
-	if err != nil {
-		return err
-	}
-
-	publicDir, fpmContainer, frameworkNginx, frameworkFastCGI, fpmPort := worktreeVhostConfig(domain, path, phpVersion, siteName)
-	devBase, devPort := detectWorktreeDevServer(siteName, path)
-	data := VhostData{
-		Domain:           domain,
-		ServerNames:      domain + " *." + domain,
-		Path:             path,
-		PHPVersion:       phpVersion,
-		PHPVersionShort:  phpShort(phpVersion),
-		FPMContainer:     fpmContainer,
-		FPMPort:          fpmPort,
-		PublicDir:        publicDir,
-		LerdSite:         siteName,
-		LerdBranch:       branch,
-		UpstreamHost:     hostProxyUpstream(),
-		DevServerBase:    devBase,
-		DevServerPort:    devPort,
-		Profiling:        profilerEnabled(),
-		RequestTimeout:   resolveRequestTimeout(path, phpVersion),
-		FrameworkNginx:   frameworkNginx,
-		FrameworkFastCGI: frameworkFastCGI,
-		FrontController:  resolveFrontController(worktreeSite(domain, path, siteName)),
-	}
-	data.BrowserLogsConf = browserLogsConf(siteName, branch)
-
-	rendered, err := renderVhost(tmpl, data)
-	if err != nil {
-		return err
-	}
-
+// writeConfD writes a rendered vhost to conf.d/<domain>.conf.
+func writeConfD(domain string, rendered []byte) error {
 	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
 		return err
 	}
@@ -901,15 +887,27 @@ func GenerateWorktreeVhost(domain, path, phpVersion, siteName, branch string) er
 	return os.WriteFile(confPath, rendered, 0644)
 }
 
+// GenerateWorktreeVhost renders the HTTP vhost template for a worktree checkout
+// and writes it to conf.d/<domain>.conf.
+func GenerateWorktreeVhost(domain, path, phpVersion, siteName, branch string) error {
+	return writeWorktreeVhost("vhost.conf.tmpl", domain, path, phpVersion, "", siteName, branch)
+}
+
 // GenerateWorktreeSSLVhost renders the SSL vhost template for a worktree checkout,
 // reusing the parent site's wildcard certificate (*.parentDomain).
 func GenerateWorktreeSSLVhost(domain, path, phpVersion, parentDomain, siteName, branch string) error {
-	tmplData, err := GetTemplate("vhost-ssl.conf.tmpl")
+	return writeWorktreeVhost("vhost-ssl.conf.tmpl", domain, path, phpVersion, parentDomain, siteName, branch)
+}
+
+// writeWorktreeVhost renders one of the PHP vhost templates for a worktree and
+// writes it to conf.d/<domain>.conf. certDomain is empty for plain HTTP.
+func writeWorktreeVhost(tmplName, domain, path, phpVersion, certDomain, siteName, branch string) error {
+	tmplData, err := GetTemplate(tmplName)
 	if err != nil {
 		return err
 	}
 
-	tmpl, err := template.New("vhost-ssl").Parse(string(tmplData))
+	tmpl, err := template.New(tmplName).Parse(string(tmplData))
 	if err != nil {
 		return err
 	}
@@ -924,7 +922,7 @@ func GenerateWorktreeSSLVhost(domain, path, phpVersion, parentDomain, siteName, 
 		PHPVersionShort:  phpShort(phpVersion),
 		FPMContainer:     fpmContainer,
 		FPMPort:          fpmPort,
-		CertDomain:       parentDomain,
+		CertDomain:       certDomain,
 		PublicDir:        publicDir,
 		LerdSite:         siteName,
 		LerdBranch:       branch,
@@ -937,19 +935,14 @@ func GenerateWorktreeSSLVhost(domain, path, phpVersion, parentDomain, siteName, 
 		FrameworkFastCGI: frameworkFastCGI,
 		FrontController:  resolveFrontController(worktreeSite(domain, path, siteName)),
 	}
-	data.BrowserLogsConf = browserLogsConf(siteName, branch)
+	data.PageInjectConf = pageInjectConf(siteName, branch)
 
 	rendered, err := renderVhost(tmpl, data)
 	if err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
-		return err
-	}
-	confPath := filepath.Join(config.NginxConfD(), domain+".conf")
-	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return writeConfD(domain, rendered)
 }
 
 // GenerateWorktreeHostProxyVhostFor renders a worktree's host-proxy vhost: nginx
@@ -1236,12 +1229,7 @@ func GenerateProxyVhost(domain, upstreamHost string, upstreamPort int) error {
 		return err
 	}
 
-	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
-		return err
-	}
-	confPath := filepath.Join(config.NginxConfD(), domain+".conf")
-	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return writeConfD(domain, rendered)
 }
 
 // GenerateServiceProxyVhost writes the vhost that serves a service on its own
@@ -1272,12 +1260,7 @@ func GenerateServiceProxyVhost(domain, upstreamHost string, upstreamPort int, ss
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
-		return err
-	}
-	confPath := filepath.Join(config.NginxConfD(), domain+".conf")
-	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return writeConfD(domain, rendered)
 }
 
 // ErrNotRunning reports that lerd-nginx is down, so there is no process to
@@ -1721,14 +1704,9 @@ func contentHashHex(b []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
-const errorPageHTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Site Not Found — Lerd</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; }
+// The CSS lerd's own status pages share (not found, paused, waking), so they
+// stay one design. StatusPageFrameCSS is the dark page and its centred card.
+const StatusPageFrameCSS = `    *, *::before, *::after { box-sizing: border-box; }
     body {
       background: #0f1117;
       color: #e5e7eb;
@@ -1748,7 +1726,10 @@ const errorPageHTML = `<!DOCTYPE html>
       width: calc(100% - 2rem);
       text-align: center;
     }
-    .logo {
+`
+
+// StatusPageTextCSS styles the logo, heading, host line and copy in the card.
+const StatusPageTextCSS = `    .logo {
       width: 48px;
       height: 48px;
       margin: 0 auto 1.25rem;
@@ -1775,15 +1756,10 @@ const errorPageHTML = `<!DOCTYPE html>
       margin: 0 0 1.5rem;
       line-height: 1.5;
     }
-    code {
-      background: #262a36;
-      padding: 0.15rem 0.4rem;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      font-family: ui-monospace, 'Cascadia Code', monospace;
-      color: #e5e7eb;
-    }
-    .actions { display: flex; gap: 0.5rem; }
+`
+
+// StatusPageButtonCSS lays out the card's row of actions.
+const StatusPageButtonCSS = `    .actions { display: flex; gap: 0.5rem; }
     a, button {
       flex: 1;
       display: inline-block;
@@ -1797,7 +1773,24 @@ const errorPageHTML = `<!DOCTYPE html>
       transition: background 0.15s;
       border: none;
     }
-    .btn-primary { background: #FF2D20; color: #fff; }
+`
+
+const errorPageHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Site Not Found — Lerd</title>
+  <style>
+` + StatusPageFrameCSS + StatusPageTextCSS + `    code {
+      background: #262a36;
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-family: ui-monospace, 'Cascadia Code', monospace;
+      color: #e5e7eb;
+    }
+` + StatusPageButtonCSS + `    .btn-primary { background: #FF2D20; color: #fff; }
     .btn-primary:hover { background: #e02419; }
     .btn-secondary { background: #262a36; color: #e5e7eb; border: 1px solid #2d3142; }
     .btn-secondary:hover { background: #2d3142; }

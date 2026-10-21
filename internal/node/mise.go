@@ -135,19 +135,7 @@ func (m miseManager) ExecPrefix(version string) string {
 }
 
 func (m miseManager) ExecPrefixWithEnv(version string, env []string) string {
-	prefix := m.ExecPrefix(version)
-	var assignments []string
-	for _, e := range env {
-		key, val, ok := strings.Cut(e, "=")
-		if !ok || key == "" {
-			continue
-		}
-		assignments = append(assignments, key+"="+shellQuote(val))
-	}
-	if len(assignments) == 0 {
-		return prefix
-	}
-	return prefix + " env " + strings.Join(assignments, " ")
+	return withEnv(m.ExecPrefix(version), env)
 }
 
 func (m miseManager) ShimScript(lerdBin, bin string) string {

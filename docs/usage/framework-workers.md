@@ -164,9 +164,11 @@ The port is pinned, because the vhost proxies to it and the tool would otherwise
 
 The tool reads those addresses once, when it starts, so lerd writes them back and restarts the dev server whenever they move: `lerd secure` and `lerd unsecure`, `lerd domain add` and `lerd domain remove`, and grouping a site under a main. A dev server that is not running is left down, and a change that leaves the addresses exactly as they were restarts nothing.
 
-A site with more than one domain serves its assets from the primary one, since a dev server can advertise only a single origin. The generated config lists every domain, both as a host the server answers for (along with its subdomains, matching the vhost's wildcard) and as an origin allowed to fetch from it, so a page opened on a second domain loads normally instead of having its assets refused.
+A site with more than one domain serves its assets from the primary one, since a dev server can advertise only a single origin. The generated config lists every domain, each along with its subdomains to match the vhost's wildcard, both as a host the server answers for and as an origin allowed to fetch from it, so a page opened on a second domain or on a tenant subdomain such as `acme.myapp.test` loads normally instead of having its assets refused.
 
 Some plugin middleware registers itself ahead of the tool's own base handling and only answers unprefixed, which would 404 on URLs it advertised itself. nginx retries any 404 under the prefix once with the prefix removed, so those routes work without anything having to name them.
+
+Stopping a worker that declares a `health.url_file`, whether the framework's or one of a project's own `custom_workers`, removes that file, so a Vite site falls back to its built assets instead of pointing at a server that is gone. A request under the prefix that still reaches a stopped dev server, say from a `public/hot` an app wrote some other way, gets a 502 saying nothing is listening on the dev server port and carries `Access-Control-Allow-Origin`, so a page on another of the site's domains shows that error in its console rather than a CORS failure.
 
 When [idle-suspend](/usage/idle-suspend) is enabled it stops every one of a site's workers once the site has been idle, so workers carry no special configuration for it. A worker marked `per_worktree: true` (Vite is the only one by default) is suspended per worktree, on each worktree's own idle timer.
 

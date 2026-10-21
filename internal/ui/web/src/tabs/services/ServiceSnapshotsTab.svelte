@@ -4,6 +4,7 @@
   import Dropdown from '$components/Dropdown.svelte';
   import Icon from '$components/Icon.svelte';
   import Modal from '$components/Modal.svelte';
+  import Pager from '$components/Pager.svelte';
   import SnapshotSettingsModal from '../../modals/SnapshotSettingsModal.svelte';
   import { tooltip } from '$lib/tooltip';
   import { formatBytes } from '$lib/bytes';
@@ -15,6 +16,7 @@
     deleteSnapshot,
     restoreSnapshot,
     snapshotExportUrl,
+    snapshotExpiryLabel,
     type Snapshot
   } from '$stores/databases';
   import { autoSnapshot, loadAutoSnapshot, nextSnapshotAt } from '$stores/autoSnapshot';
@@ -189,21 +191,6 @@
 
   function dateLabel(at: Date | null): string {
     return at ? at.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
-  }
-
-  // An automatic snapshot says when retention drops it, and a kept one says it
-  // never will, so the list answers "will this still be here tomorrow" on sight.
-  function expiryLabel(snap: Snapshot): string {
-    if (!snap.auto) return '';
-    if (snap.kept) return m.databases_snapshotKept();
-    if (!snap.expires_at) return m.databases_snapshotAuto();
-    const when = new Date(snap.expires_at).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    });
-    return snap.estimated
-      ? m.databases_snapshotExpiresAbout({ when })
-      : m.databases_snapshotExpires({ when });
   }
 
   async function toggleKeep(row: Row) {
@@ -393,7 +380,7 @@
                   {formatBytes(row.snap.size_bytes)}
                 </td>
                 <td class="py-2 pr-3 whitespace-nowrap text-gray-500 dark:text-gray-400">
-                  {expiryLabel(row.snap) || '—'}
+                  {snapshotExpiryLabel(row.snap) || '—'}
                 </td>
                 <td class="py-2">
                   <div class="flex items-center justify-end gap-1">
@@ -453,39 +440,7 @@
         </table>
       </div>
 
-      {#if filtered.length > PAGE_SIZE}
-        <div class="flex items-center justify-between gap-2 pt-3 text-xs text-gray-500 dark:text-gray-400">
-          <span class="tabular-nums">
-            {m.snapshots_pageRange({
-              from: current * PAGE_SIZE + 1,
-              to: current * PAGE_SIZE + paged.length,
-              total: filtered.length
-            })}
-          </span>
-          <div class="flex items-center gap-1">
-            <button
-              type="button"
-              onclick={() => (page = Math.max(0, current - 1))}
-              disabled={current === 0}
-              use:tooltip={m.snapshots_pagePrev()}
-              aria-label={m.snapshots_pagePrev()}
-              class="flex items-center justify-center w-7 h-7 rounded-md text-gray-500 dark:text-gray-400 enabled:hover:text-gray-700 dark:enabled:hover:text-gray-200 enabled:hover:bg-gray-100 dark:enabled:hover:bg-white/5 disabled:opacity-40 transition-colors"
-            >
-              <Icon name="back" class="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onclick={() => (page = Math.min(maxPage, current + 1))}
-              disabled={current === maxPage}
-              use:tooltip={m.snapshots_pageNext()}
-              aria-label={m.snapshots_pageNext()}
-              class="flex items-center justify-center w-7 h-7 rounded-md text-gray-500 dark:text-gray-400 enabled:hover:text-gray-700 dark:enabled:hover:text-gray-200 enabled:hover:bg-gray-100 dark:enabled:hover:bg-white/5 disabled:opacity-40 transition-colors"
-            >
-              <Icon name="chevron" class="w-3.5 h-3.5 -rotate-90" />
-            </button>
-          </div>
-        </div>
-      {/if}
+      <Pager page={current} total={filtered.length} size={PAGE_SIZE} onchange={(p) => (page = p)} />
     {/if}
   </SettingsCard>
 </div>

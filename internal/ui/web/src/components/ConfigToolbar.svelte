@@ -1,48 +1,18 @@
 <script lang="ts">
+  import type { ConfigFile } from '$lib/configFile.svelte';
   import { m } from '../paraglide/messages.js';
 
   interface Props {
-    path: string;
-    dirty: boolean;
-    loading: boolean;
-    error: string;
-    backupCount: number;
-    latestBackupName?: string;
-    backupsError: string;
-    actionError: string;
-    canRevert: boolean;
-    canReset: boolean;
-    canSave: boolean;
-    hasBackup: boolean;
-    restoring: boolean;
-    copied: boolean;
-    onCopy: () => void;
-    onRevert: () => void;
+    file: ConfigFile;
     onReset: () => void;
     onRestore: () => void;
     onSave: () => void;
   }
-  let {
-    path,
-    dirty,
-    loading,
-    error,
-    backupCount,
-    latestBackupName = '',
-    backupsError,
-    actionError,
-    canRevert,
-    canReset,
-    canSave,
-    hasBackup,
-    restoring,
-    copied,
-    onCopy,
-    onRevert,
-    onReset,
-    onRestore,
-    onSave
-  }: Props = $props();
+  let { file, onReset, onRestore, onSave }: Props = $props();
+  const { path, dirty, loading, error, backupsError, actionError, canRevert, canReset, canSave, hasBackup, copied } = $derived(file);
+  const backupCount = $derived(file.backups.length);
+  const latestBackupName = $derived(file.latestBackup?.name ?? '');
+  const restoring = $derived(file.restoring || file.applying);
 </script>
 
 <div class="sticky top-0 z-10">
@@ -69,7 +39,7 @@
     <div class="flex items-center gap-2 shrink-0">
       <button
         type="button"
-        onclick={onCopy}
+        onclick={() => file.copy()}
         disabled={loading || !!error}
         class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40"
       >
@@ -78,7 +48,7 @@
       {#if canRevert}
         <button
           type="button"
-          onclick={onRevert}
+          onclick={() => file.revert()}
           class="text-xs px-2 py-1 rounded-sm border border-gray-300 dark:border-lerd-border text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5"
         >
           {m.nginxEditor_revert()}

@@ -1,6 +1,6 @@
-// Package desktopnotify posts native desktop notifications from the daemon.
-// On Linux it calls org.freedesktop.Notifications on the session bus using the
-// godbus dependency lerd already ships; other platforms are no-ops for now.
+// Package desktopnotify posts native desktop notifications from the daemon:
+// org.freedesktop.Notifications over D-Bus on Linux, Windows toasts through
+// PowerShell inside WSL, and nothing elsewhere for now.
 package desktopnotify
 
 import (

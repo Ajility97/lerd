@@ -16,13 +16,13 @@ import (
 	"strings"
 
 	"github.com/geodro/lerd/internal/agentenv"
-	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/composer"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/dns"
 	"github.com/geodro/lerd/internal/envfile"
 	"github.com/geodro/lerd/internal/envpass"
 	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/geodro/lerd/internal/grouping"
 	"github.com/geodro/lerd/internal/logsource"
 	"github.com/geodro/lerd/internal/nginx"
 	lerdNode "github.com/geodro/lerd/internal/node"
@@ -44,7 +44,7 @@ const protocolVersion = "2024-11-05"
 
 // serverInstructions is sent on initialize because clients load tool schemas
 // lazily; without it an assistant sees bare tool names and falls back to raw git.
-const serverInstructions = "This project runs on lerd. Prefer lerd's tools over the raw commands they wrap: create and remove git worktrees with the `worktree` tool, never `git worktree add` or `git worktree remove`, because add also installs dependencies, builds assets, issues the branch domain and cert and sets up the database. For a new branch off another ref pass branch plus base, never both in git_args. Leave db unset unless the user chose one: add compares the new branch's migrations with the parent checkout's (the branch the site's own folder has checked out) and picks the database itself, with a `Database:` line in setup_output saying why. If that line is missing, the framework declares no migrations folder, so compare them yourself and never assume: extra migrations on the new branch mean `clone-main` and then run them; migrations only the parent has mean the branch is behind, so suggest merging or use `empty`, which add migrates; the same set means `share`. Around a git switch or pull in a site's folder, keep the database in step with the code. Before it, take a `db` `snapshot`, and when worktrees share this database and it is about to change (new migrations or a restore), give them their own copy with `worktree` `db_isolate` with `source` main (its default is an empty database). After it, compare the two branches' migrations. If `db` `snapshots` lists one whose git_branch is the new branch, offer to `restore` it. Either way run composer when composer.lock changed through `exec`, then its new migrations. Migrations only the old branch had mean the database is ahead of the code: say so and offer the snapshot, never fix it silently. After loading a site's pages in a browser (Playwright, Pest browser, a browser MCP), a clean page is not proof: turn on `diag` `browser_toggle` for the site before the run so its JavaScript errors are recorded too, then read each response's X-Lerd-Rid header (sent while `diag` `dumps_toggle` is on) and check it with `request` `lenses`, treating any issues it lists, N+1 and slow queries, exceptions, error logs, as unfinished work. Then read `diag` `browser_events` for the site, which also holds errors from single-page navigations that carry no request id. Run console commands and composer through `exec`, and manage services and workers through `service` and `worker`. Call `site` with action list first to find the site."
+const serverInstructions = "This project runs on lerd. Prefer lerd's tools over the raw commands they wrap: create and remove git worktrees with the `worktree` tool, never `git worktree add` or `git worktree remove`, because add also installs dependencies, builds assets, issues the branch domain and cert and sets up the database. For a new branch off another ref pass branch plus base, never both in git_args. Leave db unset unless the user chose one: add compares the new branch's migrations with the parent checkout's (the branch the site's own folder has checked out) and picks the database itself, with a `Database:` line in setup_output saying why. If that line is missing, the framework declares no migrations folder, so compare them yourself and never assume: extra migrations on the new branch mean `clone-main` and then run them; migrations only the parent has mean the branch is behind, so suggest merging or use `empty`, which add migrates; the same set means `share`. Around a git switch or pull in a site's folder, keep the database in step with the code. Before it, take a `db` `snapshot`, and when worktrees share this database and it is about to change (new migrations or a restore), give them their own copy with `worktree` `db_isolate` with `source` main (its default is an empty database). After it, compare the two branches' migrations. If `db` `snapshots` lists one whose git_branch is the new branch, offer to `restore` it. Either way run composer when composer.lock changed through `exec`, then its new migrations. Migrations only the old branch had mean the database is ahead of the code: say so and offer the snapshot, never fix it silently. After loading a site's pages in a browser (Playwright, Pest browser, a browser MCP), a clean page is not proof: turn on `diag` `browser_toggle` for the site before the run so its JavaScript errors are recorded too, then read each response's X-Lerd-Rid header (sent while `diag` `dumps_toggle` is on) and check it with `request` `lenses`, treating any issues it lists, N+1 and slow queries, exceptions, error logs, as unfinished work. Then read `diag` `browser_events` for the site, which also holds errors from single-page navigations that carry no request id. Run console commands and composer through `exec`, and manage services and workers through `service` and `worker`. Call `site` with action list first to find the site. When the user wants lerd to do something it does not, build them a plugin: read `plugin` `guide` first and follow it."
 
 // knownServices returns the default-preset names. Wrapper so the existing
 // MCP call sites (`for _, s := range knownServices`) keep compiling.
@@ -201,7 +201,7 @@ func dispatch(req *rpcRequest) (any, *rpcError) {
 			"instructions":    serverInstructions,
 		}, nil
 	case "tools/list":
-		return map[string]any{"tools": toolList()}, nil
+		return map[string]any{"tools": allTools()}, nil
 	case "tools/call":
 		return handleToolCall(req.Params)
 	default:
@@ -256,6 +256,20 @@ func toolJSON(v any) map[string]any {
 
 func stripANSI(s string) string {
 	return logsource.StripANSI(s)
+}
+
+// requireSite reads the required "site" argument and finds that site, or
+// returns the tool error to answer with instead.
+func requireSite(args map[string]any) (string, *config.Site, any) {
+	siteName := strArg(args, "site")
+	if siteName == "" {
+		return "", nil, toolErr("site is required")
+	}
+	site, err := config.FindSite(siteName)
+	if err != nil {
+		return "", nil, toolErr("site not found: " + siteName)
+	}
+	return siteName, site, nil
 }
 
 func strArg(args map[string]any, key string) string {
@@ -586,13 +600,9 @@ func execSiteNginxReset(args map[string]any) (any, *rpcError) {
 }
 
 func execReverbStart(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	siteName, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	phpVersion := site.PHPVersion
 	if detected, err := phpDet.DetectVersion(site.Path); err == nil && detected != "" {
@@ -649,13 +659,9 @@ func execReverbStop(args map[string]any) (any, *rpcError) {
 }
 
 func execHorizonStart(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	siteName, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	// Check composer.json for laravel/horizon
 	composerData, readErr := os.ReadFile(filepath.Join(site.Path, "composer.json"))
@@ -717,13 +723,9 @@ func execHorizonStop(args map[string]any) (any, *rpcError) {
 }
 
 func execScheduleStart(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	siteName, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	phpVersion := site.PHPVersion
 	if detected, err := phpDet.DetectVersion(site.Path); err == nil && detected != "" {
@@ -780,13 +782,9 @@ func execScheduleStop(args map[string]any) (any, *rpcError) {
 }
 
 func execStripeListen(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	siteName, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	apiKey := strArg(args, "api_key")
 	if apiKey != "" && strings.ContainsAny(apiKey, " \t\r\n") {
@@ -853,13 +851,9 @@ func execStripeListenStop(args map[string]any) (any, *rpcError) {
 }
 
 func execStripeConfig(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	siteName, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	webhookPath := strArg(args, "webhook_path")
 	secretEnvKey := strArg(args, "secret_env_key")
@@ -2391,19 +2385,10 @@ func execSiteDomainAdd(args map[string]any) (any, *rpcError) {
 
 	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
 
-	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
+	// Worktrees and group secondaries too: their URLs hang off the primary.
+	if _, err := grouping.ApplyDomainChange(site, oldPrimary); err != nil {
 		return toolErr("regenerating vhost: " + err.Error()), nil
 	}
-
-	if site.Secured {
-		_ = certs.ReissueCertForWorktree(*site)
-	}
-
-	_ = podman.WriteContainerHosts()
-	_ = nginx.Reload()
-
-	// Worktrees too: their URL is <branch>.<primary>, so it moves with it.
-	_ = siteops.SyncEnvIfPrimaryChanged(site, oldPrimary)
 
 	return toolOK(fmt.Sprintf("Added domain %s to site %s", fullDomain, site.Name)), nil
 }
@@ -2452,19 +2437,10 @@ func execSiteDomainRemove(args map[string]any) (any, *rpcError) {
 
 	_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
 
-	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
+	// Worktrees and group secondaries too: their URLs hang off the primary.
+	if _, err := grouping.ApplyDomainChange(site, oldPrimary); err != nil {
 		return toolErr("regenerating vhost: " + err.Error()), nil
 	}
-
-	if site.Secured {
-		_ = certs.ReissueCertForWorktree(*site)
-	}
-
-	_ = podman.WriteContainerHosts()
-	_ = nginx.Reload()
-
-	// Worktrees too: their URL is <branch>.<primary>, so it moves with it.
-	_ = siteops.SyncEnvIfPrimaryChanged(site, oldPrimary)
 
 	return toolOK(fmt.Sprintf("Removed domain %s from site %s", fullDomain, site.Name)), nil
 }
@@ -3009,13 +2985,9 @@ func resolveWorkerCwd(site *config.Site, branch string) (string, map[string]any)
 }
 
 func execCommandsList(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	_, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	proj, _ := config.LoadProjectConfig(site.Path)
 	var fw *config.Framework

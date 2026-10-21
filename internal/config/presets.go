@@ -355,6 +355,7 @@ func (p *Preset) Resolve(version string) (*CustomService, error) {
 	if len(p.Versions) == 0 {
 		svc := p.CustomService
 		svc.Preset = p.Name
+		svc.Plugin = PresetPlugin(p.Name)
 		svc.Files = nil // files live on the preset, read via PresetFiles; never on the resolved service
 		return &svc, nil
 	}
@@ -371,46 +372,11 @@ func (p *Preset) Resolve(version string) (*CustomService, error) {
 	if picked == nil {
 		return nil, fmt.Errorf("preset %q has no version %q", p.Name, version)
 	}
-	safe := SanitizeImageTag(picked.Tag)
-	svc := p.CustomService
-	svc.Files = nil // files live on the preset, read via PresetFiles; never on the resolved service
-	svc.Image = picked.Image
-	svc.Preset = p.Name
-	svc.PresetVersion = picked.Tag
+	name := p.CustomService.Name
 	if !picked.Canonical {
-		svc.Name = p.Name + "-" + safe
+		name = p.Name + "-" + SanitizeImageTag(picked.Tag)
 	}
-	var hostPort string
-	if picked.HostPort > 0 {
-		hostPort = fmt.Sprintf("%d", picked.HostPort)
-	}
-	repl := strings.NewReplacer(
-		"{{name}}", svc.Name,
-		"{{tag}}", picked.Tag,
-		"{{tag_safe}}", safe,
-		"{{host_port}}", hostPort,
-	)
-	if len(svc.Ports) > 0 {
-		out := make([]string, len(svc.Ports))
-		for i, port := range svc.Ports {
-			out[i] = repl.Replace(port)
-		}
-		svc.Ports = out
-	}
-	if len(svc.EnvVars) > 0 {
-		out := make([]string, len(svc.EnvVars))
-		for i, kv := range svc.EnvVars {
-			out[i] = repl.Replace(kv)
-		}
-		svc.EnvVars = out
-	}
-	if svc.ConnectionURL != "" {
-		svc.ConnectionURL = repl.Replace(svc.ConnectionURL)
-	}
-	if svc.Dashboard != "" {
-		svc.Dashboard = repl.Replace(svc.Dashboard)
-	}
-	return &svc, nil
+	return p.materialise(picked, name, picked.HostPort), nil
 }
 
 // canonicalVersion returns the version flagged canonical, or nil when none is.
@@ -449,28 +415,36 @@ func (p *Preset) ResolvePinned(tag string) (*CustomService, error) {
 	if picked == nil {
 		return nil, fmt.Errorf("preset %q has no version %q", p.Name, tag)
 	}
+	// The bare canonical instance always occupies the canonical port; only the
+	// image follows the pinned version, so {{host_port}} must not drift onto a
+	// non-canonical version's alternate port (e.g. a migrated pg16 → 18).
+	hostPort := picked.HostPort
+	if canon := p.canonicalVersion(); canon != nil {
+		hostPort = canon.HostPort
+	}
+	return p.materialise(picked, p.CustomService.Name, hostPort), nil
+}
+
+// materialise builds the service for one picked version under the given name,
+// filling the {{name}}, {{tag}}, {{tag_safe}} and {{host_port}} placeholders.
+func (p *Preset) materialise(picked *PresetVersion, name string, hostPort int) *CustomService {
 	safe := SanitizeImageTag(picked.Tag)
 	svc := p.CustomService
 	svc.Files = nil // files live on the preset, read via PresetFiles; never on the resolved service
 	svc.Image = picked.Image
 	svc.Preset = p.Name
+	svc.Plugin = PresetPlugin(p.Name)
 	svc.PresetVersion = picked.Tag
-	// The bare canonical instance always occupies the canonical port; only the
-	// image follows the pinned version, so {{host_port}} must not drift onto a
-	// non-canonical version's alternate port (e.g. a migrated pg16 → 18).
-	portSource := picked
-	if canon := p.canonicalVersion(); canon != nil {
-		portSource = canon
-	}
-	var hostPort string
-	if portSource.HostPort > 0 {
-		hostPort = fmt.Sprintf("%d", portSource.HostPort)
+	svc.Name = name
+	var hostPortText string
+	if hostPort > 0 {
+		hostPortText = fmt.Sprintf("%d", hostPort)
 	}
 	repl := strings.NewReplacer(
 		"{{name}}", svc.Name,
 		"{{tag}}", picked.Tag,
 		"{{tag_safe}}", safe,
-		"{{host_port}}", hostPort,
+		"{{host_port}}", hostPortText,
 	)
 	if len(svc.Ports) > 0 {
 		out := make([]string, len(svc.Ports))
@@ -492,7 +466,7 @@ func (p *Preset) ResolvePinned(tag string) (*CustomService, error) {
 	if svc.Dashboard != "" {
 		svc.Dashboard = repl.Replace(svc.Dashboard)
 	}
-	return &svc, nil
+	return &svc
 }
 
 // ApplyPlatformOverride swaps svc.Image with a platform-specific replacement

@@ -2,7 +2,7 @@
 
 This project runs on **lerd**, a Podman-based PHP development environment. It is framework-agnostic: Laravel, Symfony, WordPress, Drupal, Magento, CakePHP and any custom framework are all driven by a framework definition (YAML), never by lerd hardcoding a framework's name. Use the `lerd` MCP server to manage it from the chat.
 
-The MCP surface is **thirteen grouped tools**, each driven by an `action` argument: `site`, `service`, `db`, `env`, `runtime`, `worker`, `exec`, `framework`, `diag`, `logs`, `request`, `worktree`, `workspace`. Always pass `action`. Most actions also accept an optional `path` that defaults to the directory the assistant was opened in (then `LERD_SITE_PATH` if set), so you can usually omit it. Start by calling `site` with `action: "list"` to discover sites.
+The MCP surface is **fourteen grouped tools**, each driven by an `action` argument: `site`, `service`, `db`, `env`, `runtime`, `worker`, `exec`, `framework`, `diag`, `logs`, `request`, `worktree`, `workspace`, `plugin`. Always pass `action`. Most actions also accept an optional `path` that defaults to the directory the assistant was opened in (then `LERD_SITE_PATH` if set), so you can usually omit it. Start by calling `site` with `action: "list"` to discover sites.
 
 ### Architecture
 
@@ -162,6 +162,11 @@ Actions: `list`, `create`, `rename`, `delete`, `assign`, `move`.
 - a workspace is a **display-only** bucket of sites, shown in the dashboard sidebar and the TUI. It never touches nginx, domains, certificates or `.env`. This is not the same thing as the `site` tool's `group_*` actions, which nest a real site under another's subdomain and regenerate vhosts and certs — reach for `group_*` when a site should be served at `<label>.<main>.test`, and for `workspace` when the user just wants their site list organised
 - `assign` takes `sites` (names or domains) and a `workspace`, creating it if new; `workspace: "none"` ungroups them. `move` reorders a workspace with a zero-based `position`
 - `delete` drops the workspace and ungroups its members; no site is touched
+
+#### `plugin` — build a plugin for the user
+Actions: `guide`, `new`, `list`, `install`.
+- when the user wants lerd to do something it does not, build a plugin; read `guide` first (Claude Code: `plugins.md` beside this skill). A framework or service for everyone goes in the stores
+- `new` scaffolds into the plugins folder, edits apply at once; `list` shows what loaded and why not; `install` copies a local folder only
 
 ### Key conventions
 
