@@ -80,7 +80,7 @@
 {#snippet views()}
   <div class="flex items-center gap-1">
     <IconButton size="sm" placement="bottom" title={m.system_plugins_tabInstalled()} active={!browsing} onclick={() => goToTab('plugins')}>
-      <Icon name="puzzle" class="w-4 h-4" />
+      <Icon name="grid" class="w-4 h-4" />
     </IconButton>
     <IconButton size="sm" placement="bottom" title={m.system_plugins_tabBrowse()} active={browsing} onclick={() => goToTab('plugins', 'browse')}>
       <Icon name="download" class="w-4 h-4" />
