@@ -18,7 +18,12 @@ var (
 func handleMachineMemory(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		writeJSON(w, machineMemoryStatusFn())
+		st, err := machineMemoryStatusFn()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, st)
 	case http.MethodPost:
 		if !hasHostActionAuthority(r) {
 			http.Error(w, "forbidden", http.StatusForbidden)

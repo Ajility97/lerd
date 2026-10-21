@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +15,7 @@ import (
 func withMachineMemorySeams(t *testing.T, st cli.MachineMemory, resize func(int64, func(cli.StartEvent), ...string) error) {
 	t.Helper()
 	oldStatus, oldResize := machineMemoryStatusFn, resizeMachineMemoryFn
-	machineMemoryStatusFn = func() cli.MachineMemory { return st }
+	machineMemoryStatusFn = func() (cli.MachineMemory, error) { return st, nil }
 	resizeMachineMemoryFn = resize
 	t.Cleanup(func() { machineMemoryStatusFn, resizeMachineMemoryFn = oldStatus, oldResize })
 }
@@ -75,5 +76,20 @@ func TestMachineMemoryResizeRefusesRemoteWithoutFullAccess(t *testing.T) {
 
 	if rec.Code != http.StatusForbidden || called {
 		t.Errorf("status = %d, resized = %v, want 403 and no resize", rec.Code, called)
+	}
+}
+
+// A check that could not run answers an error, so the banner keeps what it had
+// instead of reading the failure as a VM with no kills.
+func TestMachineMemoryReportsAFailedCheck(t *testing.T) {
+	old := machineMemoryStatusFn
+	machineMemoryStatusFn = func() (cli.MachineMemory, error) { return cli.MachineMemory{}, errors.New("no console log") }
+	t.Cleanup(func() { machineMemoryStatusFn = old })
+
+	rec := httptest.NewRecorder()
+	handleMachineMemory(rec, httptest.NewRequest(http.MethodGet, "/api/machine/memory", nil))
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", rec.Code)
 	}
 }

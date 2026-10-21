@@ -596,7 +596,9 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 	fmt.Fprintln(w, "\n[Containers & Images]")
 
 	if platform.Current.UsesMachineVM {
-		if st := MachineMemoryStatus(); len(st.Kills) > 0 {
+		if st, err := MachineMemoryStatus(); err != nil {
+			warn("Podman Machine memory", "could not check: "+err.Error())
+		} else if len(st.Kills) > 0 {
 			fail("Podman Machine memory", st.Summary(), st.Hint())
 			if st.SuggestedMiB > 0 {
 				rep.fixLast(manualFixWith("run `" + st.Hint() + "` (it restarts every container)"))

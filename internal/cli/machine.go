@@ -68,7 +68,11 @@ them back with lerd start; site data is untouched.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				printMachineMemory(MachineMemoryStatus())
+				st, err := MachineMemoryStatus()
+				if err != nil {
+					return fmt.Errorf("could not check the Podman Machine's memory: %w", err)
+				}
+				printMachineMemory(st)
 				return nil
 			}
 			gb, err := strconv.Atoi(args[0])

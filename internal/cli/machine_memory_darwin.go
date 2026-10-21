@@ -17,26 +17,30 @@ import (
 // MachineMemoryStatus reports the processes the VM's kernel killed for lack of
 // memory since it booted, read from its serial console log on the host, so no
 // call reaches the VM. The memory sizes are only looked up when there were kills.
-func MachineMemoryStatus() MachineMemory {
-	name := selectedMachineName()
+// An error means the check could not run, which must not read as a healthy VM.
+func MachineMemoryStatus() (MachineMemory, error) {
+	name, err := selectedMachine()
+	if err != nil {
+		return MachineMemory{}, fmt.Errorf("listing Podman Machines: %w", err)
+	}
 	if name == "" {
-		return MachineMemory{}
+		return MachineMemory{}, nil
 	}
 	b, err := os.ReadFile(machineConsoleLog(name))
 	if err != nil {
-		return MachineMemory{}
+		return MachineMemory{}, fmt.Errorf("reading the VM's console log: %w", err)
 	}
 	st := MachineMemory{Kills: podman.ParseOOMKills(string(b))}
 	if len(st.Kills) == 0 {
-		return st
+		return st, nil
 	}
 	out, err := machineQuery("machine", "inspect", "--format", "{{.Resources.Memory}}", name)
 	if err != nil {
-		return st
+		return st, nil
 	}
 	st.CurrentMiB, _ = strconv.ParseInt(strings.TrimSpace(string(out)), 10, 64)
 	st.SuggestedMiB = raisedVMMemoryMiB(st.CurrentMiB, hostMemoryGiB())
-	return st
+	return st, nil
 }
 
 // machineConsoleLog is where podman keeps the VM's serial console, in the
