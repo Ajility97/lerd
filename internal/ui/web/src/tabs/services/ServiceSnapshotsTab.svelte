@@ -3,6 +3,7 @@
   import DetailButton from '$components/DetailButton.svelte';
   import Dropdown from '$components/Dropdown.svelte';
   import Icon from '$components/Icon.svelte';
+  import LoadingRow from '$components/LoadingRow.svelte';
   import Modal from '$components/Modal.svelte';
   import Pager from '$components/Pager.svelte';
   import SnapshotSettingsModal from '../../modals/SnapshotSettingsModal.svelte';
@@ -21,6 +22,7 @@
   } from '$stores/databases';
   import { autoSnapshot, loadAutoSnapshot, nextSnapshotAt } from '$stores/autoSnapshot';
   import type { Service } from '$stores/services';
+  import { keepServiceAwake } from '$stores/dashboard';
   import { onMount } from 'svelte';
   import { m } from '../../paraglide/messages.js';
 
@@ -38,13 +40,18 @@
     siteFilter = site;
     page = 0;
   });
-  // The snapshots ride along with the engine's databases, so the tab reads the
-  // same listing the Databases tab does rather than fetching its own, and skips
-  // a service that has no databases for the same reason it does.
+  // Snapshots ride along with the engine's databases listing, which an asleep
+  // engine returns empty, so the tab wakes it and loads only once it is ready.
   $effect(() => {
-    if (!svc.is_database) return;
+    if (!svc.is_database || !up) return;
     void loadEngine(svc.name);
   });
+  $effect(() => {
+    if (!svc.is_database) return;
+    return keepServiceAwake(svc.name);
+  });
+  const up = $derived(svc.status === 'active' && !svc.idle_suspended);
+  const stopped = $derived(!up && !svc.idle_suspended);
 
   type Row = { snap: Snapshot; database: string; site: string; key: string; at: Date | null };
 
@@ -328,7 +335,11 @@
       <p class="text-xs text-red-500 mb-2">{error}</p>
     {/if}
 
-    {#if rows.length === 0}
+    {#if stopped}
+      <p class="text-sm text-gray-500 dark:text-gray-400">{m.databases_startHint()}</p>
+    {:else if !up}
+      <LoadingRow />
+    {:else if rows.length === 0}
       <p class="text-sm text-gray-500 dark:text-gray-400">{m.databases_noSnapshots()}</p>
     {:else if filtered.length === 0}
       <p class="text-sm text-gray-500 dark:text-gray-400">{m.snapshots_noMatches()}</p>
