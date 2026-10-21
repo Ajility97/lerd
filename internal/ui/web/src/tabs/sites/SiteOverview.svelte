@@ -32,7 +32,7 @@
   </h3>
 {/snippet}
 
-<div class="flex-1 min-h-0 overflow-y-auto scrollbar-autohide p-4 space-y-4" use:scrollbarInPadding={'y'}>
+<div class="flex-1 min-h-0 overflow-y-auto scrollbar-autohide p-4 space-y-4 @container" use:scrollbarInPadding={'y'}>
   <section>
     {@render sectionTitle(m.sites_overview_runtimeWorkers())}
     <SiteControls {site} {activeWorktreeBranch} />
@@ -41,7 +41,8 @@
   {#if svcNames.length > 0 || suggested.length > 0}
     <section>
       {@render sectionTitle(m.services_title())}
-      <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+      <!-- The pane's width, not the window's: a tiled window with the sidebar open is narrow. -->
+      <div class="grid grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4 gap-3">
         {#each svcNames as name (name)}
           <SiteServiceCard
             {name}

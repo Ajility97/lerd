@@ -327,6 +327,36 @@ describe('SiteHeader', () => {
     });
   });
 
+  // The debug bridge and profiler switches live in the site list's header, so
+  // hiding the list must not take them away.
+  describe('debug switches with the list hidden', () => {
+    afterEach(() => sidePanelHidden.set(false));
+    const local = () => accessMode.set({ localControl: true, local: true, lanExposed: false, checked: true });
+
+    it('shows the debug bridge and profiler switches in the header', () => {
+      local();
+      sidePanelHidden.set(true);
+      const { getByRole } = render(Harness, { props: { site } });
+      expect(getByRole('button', { name: /^Debug bridge is/ })).toBeInTheDocument();
+      expect(getByRole('button', { name: /^Profiler is/ })).toBeInTheDocument();
+    });
+
+    it('leaves them to the list while it shows', () => {
+      local();
+      sidePanelHidden.set(false);
+      const { queryByRole } = render(Harness, { props: { site } });
+      expect(queryByRole('button', { name: /^Debug bridge is/ })).not.toBeInTheDocument();
+      expect(queryByRole('button', { name: /^Profiler is/ })).not.toBeInTheDocument();
+    });
+
+    it('offers no switches to a remote viewer', () => {
+      accessMode.set({ localControl: false, local: false, lanExposed: true, checked: true });
+      sidePanelHidden.set(true);
+      const { queryByRole } = render(Harness, { props: { site } });
+      expect(queryByRole('button', { name: /^Profiler is/ })).not.toBeInTheDocument();
+    });
+  });
+
   // A paused site has no worktree strip, and the list's restore button pins
   // itself to that strip, so with the list hidden it would sit on the address row.
   it('keeps a header strip for the restore button on a paused site', async () => {
