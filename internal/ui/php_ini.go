@@ -169,17 +169,7 @@ func handlePhpIniBackupContent(w http.ResponseWriter, r *http.Request, version, 
 		return
 	}
 	data, err := phpIniScopeFile(version).ReadBackup(name)
-	if err != nil {
-		if os.IsNotExist(err) {
-			http.NotFound(w, r)
-			return
-		}
-		http.Error(w, "reading backup: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(data)
+	writeBackupContent(w, r, data, err)
 }
 
 func handlePhpIniReset(w http.ResponseWriter, r *http.Request, version string) {

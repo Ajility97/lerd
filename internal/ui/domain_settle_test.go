@@ -37,7 +37,7 @@ func TestDashboardDomainActionsSettleTheReload(t *testing.T) {
 			t.Errorf("domain:%s reloads without settling, so the modal reports a change the workers have not taken", name[1])
 		}
 		// grouping.ApplyDomainChange settles the reload; its own test pins that.
-		if !strings.Contains(block, "grouping.ApplyDomainChange(") {
+		if !strings.Contains(block, "applyDomainChange(") {
 			t.Errorf("domain:%s does not go through grouping.ApplyDomainChange, so its reload may not settle", name[1])
 		}
 	}

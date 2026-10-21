@@ -314,6 +314,22 @@ func readTuningContent(name string) (string, bool) {
 	return string(data), true
 }
 
+// tunableService resolves an installed service whose family lerd can tune,
+// refusing one that is not installed or whose family has no tuning mount.
+func tunableService(name string) (*config.CustomService, error) {
+	if !ServiceInstalled(name) {
+		return nil, fmt.Errorf("%w: run `lerd service preset install %s` first", ErrTuningServiceNotInstalled, name)
+	}
+	svc, err := config.ResolveServiceForTuning(name)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrTuningServiceNotInstalled, err.Error())
+	}
+	if _, ok := config.ServiceTuningMount(svc); !ok {
+		return nil, fmt.Errorf("%w (family %q)", ErrTuningFamilyUnsupported, config.FamilyOf(svc))
+	}
+	return svc, nil
+}
+
 // SaveTuningOverride is the single entry point for writing the user
 // tuning override file, regenerating the quadlet so the override
 // Volume= mount is present on installs predating the feature, and
@@ -347,15 +363,9 @@ func readTuningContent(name string) (string, bool) {
 //     Snapshot + restart again and report the failure.
 func SaveTuningOverride(name, content string, backup bool) (TuningSaveResult, error) {
 	res := TuningSaveResult{}
-	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `lerd service preset install %s` first", ErrTuningServiceNotInstalled, name)
-	}
-	svc, err := config.ResolveServiceForTuning(name)
+	svc, err := tunableService(name)
 	if err != nil {
-		return res, fmt.Errorf("%w: %s", ErrTuningServiceNotInstalled, err.Error())
-	}
-	if _, ok := config.ServiceTuningMount(svc); !ok {
-		return res, fmt.Errorf("%w (family %q)", ErrTuningFamilyUnsupported, config.FamilyOf(svc))
+		return res, err
 	}
 	if err := config.MaterializeServiceTuning(svc); err != nil {
 		return res, fmt.Errorf("creating tuning file: %w", err)
@@ -498,15 +508,9 @@ type TuningResetResult struct {
 
 func ResetTuningOverride(name string) (TuningResetResult, error) {
 	res := TuningResetResult{}
-	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `lerd service preset install %s` first", ErrTuningServiceNotInstalled, name)
-	}
-	svc, err := config.ResolveServiceForTuning(name)
+	svc, err := tunableService(name)
 	if err != nil {
-		return res, fmt.Errorf("%w: %s", ErrTuningServiceNotInstalled, err.Error())
-	}
-	if _, ok := config.ServiceTuningMount(svc); !ok {
-		return res, fmt.Errorf("%w (family %q)", ErrTuningFamilyUnsupported, config.FamilyOf(svc))
+		return res, err
 	}
 	template, ok := config.ServiceTuningTemplate(svc)
 	if !ok {
@@ -600,15 +604,9 @@ type TuningRestoreResult struct {
 // running service.
 func RestoreTuningFromBackup(name, backupName string) (TuningRestoreResult, error) {
 	res := TuningRestoreResult{}
-	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `lerd service preset install %s` first", ErrTuningServiceNotInstalled, name)
-	}
-	svc, err := config.ResolveServiceForTuning(name)
+	svc, err := tunableService(name)
 	if err != nil {
-		return res, fmt.Errorf("%w: %s", ErrTuningServiceNotInstalled, err.Error())
-	}
-	if _, ok := config.ServiceTuningMount(svc); !ok {
-		return res, fmt.Errorf("%w (family %q)", ErrTuningFamilyUnsupported, config.FamilyOf(svc))
+		return res, err
 	}
 
 	unlock := lockTuningService(name)

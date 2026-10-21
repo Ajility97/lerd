@@ -1,7 +1,8 @@
 import { m } from '../paraglide/messages.js';
 import { writable, derived, get } from 'svelte/store';
-import { apiJson, apiFetch } from '$lib/api';
+import { apiJson, apiFetch, postAction } from '$lib/api';
 import { wsMessage } from '$lib/ws';
+import { fetchBackupList, fetchBackupText } from '$lib/backups';
 
 export interface FrameworkWorker {
   name: string;
@@ -337,16 +338,6 @@ export function activeWorktreeDomain(s: Site, branch: string): string {
   return wt?.domain || s.domain;
 }
 
-async function postAction(path: string): Promise<{ ok: boolean; error?: string; message?: string }> {
-  try {
-    const res = await apiFetch(path, { method: 'POST' });
-    const data = (await res.json()) as { ok?: boolean; error?: string; message?: string };
-    return { ok: Boolean(data.ok), error: data.error, message: data.message };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
-}
-
 function site(path: string, action: string): string {
   return `/api/sites/${encodeURIComponent(path)}/${action}`;
 }
@@ -449,9 +440,7 @@ export async function loadSiteEnvBackupContent(
   branch: string = '',
   file: string = ''
 ): Promise<string> {
-  const res = await apiFetch(site(domain, 'env') + '/backups/' + encodeURIComponent(name) + envQS(branch, file));
-  if (!res.ok) throw new Error(m.common_backupLoadFailed({ status: res.status }));
-  return await res.text();
+  return fetchBackupText(site(domain, 'env') + '/backups/' + encodeURIComponent(name) + envQS(branch, file));
 }
 
 export interface RestoreEnvResult {
@@ -594,16 +583,7 @@ export async function loadSiteNginxBackups(
   domain: string,
   scope: NginxScope
 ): Promise<LoadNginxBackupsResult> {
-  try {
-    const res = await apiFetch(nginxURL(domain, scope, '/backups'));
-    if (!res.ok) {
-      return { ok: false, list: [], error: m.common_backupsLoadFailed({ status: res.status }) };
-    }
-    const list = (await res.json()) as SiteNginxBackup[];
-    return { ok: true, list: Array.isArray(list) ? list : [] };
-  } catch (e) {
-    return { ok: false, list: [], error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
+  return fetchBackupList<SiteNginxBackup>(nginxURL(domain, scope, '/backups'));
 }
 
 export async function loadSiteNginxBackupContent(
@@ -611,9 +591,7 @@ export async function loadSiteNginxBackupContent(
   scope: NginxScope,
   name: string
 ): Promise<string> {
-  const res = await apiFetch(nginxURL(domain, scope, '/backups/' + encodeURIComponent(name)));
-  if (!res.ok) throw new Error(m.common_backupLoadFailed({ status: res.status }));
-  return await res.text();
+  return fetchBackupText(nginxURL(domain, scope, '/backups/' + encodeURIComponent(name)));
 }
 
 export interface ResetNginxResult {
@@ -736,17 +714,7 @@ export async function saveShareDomain(
   domain: string,
   remember: boolean
 ): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await apiFetch('/api/share-tools', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ base_domain: domain, remember })
-    });
-    const data = (await res.json()) as { ok?: boolean; error?: string };
-    return { ok: Boolean(data.ok), error: data.error };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
+  return postAction('/api/share-tools', { base_domain: domain, remember });
 }
 // Stores the ngrok settings: the auth token (cleared when empty) and the extra
 // flags every share passes to ngrok. An omitted field leaves the stored value
@@ -755,20 +723,10 @@ export async function saveShareNgrok(p: {
   token?: string;
   args?: string;
 }): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await apiFetch('/api/share-tools', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...(p.token !== undefined ? { ngrok_token: p.token } : {}),
-        ...(p.args !== undefined ? { ngrok_args: p.args } : {})
-      })
-    });
-    const data = (await res.json()) as { ok?: boolean; error?: string };
-    return { ok: Boolean(data.ok), error: data.error };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
+  return postAction('/api/share-tools', {
+    ...(p.token !== undefined ? { ngrok_token: p.token } : {}),
+    ...(p.args !== undefined ? { ngrok_args: p.args } : {})
+  });
 }
 export const stopTunnel = (s: Site, branch: string = '') =>
   postAction(site(s.domain, 'tunnel:stop') + (branch ? `?branch=${encodeURIComponent(branch)}` : ''));
@@ -782,17 +740,7 @@ export const togglePublicShare = (s: Site, branch: string = '') => {
 };
 // Sets (or clears, when empty) the public-share base domain.
 export async function savePublicBase(base: string): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await apiFetch('/api/share-tools', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ public_base_domain: base })
-    });
-    const data = (await res.json()) as { ok?: boolean; error?: string };
-    return { ok: Boolean(data.ok), error: data.error };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
+  return postAction('/api/share-tools', { public_base_domain: base });
 }
 export const toggleQueue = (s: Site) =>
   postAction(site(s.domain, s.queue_running ? 'queue:stop' : 'queue:start'));
@@ -828,17 +776,7 @@ export async function saveWorkerOptions(
   worker: string,
   values: Record<string, string>
 ): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await apiFetch(site(s.domain, `worker:${worker}:options`), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ values })
-    });
-    const data = (await res.json()) as { ok?: boolean; error?: string };
-    return { ok: Boolean(data.ok), error: data.error };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
+  return postAction(site(s.domain, `worker:${worker}:options`), { values });
 }
 
 export const toggleWorker = (s: Site, w: FrameworkWorker, branch: string = '') =>

@@ -2365,17 +2365,7 @@ func handleServiceTuningBackupContent(w http.ResponseWriter, r *http.Request, na
 		return
 	}
 	data, err := serviceops.ReadTuningBackupContent(name, backupName)
-	if err != nil {
-		if os.IsNotExist(err) {
-			http.NotFound(w, r)
-			return
-		}
-		http.Error(w, "reading backup: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(data)
+	writeBackupContent(w, r, data, err)
 }
 
 func handleServiceTuningRestore(w http.ResponseWriter, r *http.Request, name string) {
@@ -3335,17 +3325,7 @@ func handleSiteEnvBackupContent(w http.ResponseWriter, r *http.Request, site *co
 		return
 	}
 	data, err := envCfgFile(dir, envFile).ReadBackup(name)
-	if err != nil {
-		if os.IsNotExist(err) {
-			http.NotFound(w, r)
-			return
-		}
-		http.Error(w, "reading backup: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(data)
+	writeBackupContent(w, r, data, err)
 }
 
 func handleSiteEnvBackups(w http.ResponseWriter, r *http.Request, site *config.Site) {
@@ -3876,17 +3856,7 @@ func handleSiteNginxBackupContent(w http.ResponseWriter, r *http.Request, domain
 		return
 	}
 	data, err := siteops.ReadCustomNginxBackup(domain, scope, name)
-	if err != nil {
-		if os.IsNotExist(err) {
-			http.NotFound(w, r)
-			return
-		}
-		http.Error(w, "reading backup: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write(data)
+	writeBackupContent(w, r, data, err)
 }
 
 // SiteNginxResetResponse is the JSON returned by POST /api/sites/{d}/nginx/reset.
@@ -4029,6 +3999,20 @@ func phpSwitchWarning(res siteops.PHPVersionResult) string {
 			res.Version, strings.Join(res.Missing, ", ")))
 	}
 	return strings.Join(parts, " ")
+}
+
+// applyDomainChange finishes a dashboard domain add, edit or remove once the
+// registry holds the new list, logging what could not follow it.
+func applyDomainChange(w http.ResponseWriter, site *config.Site, oldPrimary string) {
+	warnings, err := grouping.ApplyDomainChange(site, oldPrimary)
+	if err != nil {
+		writeJSON(w, SiteActionResponse{Error: err.Error()})
+		return
+	}
+	for _, warning := range warnings {
+		fmt.Fprintf(os.Stderr, "lerd-ui: %v\n", warning)
+	}
+	writeJSON(w, SiteActionResponse{OK: true})
 }
 
 func handleSiteAction(w http.ResponseWriter, r *http.Request) {
@@ -4645,15 +4629,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
-		warnings, err := grouping.ApplyDomainChange(site, oldPrimary)
-		if err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		for _, warning := range warnings {
-			fmt.Fprintf(os.Stderr, "lerd-ui: %v\n", warning)
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
+		applyDomainChange(w, site, oldPrimary)
 		return
 	case "domain:edit":
 		oldName := r.URL.Query().Get("old")
@@ -4691,15 +4667,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.ReplaceProjectDomain(site.Path, site.Domains, oldDomain, cfg.DNS.TLD)
-		warnings, err := grouping.ApplyDomainChange(site, oldPrimary)
-		if err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		for _, warning := range warnings {
-			fmt.Fprintf(os.Stderr, "lerd-ui: %v\n", warning)
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
+		applyDomainChange(w, site, oldPrimary)
 		return
 	case "domain:remove":
 		domainName := r.URL.Query().Get("name")
@@ -4762,15 +4730,7 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
-		warnings, err := grouping.ApplyDomainChange(site, oldPrimary)
-		if err != nil {
-			writeJSON(w, SiteActionResponse{Error: err.Error()})
-			return
-		}
-		for _, warning := range warnings {
-			fmt.Fprintf(os.Stderr, "lerd-ui: %v\n", warning)
-		}
-		writeJSON(w, SiteActionResponse{OK: true})
+		applyDomainChange(w, site, oldPrimary)
 		return
 	case "group:assign":
 		secondaryDomain := r.URL.Query().Get("secondary")

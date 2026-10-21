@@ -245,6 +245,24 @@ func readDBEnvValues(cwd string) (map[string]string, error) {
 	return vals, nil
 }
 
+// containerDBEnv points at the lerd service a site's .env names, using the
+// container's admin credentials rather than the app's DB_USERNAME/DB_PASSWORD,
+// which may name a role the container does not have (root against pgsql).
+func containerDBEnv(conn, db string, vals map[string]string) *dbEnv {
+	svcDefaults := serviceToDBEnv(connToService(conn))
+	service := connToService(conn)
+	if s := lerdServiceFromHost(vals["DB_HOST"]); s != "" {
+		service = s
+	}
+	return &dbEnv{
+		service:    service,
+		connection: conn,
+		database:   db,
+		username:   svcDefaults.username,
+		password:   svcDefaults.password,
+	}
+}
+
 func loadDBEnv(cwd string) (*dbEnv, error) {
 	vals, err := readDBEnvValues(cwd)
 	if err != nil {
@@ -272,21 +290,7 @@ func loadDBEnv(cwd string) (*dbEnv, error) {
 		return nil, fmt.Errorf("DB_DATABASE not set in .env")
 	}
 
-	// Always use container admin credentials. Ignoring app-level DB_USERNAME /
-	// DB_PASSWORD avoids authenticating as a role that doesn't exist in the
-	// container (e.g. DB_USERNAME=root against pgsql).
-	svcDefaults := serviceToDBEnv(connToService(conn))
-	service := connToService(conn)
-	if s := lerdServiceFromHost(vals["DB_HOST"]); s != "" {
-		service = s
-	}
-	return &dbEnv{
-		service:    service,
-		connection: conn,
-		database:   db,
-		username:   svcDefaults.username,
-		password:   svcDefaults.password,
-	}, nil
+	return containerDBEnv(conn, db, vals), nil
 }
 
 func runDbImport(file, service, database string, fresh bool) error {
@@ -781,16 +785,5 @@ func loadDBEnvLenient(cwd string) (*dbEnv, error) {
 		db = urlEnv.database
 	}
 
-	svcDefaults := serviceToDBEnv(connToService(conn))
-	service := connToService(conn)
-	if s := lerdServiceFromHost(vals["DB_HOST"]); s != "" {
-		service = s
-	}
-	return &dbEnv{
-		service:    service,
-		connection: conn,
-		database:   db,
-		username:   svcDefaults.username,
-		password:   svcDefaults.password,
-	}, nil
+	return containerDBEnv(conn, db, vals), nil
 }

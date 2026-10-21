@@ -877,6 +877,16 @@ func worktreeVhostConfig(domain, path, phpVersion, siteName string) (publicDir, 
 	return publicDir, fpmContainer, frameworkNginx, frameworkFastCGI, fpmPort
 }
 
+// writeConfD writes a rendered vhost to conf.d/<domain>.conf.
+func writeConfD(domain string, rendered []byte) error {
+	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
+		return err
+	}
+	confPath := filepath.Join(config.NginxConfD(), domain+".conf")
+	config.GuardRealWrite(confPath)
+	return os.WriteFile(confPath, rendered, 0644)
+}
+
 // GenerateWorktreeVhost renders the HTTP vhost template for a worktree checkout
 // and writes it to conf.d/<domain>.conf.
 func GenerateWorktreeVhost(domain, path, phpVersion, siteName, branch string) error {
@@ -932,12 +942,7 @@ func writeWorktreeVhost(tmplName, domain, path, phpVersion, certDomain, siteName
 		return err
 	}
 
-	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
-		return err
-	}
-	confPath := filepath.Join(config.NginxConfD(), domain+".conf")
-	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return writeConfD(domain, rendered)
 }
 
 // GenerateWorktreeHostProxyVhostFor renders a worktree's host-proxy vhost: nginx
@@ -1224,12 +1229,7 @@ func GenerateProxyVhost(domain, upstreamHost string, upstreamPort int) error {
 		return err
 	}
 
-	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
-		return err
-	}
-	confPath := filepath.Join(config.NginxConfD(), domain+".conf")
-	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return writeConfD(domain, rendered)
 }
 
 // GenerateServiceProxyVhost writes the vhost that serves a service on its own
@@ -1260,12 +1260,7 @@ func GenerateServiceProxyVhost(domain, upstreamHost string, upstreamPort int, ss
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(config.NginxConfD(), 0755); err != nil {
-		return err
-	}
-	confPath := filepath.Join(config.NginxConfD(), domain+".conf")
-	config.GuardRealWrite(confPath)
-	return os.WriteFile(confPath, rendered, 0644)
+	return writeConfD(domain, rendered)
 }
 
 // ErrNotRunning reports that lerd-nginx is down, so there is no process to
