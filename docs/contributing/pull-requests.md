@@ -39,6 +39,10 @@ make test
 CGO_ENABLED=1 go vet ./...
 ```
 
+### Duplication
+
+`make dupes` runs jscpd over `internal/` and `cmd/` and opens an HTML report of copy-pasted blocks, like PhpStorm's Duplicated Code inspection. It is not a CI gate; run it before extracting a helper to find every copy, and after, to check none are left. Tests are left out because table-driven setup repeats on purpose.
+
 ### Screenshots for UI changes
 
 If your PR changes anything you can see, in the web UI, the TUI or the tray, add screenshots to the PR description. Show the affected view before and after the change, and include both light and dark themes when the change touches colours or layout. A short screen recording works better than screenshots for animations or multi-step flows.

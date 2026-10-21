@@ -20,6 +20,7 @@ make install     # build + install to ~/.local/bin/lerd
 make test        # go test ./...
 make test-ui     # run Vitest suite for the web UI
 make test-all    # test + test-ui + test-installer (bats)
+make dupes       # copy-paste report for Go, TS and Svelte, opened in the browser
 make clean       # remove ./build/ and internal/ui/web/dist/
 ```
 
