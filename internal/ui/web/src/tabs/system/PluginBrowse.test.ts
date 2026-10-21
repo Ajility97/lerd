@@ -128,11 +128,15 @@ it('lists what a plugin requires and offers no install while something is missin
   expect(queryByRole('button', { name: 'Install' })).toBeNull();
 });
 
-it('says the catalog is empty rather than that nothing matched', async () => {
+// An empty catalog asks for the first plugins: how to build one and where to send it.
+it('says the catalog is empty and how to get a plugin into it', async () => {
   catalog = [];
-  const { findByText, queryByLabelText } = render(PluginBrowse);
+  const { findByText, queryByLabelText, getByRole, getByText } = render(PluginBrowse);
   await findByText('No plugins listed yet');
   expect(queryByLabelText('Search plugins')).toBeNull();
+  expect(getByText('Submit it')).toBeTruthy();
+  expect(getByRole('link', { name: 'Read the submission guide' }).getAttribute('href')).toBe('https://github.com/lerd-env/plugins/blob/main/SUBMITTING.md');
+  expect(getByRole('link', { name: 'See an example submission' }).getAttribute('href')).toBe('https://github.com/lerd-env/plugins/pull/1');
 });
 
 it('says why when the catalog cannot be reached', async () => {

@@ -6,6 +6,7 @@
   import EmptyState from '$components/EmptyState.svelte';
   import Pager from '$components/Pager.svelte';
   import CatalogCard from './CatalogCard.svelte';
+  import CatalogEmpty from './CatalogEmpty.svelte';
   import PluginDetailModal from './PluginDetailModal.svelte';
   import { loadCatalog, installListedPlugin, type CatalogEntry } from '$stores/plugins';
   import { notifyLocalFailure, notifyLocalInfo } from '$lib/notify';
@@ -110,7 +111,7 @@
   }
 </script>
 
-<div class="space-y-3">
+<div class="flex-1 flex flex-col gap-3">
   {#if loaded && !loadError && entries.length > 0}
     <div class="flex flex-wrap items-center gap-2">
       <input
@@ -143,7 +144,7 @@
       {#snippet hint()}<span class="break-words">{loadError}</span>{/snippet}
     </EmptyState>
   {:else if loaded && entries.length === 0}
-    <EmptyState title={m.system_plugins_catalogEmpty()} size="sm" />
+    <div class="flex-1 flex items-center justify-center"><CatalogEmpty /></div>
   {:else if loaded && shown.length === 0}
     <EmptyState title={m.system_plugins_noMatch()} size="sm" />
   {:else}

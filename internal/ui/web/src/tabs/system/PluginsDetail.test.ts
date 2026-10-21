@@ -98,3 +98,15 @@ it('switches between installed and browse with icon buttons in the header', asyn
   await fireEvent.click(browseBtn);
   expect(location.hash).toBe('#system/plugins/browse');
 });
+
+// With nothing installed the page says what plugins add and offers both ways
+// to get one, rather than a bare "none".
+it('shows what plugins add and both ways to get one when none is installed', async () => {
+  installed = [];
+  const { findByText, getByText, getByRole } = render(PluginsDetail);
+  await findByText('Make Lerd do more');
+  expect(getByText('Overview cards')).toBeTruthy();
+  expect(getByText('lerd plugin new my-plugin')).toBeTruthy();
+  await fireEvent.click(getByRole('button', { name: 'Browse plugins' }));
+  expect(location.hash).toBe('#system/plugins/browse');
+});

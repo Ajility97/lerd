@@ -6,10 +6,10 @@
   import Icon from '$components/Icon.svelte';
   import Modal from '$components/Modal.svelte';
   import ConfirmModal from '$components/ConfirmModal.svelte';
-  import EmptyState from '$components/EmptyState.svelte';
   import PluginBrowse from './PluginBrowse.svelte';
   import InstalledPluginTile from './InstalledPluginTile.svelte';
   import PluginDetailModal from './PluginDetailModal.svelte';
+  import PluginsEmpty from './PluginsEmpty.svelte';
   import { managedPlugins, loadManagedPlugins, installPlugin, removePlugin, updatePlugin } from '$stores/plugins';
   import { routeRest, goToTab } from '$stores/route';
   import { notifyLocalFailure, notifyLocalInfo } from '$lib/notify';
@@ -91,13 +91,13 @@
 <div class="flex-1 flex flex-col min-h-0">
   <DetailHeader title={m.system_plugins_title()} trailing={views} />
 
-  <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+  <div class="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4">
     <p class="text-xs text-gray-500 dark:text-gray-400">{m.system_plugins_description()}</p>
 
     {#if browsing}
       {#key focus}<PluginBrowse {focus} />{/key}
     {:else}
-      <section class="space-y-2.5">
+      <section class="flex-1 flex flex-col gap-2.5">
         <div class="flex items-center justify-between gap-3">
           <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{m.system_plugins_tabInstalled()}</h2>
           <button type="button" onclick={() => (adding = true)} class="inline-flex items-center gap-1 text-xs font-medium text-lerd-red hover:text-lerd-redhov">
@@ -106,7 +106,7 @@
           </button>
         </div>
         {#if $managedPlugins.length === 0}
-          <EmptyState title={m.system_plugins_empty()} size="sm" />
+          <div class="flex-1 flex items-center justify-center"><PluginsEmpty /></div>
         {:else}
           <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
             {#each $managedPlugins as p (p.name)}
