@@ -36,8 +36,9 @@ func TestDashboardDomainActionsSettleTheReload(t *testing.T) {
 		if strings.Contains(block, "nginx.Reload()") {
 			t.Errorf("domain:%s reloads without settling, so the modal reports a change the workers have not taken", name[1])
 		}
-		if !strings.Contains(block, "nginx.ReloadAndSettle()") {
-			t.Errorf("domain:%s does not settle its reload", name[1])
+		// grouping.ApplyDomainChange settles the reload; its own test pins that.
+		if !strings.Contains(block, "grouping.ApplyDomainChange(") {
+			t.Errorf("domain:%s does not go through grouping.ApplyDomainChange, so its reload may not settle", name[1])
 		}
 	}
 	if seen != 3 {

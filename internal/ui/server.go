@@ -32,7 +32,6 @@ import (
 
 	"github.com/geodro/lerd/internal/activityping"
 	"github.com/geodro/lerd/internal/applog"
-	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/cfgedit"
 	"github.com/geodro/lerd/internal/cli"
 	"github.com/geodro/lerd/internal/config"
@@ -4645,17 +4644,13 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
-		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
+		warnings, err := grouping.ApplyDomainChange(site, oldPrimary)
+		if err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
-		if site.Secured {
-			_ = certs.ReissueCertForWorktree(*site)
-		}
-		_ = podman.WriteContainerHosts()
-		_ = nginx.ReloadAndSettle()
-		if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-			fmt.Fprintf(os.Stderr, "lerd-ui: syncing .env to new primary domain: %v\n", err)
+		for _, warning := range warnings {
+			fmt.Fprintf(os.Stderr, "lerd-ui: %v\n", warning)
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
@@ -4695,22 +4690,13 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.ReplaceProjectDomain(site.Path, site.Domains, oldDomain, cfg.DNS.TLD)
-		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
+		warnings, err := grouping.ApplyDomainChange(site, oldPrimary)
+		if err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
-		if site.Secured {
-			_ = certs.ReissueCertForWorktree(*site)
-		}
-		_ = podman.WriteContainerHosts()
-		_ = nginx.ReloadAndSettle()
-		if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-			fmt.Fprintf(os.Stderr, "lerd-ui: syncing .env to new primary domain: %v\n", err)
-		}
-		if site.IsGroupMain() {
-			if err := grouping.CascadeMainDomainChange(site); err != nil {
-				fmt.Fprintf(os.Stderr, "lerd-ui: cascading group domain change: %v\n", err)
-			}
+		for _, warning := range warnings {
+			fmt.Fprintf(os.Stderr, "lerd-ui: %v\n", warning)
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
@@ -4775,22 +4761,13 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
-		if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
+		warnings, err := grouping.ApplyDomainChange(site, oldPrimary)
+		if err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}
-		if site.Secured {
-			_ = certs.ReissueCertForWorktree(*site)
-		}
-		_ = podman.WriteContainerHosts()
-		_ = nginx.ReloadAndSettle()
-		if err := siteops.SyncEnvIfPrimaryChanged(site, oldPrimary); err != nil {
-			fmt.Fprintf(os.Stderr, "lerd-ui: syncing .env to new primary domain: %v\n", err)
-		}
-		if site.IsGroupMain() {
-			if err := grouping.CascadeMainDomainChange(site); err != nil {
-				fmt.Fprintf(os.Stderr, "lerd-ui: cascading group domain change: %v\n", err)
-			}
+		for _, warning := range warnings {
+			fmt.Fprintf(os.Stderr, "lerd-ui: %v\n", warning)
 		}
 		writeJSON(w, SiteActionResponse{OK: true})
 		return

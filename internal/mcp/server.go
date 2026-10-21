@@ -16,13 +16,13 @@ import (
 	"strings"
 
 	"github.com/geodro/lerd/internal/agentenv"
-	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/composer"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/dns"
 	"github.com/geodro/lerd/internal/envfile"
 	"github.com/geodro/lerd/internal/envpass"
 	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/geodro/lerd/internal/grouping"
 	"github.com/geodro/lerd/internal/logsource"
 	"github.com/geodro/lerd/internal/nginx"
 	lerdNode "github.com/geodro/lerd/internal/node"
@@ -2391,19 +2391,10 @@ func execSiteDomainAdd(args map[string]any) (any, *rpcError) {
 
 	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
 
-	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
+	// Worktrees and group secondaries too: their URLs hang off the primary.
+	if _, err := grouping.ApplyDomainChange(site, oldPrimary); err != nil {
 		return toolErr("regenerating vhost: " + err.Error()), nil
 	}
-
-	if site.Secured {
-		_ = certs.ReissueCertForWorktree(*site)
-	}
-
-	_ = podman.WriteContainerHosts()
-	_ = nginx.Reload()
-
-	// Worktrees too: their URL is <branch>.<primary>, so it moves with it.
-	_ = siteops.SyncEnvIfPrimaryChanged(site, oldPrimary)
 
 	return toolOK(fmt.Sprintf("Added domain %s to site %s", fullDomain, site.Name)), nil
 }
@@ -2452,19 +2443,10 @@ func execSiteDomainRemove(args map[string]any) (any, *rpcError) {
 
 	_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
 
-	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
+	// Worktrees and group secondaries too: their URLs hang off the primary.
+	if _, err := grouping.ApplyDomainChange(site, oldPrimary); err != nil {
 		return toolErr("regenerating vhost: " + err.Error()), nil
 	}
-
-	if site.Secured {
-		_ = certs.ReissueCertForWorktree(*site)
-	}
-
-	_ = podman.WriteContainerHosts()
-	_ = nginx.Reload()
-
-	// Worktrees too: their URL is <branch>.<primary>, so it moves with it.
-	_ = siteops.SyncEnvIfPrimaryChanged(site, oldPrimary)
 
 	return toolOK(fmt.Sprintf("Removed domain %s from site %s", fullDomain, site.Name)), nil
 }
