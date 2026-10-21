@@ -16,13 +16,13 @@ import (
 	"strings"
 
 	"github.com/geodro/lerd/internal/agentenv"
-	"github.com/geodro/lerd/internal/certs"
 	"github.com/geodro/lerd/internal/composer"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/dns"
 	"github.com/geodro/lerd/internal/envfile"
 	"github.com/geodro/lerd/internal/envpass"
 	gitpkg "github.com/geodro/lerd/internal/git"
+	"github.com/geodro/lerd/internal/grouping"
 	"github.com/geodro/lerd/internal/logsource"
 	"github.com/geodro/lerd/internal/nginx"
 	lerdNode "github.com/geodro/lerd/internal/node"
@@ -256,6 +256,20 @@ func toolJSON(v any) map[string]any {
 
 func stripANSI(s string) string {
 	return logsource.StripANSI(s)
+}
+
+// requireSite reads the required "site" argument and finds that site, or
+// returns the tool error to answer with instead.
+func requireSite(args map[string]any) (string, *config.Site, any) {
+	siteName := strArg(args, "site")
+	if siteName == "" {
+		return "", nil, toolErr("site is required")
+	}
+	site, err := config.FindSite(siteName)
+	if err != nil {
+		return "", nil, toolErr("site not found: " + siteName)
+	}
+	return siteName, site, nil
 }
 
 func strArg(args map[string]any, key string) string {
@@ -586,13 +600,9 @@ func execSiteNginxReset(args map[string]any) (any, *rpcError) {
 }
 
 func execReverbStart(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	siteName, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	phpVersion := site.PHPVersion
 	if detected, err := phpDet.DetectVersion(site.Path); err == nil && detected != "" {
@@ -649,13 +659,9 @@ func execReverbStop(args map[string]any) (any, *rpcError) {
 }
 
 func execHorizonStart(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	siteName, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	// Check composer.json for laravel/horizon
 	composerData, readErr := os.ReadFile(filepath.Join(site.Path, "composer.json"))
@@ -717,13 +723,9 @@ func execHorizonStop(args map[string]any) (any, *rpcError) {
 }
 
 func execScheduleStart(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	siteName, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	phpVersion := site.PHPVersion
 	if detected, err := phpDet.DetectVersion(site.Path); err == nil && detected != "" {
@@ -780,13 +782,9 @@ func execScheduleStop(args map[string]any) (any, *rpcError) {
 }
 
 func execStripeListen(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	siteName, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	apiKey := strArg(args, "api_key")
 	if apiKey != "" && strings.ContainsAny(apiKey, " \t\r\n") {
@@ -853,13 +851,9 @@ func execStripeListenStop(args map[string]any) (any, *rpcError) {
 }
 
 func execStripeConfig(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	siteName, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	webhookPath := strArg(args, "webhook_path")
 	secretEnvKey := strArg(args, "secret_env_key")
@@ -2391,19 +2385,10 @@ func execSiteDomainAdd(args map[string]any) (any, *rpcError) {
 
 	_ = config.SyncProjectDomains(site.Path, site.Domains, cfg.DNS.TLD)
 
-	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
+	// Worktrees and group secondaries too: their URLs hang off the primary.
+	if _, err := grouping.ApplyDomainChange(site, oldPrimary); err != nil {
 		return toolErr("regenerating vhost: " + err.Error()), nil
 	}
-
-	if site.Secured {
-		_ = certs.ReissueCertForWorktree(*site)
-	}
-
-	_ = podman.WriteContainerHosts()
-	_ = nginx.Reload()
-
-	// Worktrees too: their URL is <branch>.<primary>, so it moves with it.
-	_ = siteops.SyncEnvIfPrimaryChanged(site, oldPrimary)
 
 	return toolOK(fmt.Sprintf("Added domain %s to site %s", fullDomain, site.Name)), nil
 }
@@ -2452,19 +2437,10 @@ func execSiteDomainRemove(args map[string]any) (any, *rpcError) {
 
 	_ = config.ReplaceProjectDomain(site.Path, site.Domains, fullDomain, cfg.DNS.TLD)
 
-	if err := siteops.RegenerateSiteVhost(site, oldPrimary); err != nil {
+	// Worktrees and group secondaries too: their URLs hang off the primary.
+	if _, err := grouping.ApplyDomainChange(site, oldPrimary); err != nil {
 		return toolErr("regenerating vhost: " + err.Error()), nil
 	}
-
-	if site.Secured {
-		_ = certs.ReissueCertForWorktree(*site)
-	}
-
-	_ = podman.WriteContainerHosts()
-	_ = nginx.Reload()
-
-	// Worktrees too: their URL is <branch>.<primary>, so it moves with it.
-	_ = siteops.SyncEnvIfPrimaryChanged(site, oldPrimary)
 
 	return toolOK(fmt.Sprintf("Removed domain %s from site %s", fullDomain, site.Name)), nil
 }
@@ -3009,13 +2985,9 @@ func resolveWorkerCwd(site *config.Site, branch string) (string, map[string]any)
 }
 
 func execCommandsList(args map[string]any) (any, *rpcError) {
-	siteName := strArg(args, "site")
-	if siteName == "" {
-		return toolErr("site is required"), nil
-	}
-	site, err := config.FindSite(siteName)
-	if err != nil {
-		return toolErr("site not found: " + siteName), nil
+	_, site, errResp := requireSite(args)
+	if errResp != nil {
+		return errResp, nil
 	}
 	proj, _ := config.LoadProjectConfig(site.Path)
 	var fw *config.Framework

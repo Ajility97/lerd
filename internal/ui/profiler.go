@@ -17,27 +17,7 @@ import (
 // handleProfilerToggle turns the SPX profiler on or off globally. Loopback-
 // only: it rewrites every PHP-FPM site's nginx vhost.
 func handleProfilerToggle(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	if !hasHostActionAuthority(r) {
-		http.Error(w, "forbidden", http.StatusForbidden)
-		return
-	}
-	var req struct {
-		Enable bool `json:"enable"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-	res, err := profiler.SetProfiling(req.Enable)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	writeJSON(w, res)
+	serveHostToggle(w, r, profiler.SetProfiling)
 }
 
 // handleProfilerStatus reports whether the SPX profiler is globally armed.

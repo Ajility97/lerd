@@ -1,6 +1,6 @@
 import { m } from '../paraglide/messages.js';
 import { writable } from 'svelte/store';
-import { apiFetch } from '$lib/api';
+import { sendAction } from '$lib/api';
 
 // Workspaces group sites for display only. Their names and order come from
 // $status.workspaces and membership from each site's `workspace` field, both
@@ -18,19 +18,8 @@ export type WorkspaceResult = { ok: boolean; error?: string };
 // server trims and rejects empty), so it can never collide with one.
 export const UNGROUPED = ' ungrouped';
 
-async function send(path: string, method: 'POST' | 'PUT', body: unknown): Promise<WorkspaceResult> {
-  try {
-    const res = await apiFetch(path, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = (await res.json()) as { ok?: boolean; error?: string };
-    return { ok: Boolean(data.ok), error: data.error };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
-}
+const send = (path: string, method: 'POST' | 'PUT', body: unknown): Promise<WorkspaceResult> =>
+  sendAction(path, method, body);
 
 export const createWorkspace = (name: string) => send('/api/workspaces', 'POST', { name });
 

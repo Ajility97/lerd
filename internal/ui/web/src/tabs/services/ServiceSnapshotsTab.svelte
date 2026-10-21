@@ -16,6 +16,7 @@
     deleteSnapshot,
     restoreSnapshot,
     snapshotExportUrl,
+    snapshotExpiryLabel,
     type Snapshot
   } from '$stores/databases';
   import { autoSnapshot, loadAutoSnapshot, nextSnapshotAt } from '$stores/autoSnapshot';
@@ -190,21 +191,6 @@
 
   function dateLabel(at: Date | null): string {
     return at ? at.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
-  }
-
-  // An automatic snapshot says when retention drops it, and a kept one says it
-  // never will, so the list answers "will this still be here tomorrow" on sight.
-  function expiryLabel(snap: Snapshot): string {
-    if (!snap.auto) return '';
-    if (snap.kept) return m.databases_snapshotKept();
-    if (!snap.expires_at) return m.databases_snapshotAuto();
-    const when = new Date(snap.expires_at).toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    });
-    return snap.estimated
-      ? m.databases_snapshotExpiresAbout({ when })
-      : m.databases_snapshotExpires({ when });
   }
 
   async function toggleKeep(row: Row) {
@@ -394,7 +380,7 @@
                   {formatBytes(row.snap.size_bytes)}
                 </td>
                 <td class="py-2 pr-3 whitespace-nowrap text-gray-500 dark:text-gray-400">
-                  {expiryLabel(row.snap) || '—'}
+                  {snapshotExpiryLabel(row.snap) || '—'}
                 </td>
                 <td class="py-2">
                   <div class="flex items-center justify-end gap-1">

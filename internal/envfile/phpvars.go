@@ -247,34 +247,7 @@ func printAssignment(segs []string, value *phpValue) string {
 // sat there. Assignments are applied in file order, so a later statement wins
 // over an earlier one exactly as PHP would run them.
 func setPathValue(root *phpValue, segs []string, v *phpValue) {
-	cur := root
-	for i, seg := range segs {
-		idx := -1
-		for j := range cur.entries {
-			if cur.entries[j].key == seg {
-				idx = j
-				break
-			}
-		}
-		if i == len(segs)-1 {
-			if idx >= 0 {
-				cur.entries[idx].val = v
-			} else {
-				cur.entries = append(cur.entries, phpEntry{key: seg, isInt: isIntKey(seg), val: v})
-			}
-			return
-		}
-		if idx < 0 {
-			child := &phpValue{kind: phpArray}
-			cur.entries = append(cur.entries, phpEntry{key: seg, isInt: isIntKey(seg), val: child})
-			cur = child
-			continue
-		}
-		if cur.entries[idx].val.kind != phpArray {
-			cur.entries[idx].val = &phpValue{kind: phpArray}
-		}
-		cur = cur.entries[idx].val
-	}
+	setPathWith(root, segs, func(*phpValue, int) *phpValue { return v })
 }
 
 // scanPhpAssignments walks the source for `$var['a']['b'] = <value>;`

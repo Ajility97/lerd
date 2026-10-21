@@ -1,4 +1,5 @@
 <script lang="ts">
+  import TypeNameToConfirm from '$components/TypeNameToConfirm.svelte';
   import Modal from '$components/Modal.svelte';
   import type { Service } from '$stores/services';
   import { m } from '../../paraglide/messages.js';
@@ -74,18 +75,7 @@
     </label>
 
     {#if requiresTypedConfirm}
-      <div class="space-y-1">
-        <label for="confirm-name" class="text-xs text-gray-600 dark:text-gray-400">
-          {m.services_confirm_typeBefore()} <span class="font-mono font-medium text-gray-800 dark:text-gray-200">{svc.name}</span> {m.services_confirm_typeAfter()}
-        </label>
-        <input
-          id="confirm-name"
-          type="text"
-          bind:value={typedName}
-          class="w-full text-sm bg-white dark:bg-lerd-bg border border-gray-200 dark:border-lerd-border rounded-sm px-2.5 py-1.5 text-gray-700 dark:text-gray-300 focus:outline-hidden focus:border-lerd-red/50"
-          autocomplete="off"
-        />
-      </div>
+      <TypeNameToConfirm name={svc.name} bind:value={typedName} />
     {/if}
   </div>
   {#snippet footer()}

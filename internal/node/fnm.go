@@ -86,11 +86,8 @@ func (m fnmManager) ExecPrefix(version string) string {
 	return fmt.Sprintf("'%s' exec --using=%s --", m.bin(), shellQuote(execVersion(version)))
 }
 
-// The result is interpolated into a /bin/sh wrapper, so values are quoted the
-// same way nvmExports quotes its exports. An unquoted path with a space splits
-// in two and env takes the tail as the command to run.
-func (m fnmManager) ExecPrefixWithEnv(version string, env []string) string {
-	prefix := m.ExecPrefix(version)
+// withEnv appends `env K=V ...` to an exec prefix, skipping malformed entries.
+func withEnv(prefix string, env []string) string {
 	var assignments []string
 	for _, e := range env {
 		key, val, ok := strings.Cut(e, "=")
@@ -103,6 +100,13 @@ func (m fnmManager) ExecPrefixWithEnv(version string, env []string) string {
 		return prefix
 	}
 	return prefix + " env " + strings.Join(assignments, " ")
+}
+
+// The result is interpolated into a /bin/sh wrapper, so values are quoted the
+// same way nvmExports quotes its exports. An unquoted path with a space splits
+// in two and env takes the tail as the command to run.
+func (m fnmManager) ExecPrefixWithEnv(version string, env []string) string {
+	return withEnv(m.ExecPrefix(version), env)
 }
 
 func (m fnmManager) ShimScript(lerdBin, bin string) string {

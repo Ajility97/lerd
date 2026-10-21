@@ -443,9 +443,17 @@ func scalarString(v *phpValue) string {
 // setPath walks (creating) the nested arrays named by segs and assigns value to
 // the leaf, preserving the leaf's existing scalar type where the value fits.
 func setPath(root *phpValue, segs []string, value string) {
+	setPathWith(root, segs, func(parent *phpValue, idx int) *phpValue {
+		return scalarValue(value, existingKind(parent, idx))
+	})
+}
+
+// setPathWith walks (creating) the nested arrays named by segs and puts leaf's
+// answer at the end of the path. leaf sees the parent array and the existing
+// entry's index there, -1 when the key is new.
+func setPathWith(root *phpValue, segs []string, leaf func(parent *phpValue, idx int) *phpValue) {
 	cur := root
 	for i, seg := range segs {
-		last := i == len(segs)-1
 		idx := -1
 		for j := range cur.entries {
 			if cur.entries[j].key == seg {
@@ -453,8 +461,8 @@ func setPath(root *phpValue, segs []string, value string) {
 				break
 			}
 		}
-		if last {
-			nv := scalarValue(value, existingKind(cur, idx))
+		if i == len(segs)-1 {
+			nv := leaf(cur, idx)
 			if idx >= 0 {
 				cur.entries[idx].val = nv
 			} else {

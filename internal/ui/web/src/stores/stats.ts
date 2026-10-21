@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { apiJson } from '$lib/api';
+import { pollWhileVisible } from '$lib/pollWhileVisible';
 
 export interface ContainerStat {
   name: string;
@@ -37,7 +38,6 @@ export const statsLoaded = writable<boolean>(false);
 // ~2s streaming podman stats, so a slower poll misses the cache every time.
 const POLL_INTERVAL_MS = 5000;
 
-let pollTimer: ReturnType<typeof setInterval> | null = null;
 let inflight = false;
 
 export async function loadStats(): Promise<void> {
@@ -61,34 +61,7 @@ export async function loadStats(): Promise<void> {
 // stops shelling out to podman; the WS pipeline already keeps the rest of
 // the dashboard live, so stats can pause without losing critical signal.
 export function startStatsPolling(): () => void {
-  let stopped = false;
-  function tick() {
-    if (stopped) return;
-    if (typeof document !== 'undefined' && document.hidden) return;
-    void loadStats();
-  }
-  // Initial fetch right away so the widget hydrates without waiting 5s.
-  tick();
-  pollTimer = setInterval(tick, POLL_INTERVAL_MS);
-
-  const onVisibility = () => {
-    if (typeof document === 'undefined') return;
-    if (!document.hidden) tick();
-  };
-  if (typeof document !== 'undefined') {
-    document.addEventListener('visibilitychange', onVisibility);
-  }
-
-  return () => {
-    stopped = true;
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
-    if (typeof document !== 'undefined') {
-      document.removeEventListener('visibilitychange', onVisibility);
-    }
-  };
+  return pollWhileVisible(() => void loadStats(), POLL_INTERVAL_MS);
 }
 
 export function formatBytes(b: number): string {

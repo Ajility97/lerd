@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/geodro/lerd/internal/config"
+	"github.com/geodro/lerd/internal/lanip"
 )
 
 // HostOwnsResolver reports whether the OS, not lerd, owns systemd-resolved.
@@ -355,39 +356,11 @@ func ConfiguredTLD() string {
 func WriteDnsmasqConfig(dir string) error {
 	target := "127.0.0.1"
 	if cfg, err := config.LoadGlobal(); err == nil && cfg != nil && cfg.LAN.Exposed {
-		if ip := primaryLANIP(); ip != "" {
+		if ip := lanip.Primary(); ip != "" {
 			target = ip
 		}
 	}
 	return WriteDnsmasqConfigFor(dir, target)
-}
-
-// primaryLANIP returns the local IPv4 address that the kernel would use
-// to reach a public destination.
-func primaryLANIP() string {
-	conn, err := net.Dial("udp4", "1.1.1.1:80")
-	if err == nil {
-		defer conn.Close()
-		return conn.LocalAddr().(*net.UDPAddr).IP.String()
-	}
-	ifaces, ifErr := net.Interfaces()
-	if ifErr != nil {
-		return ""
-	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, _ := iface.Addrs()
-		for _, addr := range addrs {
-			if ipnet, ok := addr.(*net.IPNet); ok {
-				if v4 := ipnet.IP.To4(); v4 != nil && !v4.IsLoopback() {
-					return v4.String()
-				}
-			}
-		}
-	}
-	return ""
 }
 
 // primaryLANIPv6 returns the host's primary global-unicast IPv6, or "" if

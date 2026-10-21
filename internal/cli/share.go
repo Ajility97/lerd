@@ -199,10 +199,7 @@ func runShare(args []string, useNgrok, useCloudflare, useExpose, useServeo, useL
 		fmt.Printf("Public URL: https://%s\n\n", tool.domain)
 	}
 
-	httpsPort := cfg.Nginx.HTTPSPort
-	if httpsPort == 0 {
-		httpsPort = 443
-	}
+	_, httpsPort := config.NginxPorts()
 	cmd, stop, err := buildTunnelCommand(tool, tunnelName, target, port, httpsPort, false)
 	if err != nil {
 		return err

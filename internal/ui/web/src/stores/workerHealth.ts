@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { apiJson, apiFetch } from '$lib/api';
 import { wsMessage } from '$lib/ws';
+import { readNDJSON } from '$lib/ndjson';
 
 export interface UnhealthyWorker {
   site: string;
@@ -75,49 +76,31 @@ export async function healAll(): Promise<{ ok: boolean; healed: number; failed: 
     if (!res.ok || !res.body) {
       return { ok: false, healed, failed, error: `${res.status} ${res.statusText}` };
     }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
     let lastError: string | undefined;
     let sawDone = false;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let nl: number;
-      while ((nl = buf.indexOf('\n')) >= 0) {
-        const line = buf.slice(0, nl).trim();
-        buf = buf.slice(nl + 1);
-        if (!line) continue;
-        let evt: HealEvent;
-        try {
-          evt = JSON.parse(line) as HealEvent;
-        } catch {
-          continue;
-        }
-        switch (evt.phase) {
-          case 'starting':
-            healProgressUnit.set(evt.unit ?? null);
-            break;
-          case 'healed':
-            healed++;
+    await readNDJSON<HealEvent>(res.body, (evt) => {
+      switch (evt.phase) {
+        case 'starting':
+          healProgressUnit.set(evt.unit ?? null);
+          break;
+        case 'healed':
+          healed++;
+          healDoneCount.set(healed + failed);
+          break;
+        case 'failed':
+          // Without a unit the failure is the detector itself.
+          if (evt.unit) {
+            failed++;
             healDoneCount.set(healed + failed);
-            break;
-          case 'failed':
-            // Without a unit the failure is the detector itself.
-            if (evt.unit) {
-              failed++;
-              healDoneCount.set(healed + failed);
-            } else {
-              lastError = evt.error;
-            }
-            break;
-          case 'done':
-            sawDone = true;
-            break;
-        }
+          } else {
+            lastError = evt.error;
+          }
+          break;
+        case 'done':
+          sawDone = true;
+          break;
       }
-    }
+    });
     return { ok: sawDone && !lastError, healed, failed, error: lastError };
   } catch (e) {
     return { ok: false, healed, failed, error: e instanceof Error ? e.message : 'request failed' };

@@ -29,7 +29,7 @@ LDFLAGS    = -s -w \
              -X $(PKG).Commit=$(COMMIT) \
              -X $(PKG).Date=$(DATE)
 
-.PHONY: build build-windows build-tray build-ui install-ui-deps test-ui install install-installer licenses test clean release release-snapshot
+.PHONY: build build-windows build-tray build-ui install-ui-deps test-ui install install-installer licenses test dupes clean release release-snapshot
 
 UI_INSTALL_STAMP = $(UI_DIR)/node_modules/.package-lock.json
 
@@ -96,6 +96,18 @@ test-installer:
 	bats tests/installer/installer.bats
 
 test-all: test test-ui test-installer
+
+# Copy-paste report like PhpStorm's Duplicated Code, opened in the browser.
+# Pinned so the scan is reproducible; tests are left out because table-driven
+# setup repeats on purpose.
+dupes:
+	npx --yes jscpd@5.3.3 internal cmd \
+		--format go,typescript,javascript,markup \
+		--formats-exts markup:svelte \
+		--ignore '**/*_test.go,**/*.test.ts,**/node_modules/**,**/dist/**,**/demo/**,**/paraglide/**' \
+		--min-tokens 70 --reporters html,json,console --silent \
+		--output $(BUILD_DIR)/dupes
+	xdg-open $(BUILD_DIR)/dupes/jscpd-report.html >/dev/null 2>&1 || true
 
 clean:
 	rm -rf $(BUILD_DIR)

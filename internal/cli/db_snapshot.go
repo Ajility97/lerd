@@ -103,16 +103,9 @@ func runDbSnapshot(name, service, database string, allDatabases bool) error {
 	if err != nil {
 		return err
 	}
-	env, err := resolveDBForSnapshot(cwd, service, database, allDatabases)
+	env, target, err := snapshotTargetIn(cwd, service, database, allDatabases, "snapshot")
 	if err != nil {
 		return err
-	}
-	target := snapshotTarget(env, allDatabases)
-	if !serviceops.SnapshotSupported(target.Service, target.AllDatabases) {
-		return fmt.Errorf("the %q service does not declare database snapshots", env.service)
-	}
-	if !target.AllDatabases && target.Database == "" {
-		return fmt.Errorf("no database resolved — pass --database, or --all-databases to snapshot the whole service")
 	}
 	if err := ensureServiceRunning(env.service); err != nil {
 		return fmt.Errorf("could not start %s: %w", env.service, err)
@@ -167,16 +160,9 @@ func runDbRestore(name, service, database string, allDatabases, force bool) erro
 	if err != nil {
 		return err
 	}
-	env, err := resolveDBForSnapshot(cwd, service, database, allDatabases)
+	env, target, err := snapshotTargetIn(cwd, service, database, allDatabases, "restore")
 	if err != nil {
 		return err
-	}
-	target := snapshotTarget(env, allDatabases)
-	if !serviceops.SnapshotSupported(target.Service, target.AllDatabases) {
-		return fmt.Errorf("the %q service does not declare database snapshots", env.service)
-	}
-	if !target.AllDatabases && target.Database == "" {
-		return fmt.Errorf("no database resolved — pass --database, or --all-databases to restore the whole service")
 	}
 
 	scope := target.Database
@@ -223,6 +209,24 @@ func runDbSnapshotRm(name, service, database string, allDatabases bool) error {
 	feedback.Begin()
 	feedback.Done("snapshot " + name + " deleted")
 	return nil
+}
+
+// snapshotTargetIn resolves the database a snapshot or restore in cwd acts on,
+// refusing a service without snapshots or a target it could not name. verb
+// only words the error.
+func snapshotTargetIn(cwd, service, database string, allDatabases bool, verb string) (*dbEnv, serviceops.SnapshotTarget, error) {
+	env, err := resolveDBForSnapshot(cwd, service, database, allDatabases)
+	if err != nil {
+		return nil, serviceops.SnapshotTarget{}, err
+	}
+	target := snapshotTarget(env, allDatabases)
+	if !serviceops.SnapshotSupported(target.Service, target.AllDatabases) {
+		return nil, target, fmt.Errorf("the %q service does not declare database snapshots", env.service)
+	}
+	if !target.AllDatabases && target.Database == "" {
+		return nil, target, fmt.Errorf("no database resolved — pass --database, or --all-databases to %s the whole service", verb)
+	}
+	return env, target, nil
 }
 
 // resolveDBForSnapshot resolves the project DB. All-databases operations only

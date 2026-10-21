@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/geodro/lerd/internal/cfgedit"
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/podman"
 )
@@ -168,37 +169,7 @@ func restoreTuningSnapshot(name string, snap tuningSnapshot) error {
 // tuning/ for *.conf, and same-filesystem renames remain atomic because
 // both directories live under DataDir().
 func writeTuningFileAtomic(path string, data []byte, mode os.FileMode) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("creating tuning dir: %w", err)
-	}
-	stageDir := config.ServiceTuningBkpDir()
-	if err := os.MkdirAll(stageDir, 0o755); err != nil {
-		return fmt.Errorf("creating stage dir: %w", err)
-	}
-	tmp, err := os.CreateTemp(stageDir, filepath.Base(path)+".tmp.*")
-	if err != nil {
-		return fmt.Errorf("creating temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("writing temp file: %w", err)
-	}
-	if err := tmp.Chmod(mode); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("chmod temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("closing temp file: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("renaming into place: %w", err)
-	}
-	return nil
+	return cfgedit.File{Path: path, BkpDir: config.ServiceTuningBkpDir()}.StagedWrite(data, mode)
 }
 
 // uniqueTuningBackupPath returns a backup path inside the shared backup
@@ -343,6 +314,22 @@ func readTuningContent(name string) (string, bool) {
 	return string(data), true
 }
 
+// tunableService resolves an installed service whose family lerd can tune,
+// refusing one that is not installed or whose family has no tuning mount.
+func tunableService(name string) (*config.CustomService, error) {
+	if !ServiceInstalled(name) {
+		return nil, fmt.Errorf("%w: run `lerd service preset install %s` first", ErrTuningServiceNotInstalled, name)
+	}
+	svc, err := config.ResolveServiceForTuning(name)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrTuningServiceNotInstalled, err.Error())
+	}
+	if _, ok := config.ServiceTuningMount(svc); !ok {
+		return nil, fmt.Errorf("%w (family %q)", ErrTuningFamilyUnsupported, config.FamilyOf(svc))
+	}
+	return svc, nil
+}
+
 // SaveTuningOverride is the single entry point for writing the user
 // tuning override file, regenerating the quadlet so the override
 // Volume= mount is present on installs predating the feature, and
@@ -376,15 +363,9 @@ func readTuningContent(name string) (string, bool) {
 //     Snapshot + restart again and report the failure.
 func SaveTuningOverride(name, content string, backup bool) (TuningSaveResult, error) {
 	res := TuningSaveResult{}
-	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `lerd service preset install %s` first", ErrTuningServiceNotInstalled, name)
-	}
-	svc, err := config.ResolveServiceForTuning(name)
+	svc, err := tunableService(name)
 	if err != nil {
-		return res, fmt.Errorf("%w: %s", ErrTuningServiceNotInstalled, err.Error())
-	}
-	if _, ok := config.ServiceTuningMount(svc); !ok {
-		return res, fmt.Errorf("%w (family %q)", ErrTuningFamilyUnsupported, config.FamilyOf(svc))
+		return res, err
 	}
 	if err := config.MaterializeServiceTuning(svc); err != nil {
 		return res, fmt.Errorf("creating tuning file: %w", err)
@@ -527,15 +508,9 @@ type TuningResetResult struct {
 
 func ResetTuningOverride(name string) (TuningResetResult, error) {
 	res := TuningResetResult{}
-	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `lerd service preset install %s` first", ErrTuningServiceNotInstalled, name)
-	}
-	svc, err := config.ResolveServiceForTuning(name)
+	svc, err := tunableService(name)
 	if err != nil {
-		return res, fmt.Errorf("%w: %s", ErrTuningServiceNotInstalled, err.Error())
-	}
-	if _, ok := config.ServiceTuningMount(svc); !ok {
-		return res, fmt.Errorf("%w (family %q)", ErrTuningFamilyUnsupported, config.FamilyOf(svc))
+		return res, err
 	}
 	template, ok := config.ServiceTuningTemplate(svc)
 	if !ok {
@@ -629,15 +604,9 @@ type TuningRestoreResult struct {
 // running service.
 func RestoreTuningFromBackup(name, backupName string) (TuningRestoreResult, error) {
 	res := TuningRestoreResult{}
-	if !ServiceInstalled(name) {
-		return res, fmt.Errorf("%w: run `lerd service preset install %s` first", ErrTuningServiceNotInstalled, name)
-	}
-	svc, err := config.ResolveServiceForTuning(name)
+	svc, err := tunableService(name)
 	if err != nil {
-		return res, fmt.Errorf("%w: %s", ErrTuningServiceNotInstalled, err.Error())
-	}
-	if _, ok := config.ServiceTuningMount(svc); !ok {
-		return res, fmt.Errorf("%w (family %q)", ErrTuningFamilyUnsupported, config.FamilyOf(svc))
+		return res, err
 	}
 
 	unlock := lockTuningService(name)

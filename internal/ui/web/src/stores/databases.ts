@@ -20,6 +20,21 @@ export interface Snapshot {
   estimated?: boolean;
 }
 
+// An automatic snapshot says when retention drops it, and a kept one says it
+// never will, so the list answers "will this still be here tomorrow" on sight.
+export function snapshotExpiryLabel(snap: Snapshot): string {
+  if (!snap.auto) return '';
+  if (snap.kept) return m.databases_snapshotKept();
+  if (!snap.expires_at) return m.databases_snapshotAuto();
+  const when = new Date(snap.expires_at).toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  });
+  return snap.estimated
+    ? m.databases_snapshotExpiresAbout({ when })
+    : m.databases_snapshotExpires({ when });
+}
+
 export interface DatabaseEntry {
   name: string;
   size_bytes: number;

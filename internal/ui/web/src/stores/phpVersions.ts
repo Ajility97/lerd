@@ -4,6 +4,7 @@ import { apiJson, apiFetch, decodeJSONResult, sharedJson } from '$lib/api';
 import { readSSE } from '$lib/sse';
 import { confirmDownload } from './downloadConfirm';
 import type { SiteNginxBackup, LoadNginxBackupsResult, ResetNginxResult, SaveNginxResult, RestoreNginxResult } from './sites';
+import { fetchBackupList, fetchBackupText } from '$lib/backups';
 
 export const phpVersions = writable<string[]>([]);
 // phpVersionsLoaded tells "not fetched yet" apart from "none installed", which
@@ -101,6 +102,23 @@ export interface PhpInstallEvent {
   error?: string;
 }
 
+// readBuildStream turns a build's SSE stream into log lines and the final
+// done payload, shared by install and rebuild.
+async function readBuildStream(res: Response, onEvent: (e: PhpInstallEvent) => void): Promise<void> {
+  await readSSE(res, (event, data) => {
+    if (event === 'done') {
+      try {
+        const r = JSON.parse(data) as { ok?: boolean; version?: string; error?: string };
+        onEvent({ done: true, ok: Boolean(r.ok), version: r.version, error: r.error });
+      } catch {
+        onEvent({ done: true, ok: false, error: 'bad done payload' });
+      }
+    } else {
+      onEvent({ line: data });
+    }
+  });
+}
+
 // streamPhpInstall POSTs to the SSE endpoint and invokes onEvent for each build
 // log line and the final done payload. Mirrors streamWorktreeAdd. Pass a signal
 // to abort the client read when the modal closes; the server build continues and
@@ -114,18 +132,7 @@ export async function streamPhpInstall(
     method: 'POST',
     signal
   });
-  await readSSE(res, (event, data) => {
-    if (event === 'done') {
-      try {
-        const r = JSON.parse(data) as { ok?: boolean; version?: string; error?: string };
-        onEvent({ done: true, ok: Boolean(r.ok), version: r.version, error: r.error });
-      } catch {
-        onEvent({ done: true, ok: false, error: 'bad done payload' });
-      }
-    } else {
-      onEvent({ line: data });
-    }
-  });
+  await readBuildStream(res, onEvent);
 }
 
 // confirmPhpDownload asks before a PHP build spends bandwidth on the prebuilt
@@ -146,18 +153,7 @@ export async function streamPhpRebuild(
     method: 'POST',
     signal
   });
-  await readSSE(res, (event, data) => {
-    if (event === 'done') {
-      try {
-        const r = JSON.parse(data) as { ok?: boolean; version?: string; error?: string };
-        onEvent({ done: true, ok: Boolean(r.ok), version: r.version, error: r.error });
-      } catch {
-        onEvent({ done: true, ok: false, error: 'bad done payload' });
-      }
-    } else {
-      onEvent({ line: data });
-    }
-  });
+  await readBuildStream(res, onEvent);
 }
 
 // BaseImageStatus compares a version's image against the prebuilt base it was
@@ -287,22 +283,11 @@ export async function savePhpIni(v: string, content: string, backup: boolean = f
 }
 
 export async function loadPhpIniBackups(v: string): Promise<LoadNginxBackupsResult> {
-  try {
-    const res = await apiFetch(phpConfigUrl(v, 'backups'));
-    if (!res.ok) {
-      return { ok: false, list: [], error: m.common_backupsLoadFailed({ status: res.status }) };
-    }
-    const list = (await res.json()) as SiteNginxBackup[];
-    return { ok: true, list: Array.isArray(list) ? list : [] };
-  } catch (e) {
-    return { ok: false, list: [], error: e instanceof Error ? e.message : m.common_requestFailed() };
-  }
+  return fetchBackupList<SiteNginxBackup>(phpConfigUrl(v, 'backups'));
 }
 
 export async function loadPhpIniBackupContent(v: string, name: string): Promise<string> {
-  const res = await apiFetch(phpConfigUrl(v, 'backups/' + encodeURIComponent(name)));
-  if (!res.ok) throw new Error(m.common_backupLoadFailed({ status: res.status }));
-  return await res.text();
+  return fetchBackupText(phpConfigUrl(v, 'backups/' + encodeURIComponent(name)));
 }
 
 export async function resetPhpIni(v: string): Promise<ResetNginxResult> {

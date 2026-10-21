@@ -102,20 +102,8 @@ Re-running this command rotates the password.`,
 				}
 			}
 
-			password, err := readPasswordTwice()
-			if err != nil {
+			if err := saveDashboardCredentials(cfg, username); err != nil {
 				return err
-			}
-
-			hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-			if err != nil {
-				return fmt.Errorf("hashing password: %w", err)
-			}
-
-			cfg.UI.Username = username
-			cfg.UI.PasswordHash = string(hash)
-			if err := config.SaveGlobal(cfg); err != nil {
-				return fmt.Errorf("saving config: %w", err)
 			}
 
 			feedback.Begin()
@@ -276,18 +264,8 @@ func promptAndPersistRemoteControl() error {
 			username = trimmed
 		}
 	}
-	password, err := readPasswordTwice()
-	if err != nil {
+	if err := saveDashboardCredentials(cfg, username); err != nil {
 		return err
-	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("hashing password: %w", err)
-	}
-	cfg.UI.Username = username
-	cfg.UI.PasswordHash = string(hash)
-	if err := config.SaveGlobal(cfg); err != nil {
-		return fmt.Errorf("saving config: %w", err)
 	}
 	feedback.Note("saved dashboard credentials for " + username)
 	return nil
@@ -321,4 +299,23 @@ func readPasswordTwice() (string, error) {
 		return "", fmt.Errorf("passwords do not match")
 	}
 	return strings.TrimSpace(string(first)), nil
+}
+
+// saveDashboardCredentials asks for the password twice and stores username with
+// its bcrypt hash as the dashboard's Basic auth credentials.
+func saveDashboardCredentials(cfg *config.GlobalConfig, username string) error {
+	password, err := readPasswordTwice()
+	if err != nil {
+		return err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hashing password: %w", err)
+	}
+	cfg.UI.Username = username
+	cfg.UI.PasswordHash = string(hash)
+	if err := config.SaveGlobal(cfg); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+	return nil
 }

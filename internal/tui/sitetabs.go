@@ -165,24 +165,8 @@ func siteDebugContentLines(m *Model, site *siteinfo.EnrichedSite, innerW int) []
 		return out
 	}
 	for _, g := range groups {
-		meta := fmt.Sprintf("  %s · %d", shortTime(g.ts), len(g.events))
-		if g.worker != "" {
-			meta = "  worker" + meta
-		}
-		head := "  " + accentStyle.Render(g.label) + dimStyle.Render(meta)
-		if g.nPlusOne {
-			head += "  " + failingStyle.Render("N+1")
-		}
-		add(head)
-		var dup map[string]int
-		if kind == lerddumps.KindQuery {
-			dup = map[string]int{}
-			for _, ev := range g.events {
-				if q, ok := ev.Query(); ok {
-					dup[normalizeSQL(q.SQL)]++
-				}
-			}
-		}
+		add(debugGroupHead(g))
+		dup := repeatedQueries(kind, g.events)
 		for _, ev := range g.events {
 			add("  " + debugRowMain(kind, ev, dup))
 			for _, ln := range debugRowDetail(kind, ev) {
