@@ -21,11 +21,11 @@ type Desktop struct {
 	PollFile   string
 }
 
-// CurrentDesktop returns the desktop whose colours the dashboard follows, trying
-// the most definite evidence first: Omarchy's own state directory, then Plasma
+// CurrentDesktop returns the desktop whose colours the dashboard follows, most
+// definite evidence first: Omarchy's state and a running Noctalia, then Plasma
 // and GNOME files any machine may carry, then macOS and Windows.
 func CurrentDesktop() Desktop {
-	for _, read := range []func() Desktop{omarchyDesktop, plasmaDesktop, gnomeDesktop, macosDesktop, windowsDesktop} {
+	for _, read := range []func() Desktop{omarchyDesktop, noctaliaDesktop, plasmaDesktop, gnomeDesktop, macosDesktop, windowsDesktop} {
 		if d := read(); d.Theme != nil {
 			return d
 		}
