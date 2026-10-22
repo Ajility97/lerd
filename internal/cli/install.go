@@ -991,6 +991,10 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 
 		startRestoredServices()
 		startPerSiteContainers()
+		// Same pin as lerd start: an install brings the bridge up fresh.
+		if err := podman.PinBridgeMAC("lerd"); err != nil {
+			feedback.Warn("pin the lerd bridge address: %v", err)
+		}
 	}
 
 	// Pull the current preset for every installed service and re-render what it
