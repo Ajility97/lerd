@@ -5337,13 +5337,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 | @types/deep-eql | 4.0.2 | MIT |
 | @types/estree | 1.0.8 | MIT |
 | @types/trusted-types | 2.0.7 | MIT |
-| @vitest/expect | 4.1.11 | MIT |
-| @vitest/mocker | 4.1.11 | MIT |
-| @vitest/pretty-format | 4.1.11 | MIT |
-| @vitest/runner | 4.1.11 | MIT |
-| @vitest/snapshot | 4.1.11 | MIT |
-| @vitest/spy | 4.1.11 | MIT |
-| @vitest/utils | 4.1.11 | MIT |
+| @vitest/expect | 4.1.12 | MIT |
+| @vitest/mocker | 4.1.12 | MIT |
+| @vitest/pretty-format | 4.1.12 | MIT |
+| @vitest/runner | 4.1.12 | MIT |
+| @vitest/snapshot | 4.1.12 | MIT |
+| @vitest/spy | 4.1.12 | MIT |
+| @vitest/utils | 4.1.12 | MIT |
 | acorn | 8.16.0 | MIT |
 | agent-base | 7.1.4 | MIT |
 | ansi-regex | 5.0.1 | MIT |
@@ -5356,7 +5356,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 | asynckit | 0.4.0 | MIT |
 | axobject-query | 4.1.0 | Apache-2.0 |
 | call-bind-apply-helpers | 1.0.2 | MIT |
-| chai | 6.2.2 | MIT |
+| chai | 6.3.0 | MIT |
 | chokidar | 4.0.3 | MIT |
 | clsx | 2.1.1 | MIT |
 | combined-stream | 1.0.8 | MIT |
@@ -5465,7 +5465,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 | tinybench | 2.9.0 | MIT |
 | tinyexec | 1.2.4 | MIT |
 | tinyglobby | 0.2.16 | MIT |
-| tinyrainbow | 3.1.1 | MIT |
+| tinyrainbow | 3.2.0 | MIT |
 | tldts | 6.1.86 | MIT |
 | tldts-core | 6.1.86 | MIT |
 | tough-cookie | 5.1.2 | BSD-3-Clause |
@@ -5475,9 +5475,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 | unplugin | 2.3.11 | MIT |
 | urlpattern-polyfill | 10.1.0 | MIT |
 | uuid | 14.0.0 | MIT |
-| vite | 7.3.5 | MIT |
+| vite | 7.3.7 | MIT |
 | vitefu | 1.1.3 | MIT |
-| vitest | 4.1.11 | MIT |
+| vitest | 4.1.12 | MIT |
 | w3c-xmlserializer | 5.0.0 | MIT |
 | webidl-conversions | 7.0.0 | BSD-2-Clause |
 | webpack-virtual-modules | 0.6.2 | MIT |
@@ -6034,7 +6034,7 @@ MIT License
     SOFTWARE
 ```
 
-### @vitest/expect 4.1.11, @vitest/mocker 4.1.11, @vitest/pretty-format 4.1.11, @vitest/runner 4.1.11, @vitest/snapshot 4.1.11, @vitest/spy 4.1.11, @vitest/utils 4.1.11
+### @vitest/expect 4.1.12, @vitest/mocker 4.1.12, @vitest/pretty-format 4.1.12, @vitest/runner 4.1.12, @vitest/snapshot 4.1.12, @vitest/spy 4.1.12, @vitest/utils 4.1.12
 
 MIT
 
@@ -6439,7 +6439,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### chai 6.2.2
+### chai 6.3.0
 
 MIT
 
@@ -10516,7 +10516,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### tinybench 2.9.0, tinyrainbow 3.1.1
+### tinybench 2.9.0, tinyrainbow 3.2.0
 
 MIT
 
@@ -10818,7 +10818,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### vite 7.3.5
+### vite 7.3.7
 
 MIT
 
@@ -12973,7 +12973,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### vitest 4.1.11
+### vitest 4.1.12
 
 MIT
 
