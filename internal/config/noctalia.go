@@ -51,6 +51,11 @@ func NoctaliaRegistrationPath() string {
 // rather than an error, as with Omarchy: Noctalia rewrites the file on the next
 // palette change, and there is nothing in it the user could correct.
 func NoctaliaTheme() *UITheme {
+	// The rendered file outlives the session, so on a machine that also runs
+	// Plasma it would shadow Plasma's entry long after Noctalia was left.
+	if !noctaliaRunning() {
+		return nil
+	}
 	data, err := os.ReadFile(NoctaliaThemePath())
 	if err != nil {
 		return nil
@@ -63,6 +68,18 @@ func NoctaliaTheme() *UITheme {
 	theme.Name = noctaliaThemeName()
 	theme.Source = UIThemeSourceDesktop
 	return theme
+}
+
+// noctaliaRunning says whether the shell is up, by its process name. It is a
+// variable so tests can stand in for a session.
+var noctaliaRunning = func() bool {
+	comms, _ := filepath.Glob("/proc/[0-9]*/comm")
+	for _, path := range comms {
+		if data, err := os.ReadFile(path); err == nil && string(data) == "noctalia\n" {
+			return true
+		}
+	}
+	return false
 }
 
 // noctaliaThemeName labels the entry with the palette Noctalia is on. The

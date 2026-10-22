@@ -163,8 +163,8 @@ container their borders. Edit the template to
 pick other tones; the next `lerd install` puts lerd's back, and `lerd uninstall`
 removes all three files. The entry is named after the built-in or community
 palette in Noctalia's settings, or just `Noctalia` for a custom scheme. The
-rendered file is what lerd goes by, so it outranks Plasma and GNOME for as long
-as it is there; if you leave Noctalia without uninstalling lerd, delete it.
+entry is there only while Noctalia is running, so on a machine that also has
+Plasma or GNOME, logging into those brings their own entry back.
 
 **Plasma** keeps the accent and a copy of the active colour scheme in
 `~/.config/kdeglobals`, so the entry carries surfaces too: the view background,

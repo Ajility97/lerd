@@ -23,6 +23,7 @@ border_light: "#c9cbcd"
 // and the settings it keeps the palette choice in.
 func writeNoctaliaTheme(t *testing.T, rendered, settings string) {
 	t.Helper()
+	stubNoctaliaRunning(t, true)
 	state := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", state)
 	for path, data := range map[string]string{
@@ -39,6 +40,13 @@ func writeNoctaliaTheme(t *testing.T, rendered, settings string) {
 			t.Fatal(err)
 		}
 	}
+}
+
+func stubNoctaliaRunning(t *testing.T, running bool) {
+	t.Helper()
+	prev := noctaliaRunning
+	noctaliaRunning = func() bool { return running }
+	t.Cleanup(func() { noctaliaRunning = prev })
 }
 
 func TestNoctaliaThemeReadsTheRenderedPalette(t *testing.T) {
@@ -100,5 +108,17 @@ func TestCurrentDesktopPrefersNoctaliaOverPlasma(t *testing.T) {
 	}
 	if d.WatchDir != filepath.Dir(NoctaliaThemePath()) {
 		t.Errorf("WatchDir = %q, want %q", d.WatchDir, filepath.Dir(NoctaliaThemePath()))
+	}
+}
+
+// Back in Plasma, the file Noctalia rendered in an earlier session is still on
+// disk, and Plasma's entry, focus tone included, has to win again.
+func TestCurrentDesktopIgnoresNoctaliaThatIsNotRunning(t *testing.T) {
+	writeKdeGlobals(t, "KDE", breezeDark)
+	writeNoctaliaTheme(t, noctaliaRendered, "")
+	stubNoctaliaRunning(t, false)
+	d := CurrentDesktop()
+	if d.Theme == nil || d.Theme.ID != PlasmaThemeID {
+		t.Fatalf("CurrentDesktop() = %+v, want the Plasma theme", d.Theme)
 	}
 }
