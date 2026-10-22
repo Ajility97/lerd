@@ -48,6 +48,12 @@ describe('DetailButton', () => {
     expect(screen.queryByText('Start')).not.toBeInTheDocument();
   });
 
+  // A bare 12px spinner made the button shorter than its labelled neighbours.
+  it('keeps the spinner in a line-high box so the height holds', () => {
+    const { container } = render(Harness, { props: { label: 'x', loading: true } });
+    expect(container.querySelector('svg.animate-spin')!.parentElement!.className).toContain('h-4');
+  });
+
   it('is disabled when disabled=true', () => {
     render(Harness, { props: { label: 'd', disabled: true } });
     const btn = screen.getByText('d').closest('button') as HTMLButtonElement;

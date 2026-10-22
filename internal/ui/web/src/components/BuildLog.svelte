@@ -4,8 +4,10 @@
 
   interface Props {
     logs: string[];
+    // Edge to edge, for a modal whose body is only this log.
+    flush?: boolean;
   }
-  let { logs }: Props = $props();
+  let { logs, flush = false }: Props = $props();
 
   let scrollEl: HTMLDivElement | null = $state(null);
 
@@ -22,7 +24,7 @@
 
 <div
   bind:this={scrollEl}
-  class="bg-gray-50 dark:bg-black/30 rounded-lg p-3 max-h-72 overflow-y-auto font-mono text-xs text-gray-600 dark:text-gray-400 space-y-0.5"
+  class="bg-gray-50 dark:bg-black/30 {flush ? 'px-5 py-3' : 'rounded-lg p-3'} max-h-72 overflow-y-auto font-mono text-xs text-gray-600 dark:text-gray-400 space-y-0.5"
 >
   {#each logs as line, i (i)}
     <div class="whitespace-pre-wrap break-all">{@html ansiToHtml(line)}</div>

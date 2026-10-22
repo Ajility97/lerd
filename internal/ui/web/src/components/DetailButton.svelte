@@ -51,12 +51,16 @@
   );
 </script>
 
+<!-- The spinner sits in a line-high box so a loading button keeps the height
+     of one with a label, not the shorter height of a bare 12px icon. -->
 {#snippet inner()}
   {#if loading}
-    <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-    </svg>
+    <span class="h-4 flex items-center">
+      <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+      </svg>
+    </span>
   {:else}
     {#if icon}{@render icon()}{/if}
     {#if children}{@render children()}{/if}
