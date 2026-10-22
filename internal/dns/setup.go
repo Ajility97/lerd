@@ -153,7 +153,8 @@ if [ "$ACTION" = "up" ] || [ "$ACTION" = "dhcp4-change" ] || [ "$ACTION" = "dhcp
     LERD_DNS=$(nmcli -g IP4.DNS device show "$IFACE" 2>/dev/null | tr '|' '\n' | grep -v '^$' | tr '\n' ' ')
     # A dead :5300 first on the uplink with ~. is where resolved fails over to
     # after one dropped query, stalling all DNS. lerd start re-applies this.
-    if ss -Hlnu 'sport = :5300' 2>/dev/null | grep -q .; then
+    # Only a listener 127.0.0.1 reaches counts, not one on ::1 or a LAN address.
+    if ss -Hlnu 'sport = :5300' 2>/dev/null | awk '{print $4}' | grep -Eq '^(127\.0\.0\.1|0\.0\.0\.0|\*|\[::\]):5300$'; then
         resolvectl dns "$IFACE" 127.0.0.1:5300 $LERD_DNS 2>/dev/null || true
         resolvectl domain "$IFACE" ~@TLD@ ~. 2>/dev/null || true
     fi

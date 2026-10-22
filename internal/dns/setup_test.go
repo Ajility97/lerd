@@ -1122,3 +1122,21 @@ func TestNMDispatcherScript_routesUplinkWhenLerdDNSIsServing(t *testing.T) {
 	assertContains(t, got, "dns wlan0 127.0.0.1:5300 192.168.1.1")
 	assertContains(t, got, "domain wlan0 ~test ~.")
 }
+
+func TestNMDispatcherScript_routesUplinkOnlyForLoopbackReachableListeners(t *testing.T) {
+	cases := map[string]bool{
+		"127.0.0.1:5300":    true,
+		"0.0.0.0:5300":      true,
+		"*:5300":            true,
+		"[::]:5300":         true,
+		"[::1]:5300":        false,
+		"192.168.1.20:5300": false,
+		"127.0.0.1:53000":   false,
+	}
+	for addr, want := range cases {
+		got := runDispatcher(t, "UNCONN 0 0 "+addr+" 0.0.0.0:*\n") != ""
+		if got != want {
+			t.Errorf("listener on %s: routed=%v, want %v", addr, got, want)
+		}
+	}
+}
