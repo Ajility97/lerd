@@ -35,6 +35,7 @@
   import ConfirmSiteUnlinkModal from './ConfirmSiteUnlinkModal.svelte';
   import ConfirmSiteServiceRemoveModal from './ConfirmSiteServiceRemoveModal.svelte';
   import ConfirmServiceInstallModal from './ConfirmServiceInstallModal.svelte';
+  import SiteServiceAddModal from './SiteServiceAddModal.svelte';
   import ChangelogModal from './ChangelogModal.svelte';
   import ErrorModal from './ErrorModal.svelte';
   import ConfirmDownloadModal from './ConfirmDownloadModal.svelte';
@@ -108,6 +109,8 @@
   <ConfirmSiteUnlinkModal />
 {:else if $modal.kind === 'siteServiceRemove' && $modal.siteServiceRemove}
   <ConfirmSiteServiceRemoveModal />
+{:else if $modal.kind === 'siteServiceAdd' && $modal.siteServiceAdd}
+  <SiteServiceAddModal />
 {:else if $modal.kind === 'serviceInstall' && $modal.serviceInstall}
   <ConfirmServiceInstallModal />
 {:else if $modal.kind === 'changelog'}

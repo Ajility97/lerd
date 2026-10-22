@@ -16,7 +16,7 @@ func TestAddSiteServiceRefusesUnsuggested(t *testing.T) {
 	dir := t.TempDir()
 	site := &config.Site{Name: "shop", Path: dir}
 
-	if err := addSiteService(site, "solr"); err == nil {
+	if err := addSiteService(site, "solr", "", ""); err == nil {
 		t.Fatal("an unsuggested service was accepted")
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".lerd.yaml")); !os.IsNotExist(err) {
@@ -57,7 +57,7 @@ func TestAddSiteServiceBringsBackARemovedService(t *testing.T) {
 	}
 	t.Cleanup(func() { runLerdFn = prev })
 
-	if err := addSiteService(site, "redis"); err != nil {
+	if err := addSiteService(site, "redis", "", ""); err != nil {
 		t.Fatalf("addSiteService: %v", err)
 	}
 	if len(ran) != 2 {
@@ -98,7 +98,75 @@ func TestAddSiteServiceLiftsTheDeclineBeforeWiring(t *testing.T) {
 	}
 	t.Cleanup(func() { runLerdFn = prev })
 
-	if err := addSiteService(site, "redis"); err != nil {
+	if err := addSiteService(site, "redis", "", ""); err != nil {
 		t.Fatalf("addSiteService: %v", err)
+	}
+}
+
+// pgsqlSite is a linked site whose env asks for postgres, with link and env stubbed.
+func pgsqlSite(t *testing.T) *config.Site {
+	t.Helper()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".env"), []byte("DB_CONNECTION=pgsql\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := config.SaveFramework(&config.Framework{
+		Name: "testfw",
+		Env: config.FrameworkEnvConf{Services: map[string]config.FrameworkServiceDef{
+			"postgres": {Detect: []config.FrameworkServiceDetect{{Key: "DB_CONNECTION", ValuePrefix: "pgsql"}}},
+		}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	prev := runLerdFn
+	runLerdFn = func(string, ...string) ([]byte, error) { return nil, nil }
+	t.Cleanup(func() { runLerdFn = prev })
+	return &config.Site{Name: "shop", Path: dir, Framework: "testfw"}
+}
+
+// A postgres suggestion can be answered with a drop-in at a chosen version,
+// which lands in .lerd.yaml as that preset and version for link to install.
+func TestAddSiteServiceTakesAVariantAtAVersion(t *testing.T) {
+	site := pgsqlSite(t)
+	if err := addSiteService(site, "postgres", "postgres-pgvector", "17"); err != nil {
+		t.Fatalf("addSiteService: %v", err)
+	}
+	proj, err := config.LoadProjectConfig(site.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := config.ProjectService{Name: "postgres-pgvector-17", Preset: "postgres-pgvector", PresetVersion: "17"}
+	if len(proj.Services) != 1 || proj.Services[0].Name != want.Name || proj.Services[0].Preset != want.Preset || proj.Services[0].PresetVersion != want.PresetVersion {
+		t.Errorf("services = %+v, want [%+v]", proj.Services, want)
+	}
+}
+
+// The default preset, picked bare or at its canonical version, keeps the bare
+// entry it always had.
+func TestAddSiteServiceKeepsTheBareDefault(t *testing.T) {
+	for _, version := range []string{"", "16"} {
+		site := pgsqlSite(t)
+		if err := addSiteService(site, "postgres", "postgres", version); err != nil {
+			t.Fatalf("addSiteService(%q): %v", version, err)
+		}
+		proj, _ := config.LoadProjectConfig(site.Path)
+		if len(proj.Services) != 1 || proj.Services[0].Name != "postgres" || proj.Services[0].Preset != "" {
+			t.Errorf("version %q: services = %+v, want [postgres]", version, proj.Services)
+		}
+	}
+}
+
+// Only a preset that fills the suggested role is taken, and only a version it has.
+func TestAddSiteServiceRefusesAnUnrelatedVariant(t *testing.T) {
+	site := pgsqlSite(t)
+	for _, c := range [][2]string{{"mariadb", ""}, {"postgres-pgvector", "9"}} {
+		if err := addSiteService(site, "postgres", c[0], c[1]); err == nil {
+			t.Errorf("%s %q was accepted for postgres", c[0], c[1])
+		}
+	}
+	if _, err := os.Stat(filepath.Join(site.Path, ".lerd.yaml")); !os.IsNotExist(err) {
+		t.Error(".lerd.yaml was written for a refused variant")
 	}
 }

@@ -919,6 +919,8 @@ func ListInstallablePresets() ([]config.PresetMeta, error) {
 				Versions:       e.Versions,
 				DefaultVersion: e.DefaultVersion,
 				Category:       e.Category,
+				Family:         e.Family,
+				EnvRole:        e.EnvRole,
 				Icon:           e.Icon,
 				Color:          config.NormalizeBrandColor(e.Color),
 				AdminFor:       e.AdminFor,

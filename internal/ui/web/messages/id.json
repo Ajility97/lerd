@@ -1019,6 +1019,7 @@
   "sites_overview_runtimeWorkers": "Runtime & worker",
   "sites_suggestedService_status": "Disarankan",
   "sites_suggestedService_add": "Tambahkan {name} ke situs ini",
+  "sites_suggestedService_pick": "Pilih mana yang harus dipakai situs ini.",
   "sites_suggestedService_dismiss": "Jangan sarankan {name} untuk situs ini",
   "sites_suggestedService_failed": "Tidak dapat memperbarui {name} untuk situs ini",
   "sites_suggestedService_why": "Disarankan karena proyek ini memerlukan {package}. {reason}",

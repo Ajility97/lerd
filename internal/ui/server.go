@@ -1957,6 +1957,8 @@ type PresetResponse struct {
 	DefaultVersion string                 `json:"default_version,omitempty"`
 	InstalledTags  []string               `json:"installed_tags,omitempty"`
 	Category       string                 `json:"category,omitempty"`
+	Family         string                 `json:"family,omitempty"`
+	EnvRole        string                 `json:"env_role,omitempty"`
 	Icon           string                 `json:"icon,omitempty"`
 	Color          string                 `json:"color,omitempty"`
 	AdminFor       []string               `json:"admin_for,omitempty"`
@@ -2020,6 +2022,8 @@ func handleServicePresets(w http.ResponseWriter, r *http.Request) {
 			DefaultVersion: p.DefaultVersion,
 			InstalledTags:  installedTags,
 			Category:       p.Category,
+			Family:         p.Family,
+			EnvRole:        p.EnvRole,
 			Icon:           p.Icon,
 			Color:          p.Color,
 			AdminFor:       p.AdminFor,
@@ -4302,7 +4306,8 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "service:add":
-		if err := addSiteService(site, r.URL.Query().Get("name")); err != nil {
+		q := r.URL.Query()
+		if err := addSiteService(site, q.Get("name"), q.Get("preset"), q.Get("version")); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}

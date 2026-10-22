@@ -1019,6 +1019,7 @@
   "sites_overview_runtimeWorkers": "运行时和工作进程",
   "sites_suggestedService_status": "推荐",
   "sites_suggestedService_add": "将 {name} 添加到此站点",
+  "sites_suggestedService_pick": "选择此站点要使用的服务。",
   "sites_suggestedService_dismiss": "不再为此站点推荐 {name}",
   "sites_suggestedService_failed": "无法为此站点更新 {name}",
   "sites_suggestedService_why": "建议使用，因为此项目依赖 {package}。{reason}",

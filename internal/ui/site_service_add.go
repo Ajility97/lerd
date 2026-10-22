@@ -13,16 +13,18 @@ import (
 
 // addSiteService takes up a service the dashboard suggested for a linked site:
 // it lands in .lerd.yaml, then link installs and starts it and env wires it,
-// the same two steps the setup wizard runs after its questions.
-func addSiteService(site *config.Site, name string) error {
+// the same two steps the setup wizard runs after its questions. preset and
+// version answer it with another preset filling the role, or another version.
+func addSiteService(site *config.Site, name, preset, version string) error {
 	e := siteinfo.Enrich(*site, siteinfo.EnrichFramework|siteinfo.EnrichServices)
 	if !slices.ContainsFunc(e.SuggestedServices, func(sg config.ServiceSuggestion) bool { return sg.Name == name }) {
 		return fmt.Errorf("%q is not a service suggested for %s", name, site.Name)
 	}
-	svc := config.ProjectService{Name: name}
-	if !config.IsDefaultPreset(name) {
-		svc.Preset = name
+	svc, err := suggestedVariant(name, preset, version)
+	if err != nil {
+		return err
 	}
+	name = svc.Name
 	if err := config.AddProjectServices(site.Path, []config.ProjectService{svc}); err != nil {
 		return err
 	}
@@ -40,6 +42,39 @@ func addSiteService(site *config.Site, name string) error {
 		}
 	}
 	return nil
+}
+
+// suggestedVariant is the .lerd.yaml entry for answering the suggestion role
+// with preset at version, both optional. A versioned pick is named the way the
+// preset names that version's service, so link installs exactly that one.
+func suggestedVariant(role, preset, version string) (config.ProjectService, error) {
+	if preset == "" {
+		preset = role
+	}
+	if preset != role || version != "" {
+		// Ensure, not Load: the picker lists store presets this machine has not cached.
+		p, err := config.EnsurePreset(preset)
+		if err != nil {
+			return config.ProjectService{}, err
+		}
+		if !p.FillsRole(role) {
+			return config.ProjectService{}, fmt.Errorf("%q cannot stand in for %s", preset, role)
+		}
+		if version != "" {
+			resolved, err := p.Resolve(version)
+			if err != nil {
+				return config.ProjectService{}, err
+			}
+			// The canonical version is the bare service every older entry names.
+			if resolved.Name != preset {
+				return config.ProjectService{Name: resolved.Name, Preset: preset, PresetVersion: version}, nil
+			}
+		}
+	}
+	if config.IsDefaultPreset(preset) {
+		return config.ProjectService{Name: preset}, nil
+	}
+	return config.ProjectService{Name: preset, Preset: preset}, nil
 }
 
 // runLerdFn runs this lerd binary in dir; a seam so tests need no binary.
