@@ -797,6 +797,12 @@ func startLerd(emit func(StartEvent), skip []string) error {
 		fmt.Printf("  WARN: network DNS: %v\n", err)
 	}
 
+	// The bridge exists now that containers run on it; pin its MAC so a service
+	// starting or stopping later cannot cut containers off aardvark-dns.
+	if err := podman.PinBridgeMAC("lerd"); err != nil {
+		fmt.Printf("  WARN: pin the lerd bridge address: %v\n", err)
+	}
+
 	// Wait for lerd-dns to be ready before configuring the resolver.
 	// systemctl start returns when the unit is active, but dnsmasq inside the
 	// container may not be listening yet. If we set resolvectl to use port 5300

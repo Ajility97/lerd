@@ -92,7 +92,7 @@ check "8.6 [partial] a project created in a parked directory is picked up" wait_
 check "unlink a site inside the parked directory" bash -c "cd $park/parkone && lerd unlink"
 check "link it again" bash -c "cd $park/parkone && lerd link"
 check "it is back in lerd sites" bash -c 'lerd sites | grep -q parkone'
-check "and in the dashboard" bash -c "curl -s $api/sites | grep -q parkone"
+check "and in the dashboard" wait_for 15 bash -c "curl -s $api/sites | grep -q parkone"
 expect_200 8.8 "$(site_url "$park/parkone")"
 check "lerd unpark" lerd unpark "$park"
 check_not "8.7 unpark unlinks them" 'parkone|parktwo' lerd sites

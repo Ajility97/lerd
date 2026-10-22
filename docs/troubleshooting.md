@@ -527,6 +527,14 @@ Cause: your podman is older than 4.5. The `--dns` flag on `podman network create
 Fix: upgrade podman to 4.5 or newer. On Ubuntu 22.04 and Zorin 17 the main archive doesn't ship a new enough podman, but the [Kubic libcontainers OBS repo](https://podman.io/docs/installation#ubuntu-2204-2104-2010-2004) does (it's the path podman's own docs recommend). On Debian 12 enable bookworm-backports and run `sudo apt install -t bookworm-backports podman`. See the [requirements page](getting-started/requirements.md#podman-4-5-minimum) for the full distro/version table.
 :::
 
+::: details A site answers 502 for up to 30 seconds after a service starts or stops (Ubuntu 24.04, WSL)
+Symptom: right after a service container starts or stops (a pause, an unpause, a service toggled), a site stalls and returns 502, and nginx logs `could not be resolved (110: Operation timed out)` for the PHP container.
+
+Cause: netavark older than 1.9, which Ubuntu 24.04 and the WSL distro ship (1.4.0), lets the lerd bridge take the lowest MAC address among its containers, so the address changes as containers come and go. Containers that cached the old one cannot reach the bridge, and with it aardvark-dns, until their cache expires.
+
+Fix: on netavark older than 1.9, `lerd start` and `lerd install` pin the bridge to its current address once the containers are up, so it no longer moves. Newer netavark pins it itself and lerd leaves it alone. If it still happens, run `lerd stop && lerd start` and check `lerd start` printed no `pin the lerd bridge address` warning.
+:::
+
 ::: details Error: unable to parse ip fe80::...%18 specified in AddDNSServer: invalid argument
 Your host's DNS configuration includes a zoned link-local IPv6 nameserver, typically advertised by your router via SLAAC + RDNSS. The zone identifier (`%18` is a kernel interface index) is meaningless inside a container's network namespace, and netavark refuses to accept it.
 
