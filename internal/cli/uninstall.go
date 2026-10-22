@@ -155,6 +155,16 @@ func runUninstall(force, keepData bool) error {
 		}
 	}
 
+	if found, err := removeNoctaliaTemplate(); found {
+		step("Removing the Noctalia theme template")
+		if err != nil {
+			fmt.Println(feedback.Amber("!"))
+			feedback.Note(err.Error())
+		} else {
+			ok()
+		}
+	}
+
 	if platform.Current.WindowsSide {
 		step("Removing lerd from Windows")
 		if err := removeWindowsSide(); err != nil {
