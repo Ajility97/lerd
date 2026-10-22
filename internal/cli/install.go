@@ -352,6 +352,15 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
+	if found, err := installNoctaliaTemplate(); found {
+		step("Registering the Noctalia theme template")
+		if err != nil {
+			fmt.Printf("\n    WARN: register the Noctalia template: %v\n", err)
+		} else {
+			ok()
+		}
+	}
+
 	// 3. Binaries (composer, fnm, mkcert) — after manager is persisted so an
 	// nvm choice skips the fnm download.
 	step("Downloading binaries")

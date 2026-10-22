@@ -102,8 +102,8 @@ asks before it deletes the file.
 
 ## Following the desktop theme
 
-On Omarchy, KDE Plasma, GNOME, macOS and Windows (under WSL), the desktop's own colours show up in the
-picker as one more entry: `Omarchy (tokyo-night)` names the theme the desktop is
+On Omarchy, Noctalia, KDE Plasma, GNOME, macOS and Windows (under WSL), the desktop's own colours show up in the
+picker as one more entry: `Omarchy (tokyo-night)` and `Noctalia (Oxocarbon)` name the theme the desktop is
 on, and elsewhere the entry is the familiar `Breeze`, `Adwaita`, `macOS` or `Windows`, wearing
 whatever the desktop is actually set to rather than a fixed copy of it. Pick it once
 and lerd follows the desktop from then on: change the theme or the accent and
@@ -148,6 +148,23 @@ border_light: "{{ selection }}"
 
 A theme author can ship a `lerd.yaml` in the theme itself instead. A `lerd.yaml`
 with a mistake in it is listed under the picker like any other theme file.
+
+**Noctalia**, the shell people run on niri or Hyprland, keeps no colours file of
+its own; it renders user templates into apps' config whenever the palette
+changes. When `noctalia` is on your `PATH`, `lerd install` registers one for lerd
+in `~/.config/noctalia/lerd.toml`, a file of its own so the settings Noctalia's
+GUI manages stay untouched, and the template itself goes in
+`~/.config/lerd/noctalia/lerd.yaml`. Noctalia renders it into
+`~/.local/state/lerd/noctalia/theme.yaml`, which lerd watches. The template asks
+for both of the palette's variants rather than the one the shell is in, so lerd's
+light and dark modes each get theirs: the primary colour is the accent, the
+surface is the page, the surface container the cards and the highest surface
+container their borders. Edit the template to
+pick other tones; the next `lerd install` puts lerd's back, and `lerd uninstall`
+removes all three files. The entry is named after the built-in or community
+palette in Noctalia's settings, or just `Noctalia` for a custom scheme. The
+rendered file is what lerd goes by, so it outranks Plasma and GNOME for as long
+as it is there; if you leave Noctalia without uninstalling lerd, delete it.
 
 **Plasma** keeps the accent and a copy of the active colour scheme in
 `~/.config/kdeglobals`, so the entry carries surfaces too: the view background,
