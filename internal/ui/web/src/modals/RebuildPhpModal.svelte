@@ -74,13 +74,13 @@
 </script>
 
 <Modal open title={native ? m.system_php_updateTitleFor({ version }) : m.system_php_rebuildTitleFor({ version })} onclose={closeModal} size="lg">
-  <div class="px-5 py-3 space-y-2">
+  <div>
     {#if finished && error}
-      <div class="rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+      <div class="mx-5 my-3 rounded-lg border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
         {error}
       </div>
     {/if}
-    <BuildLog {logs} />
+    <BuildLog {logs} flush />
   </div>
 
   {#snippet footer()}
