@@ -55,7 +55,7 @@ Once it is enabled, put those sites in a workspace and mark the workspace privat
 
 On Linux under Wayland lerd then hides them for you: the watcher turns streaming mode on as soon as a screen share starts and off again when it ends. It never turns off a mode you switched on yourself, and switching it off by hand during a share sticks until the next one. Detection reads PipeWire: every Wayland share goes through the desktop portal, which publishes the captured screen as a video source, so it works the same for a browser call, OBS or a meeting app. Recording counts as well when the recorder goes through PipeWire, as OBS, Spectacle and GNOME's built-in recorder do, and so does a virtual camera published over PipeWire. Plasma's taskbar previews use the same streams but are ignored. Recorders that grab the screen directly, such as wf-recorder or gpu-screen-recorder, cannot be seen. X11 sessions and macOS have no way to see a share, so there you switch it yourself.
 
-Switch it by hand with the eye button before the running count on the Sites card of the dashboard and in the Sites Overview header, or from a shell:
+Switch it by hand with the eye button before the running count on the Sites card of the dashboard and in the Sites Overview header. Bringing the sites back can take a few seconds while lerd rebuilds the lists, so the eye turns into a spinner until they are back. From a shell:
 
 | Command | Description |
 |---|---|
