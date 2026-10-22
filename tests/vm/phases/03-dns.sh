@@ -42,13 +42,16 @@ expect_200 3.12 "https://$(site_host "$DEMO_DIR")"
 uplink=$(ip route show default | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1);exit}}')
 conn=$(nmcli -g GENERAL.CONNECTION device show "$uplink" 2>/dev/null)
 on_uplink() { resolvectl dns "$uplink" | grep -q '127\.0\.0\.1:5300'; }
+off_uplink() { ! on_uplink; }
 if [ -f /etc/NetworkManager/dispatcher.d/99-lerd-dns ] && systemctl is-active --quiet systemd-resolved && [ -n "$conn" ]; then
 	sudo nmcli connection up "$conn" >/dev/null 2>&1
 	wait_for 15 on_uplink
 	check_out "3.13 with lerd-dns up, a reconnect routes the uplink at it" '127\.0\.0\.1:5300' resolvectl dns "$uplink"
 	systemctl --user stop lerd-watcher lerd-dns
 	sudo nmcli connection up "$conn" >/dev/null 2>&1
-	wait_for 10 on_uplink
+	# First the reconnect clearing the old route, then a window for the hook to wrongly re-add it.
+	wait_for 10 off_uplink
+	wait_for 5 on_uplink
 	check_not "3.14 with lerd-dns stopped, a reconnect leaves the uplink's DNS alone" '127\.0\.0\.1:5300' resolvectl dns "$uplink"
 	check "3.15 internet lookups resolve while lerd-dns is stopped" resolvectl query --legend=no --cache=no example.org
 	check "lerd start" lerd start
