@@ -396,7 +396,8 @@ func Enrich(s config.Site, flags EnrichFlag) EnrichedSite {
 		// service the env reaches only as 127.0.0.1 stays on offer.
 		e.addWiredServices(s)
 		if hasFw {
-			e.SuggestedServices = suggestedServices(fw.PackageServices, e.Services, s.DismissedServices, func(name string) bool {
+			filled := rolesFilledBy(e.Services)
+			e.SuggestedServices = suggestedServices(fw.PackageServices, e.Services, s.DismissedServices, filled, func(name string) bool {
 				return podman.QuadletInstalled("lerd-" + name)
 			})
 			answered := slices.Concat(e.Services, s.DismissedServices)
@@ -406,7 +407,7 @@ func Enrich(s config.Site, flags EnrichFlag) EnrichedSite {
 			envFile, envFormat := config.EnvFileFor(s.Path)
 			env := envfile.Values(filepath.Join(s.Path, envFile), envFormat)
 			e.SuggestedServices = append(e.SuggestedServices,
-				envSuggestedServices(fw.Env.Services, env, answered, rolesFilledBy(e.Services))...)
+				envSuggestedServices(fw.Env.Services, env, answered, filled)...)
 		}
 	}
 
@@ -865,9 +866,12 @@ func (e *EnrichedSite) addWiredServices(s config.Site) {
 
 // suggestedServices is what the site's packages put forward. A dismissed
 // service counts as an answer for its package, so turning down redis does not
-// bring valkey up in its place.
-func suggestedServices(suggested []config.ServiceSuggestion, have, dismissed []string, installed func(string) bool) []config.ServiceSuggestion {
-	answered := func(name string) bool { return slices.Contains(have, name) || slices.Contains(dismissed, name) }
+// bring valkey up in its place, and so does a role filled by a drop-in picked
+// from the add menu, valkey for redis.
+func suggestedServices(suggested []config.ServiceSuggestion, have, dismissed []string, filled, installed func(string) bool) []config.ServiceSuggestion {
+	answered := func(name string) bool {
+		return slices.Contains(have, name) || slices.Contains(dismissed, name) || filled(name)
+	}
 	return config.PickPackageSuggestions(suggested, answered, installed)
 }
 

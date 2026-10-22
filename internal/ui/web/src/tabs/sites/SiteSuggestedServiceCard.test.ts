@@ -1,6 +1,7 @@
 import { render, fireEvent } from '@testing-library/svelte';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import SiteSuggestedServiceCard from './SiteSuggestedServiceCard.svelte';
+import { presets, presetsLoaded } from '$stores/presets';
 
 const apiFetch = vi.fn();
 vi.mock('$lib/api', async (orig) => ({
@@ -30,6 +31,8 @@ describe('SiteSuggestedServiceCard', () => {
     apiFetch.mockResolvedValue(ok());
     confirmDownload.mockReset();
     confirmDownload.mockResolvedValue(true);
+    presets.set([{ name: 'solr' }] as never);
+    presetsLoaded.set(true);
   });
 
   // Adding may install the service, so it asks before downloading its image,
@@ -49,6 +52,20 @@ describe('SiteSuggestedServiceCard', () => {
     await fireEvent.click(getByLabelText(/add/i));
     expect(apiFetch).toHaveBeenCalledWith('/api/sites/shop.test/service:add?name=solr', { method: 'POST' });
     await vi.waitFor(() => expect(loadSites).toHaveBeenCalled());
+  });
+
+  // With presets or versions to choose from, Add opens the picker instead.
+  it('opens the picker when the suggestion has variants', async () => {
+    const { get } = await import('svelte/store');
+    const { modal } = await import('$stores/modals');
+    presets.set([{ name: 'mysql' }, { name: 'mariadb', family: 'mariadb', env_role: 'mysql' }] as never);
+    const { getByLabelText } = render(SiteSuggestedServiceCard, { suggestion: { name: 'mysql' }, domain: 'shop.test' });
+    await fireEvent.click(getByLabelText(/add/i));
+    await vi.waitFor(() =>
+      expect(get(modal)).toEqual({ kind: 'siteServiceAdd', siteServiceAdd: { domain: 'shop.test', name: 'mysql' } })
+    );
+    expect(confirmDownload).not.toHaveBeenCalled();
+    expect(apiFetch).not.toHaveBeenCalled();
   });
 
   it('says why the service is suggested', () => {

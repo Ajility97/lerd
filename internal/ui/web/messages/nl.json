@@ -1019,6 +1019,7 @@
   "sites_overview_runtimeWorkers": "Runtime & workers",
   "sites_suggestedService_status": "Voorgesteld",
   "sites_suggestedService_add": "{name} aan deze site toevoegen",
+  "sites_suggestedService_pick": "Kies welke deze site moet gebruiken.",
   "sites_suggestedService_dismiss": "{name} niet meer voorstellen voor deze site",
   "sites_suggestedService_failed": "{name} kon niet worden bijgewerkt voor deze site",
   "sites_suggestedService_why": "Voorgesteld omdat dit project {package} vereist. {reason}",

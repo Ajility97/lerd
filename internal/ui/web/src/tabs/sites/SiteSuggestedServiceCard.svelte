@@ -5,6 +5,9 @@
   import Icon from '$components/Icon.svelte';
   import { tooltip } from '$lib/tooltip';
   import { apiFetch, decodeJSONResult } from '$lib/api';
+  import { openSiteServiceAddModal } from '$stores/modals';
+  import { presets, presetsLoaded, loadPresets, hasVariantChoice } from '$stores/presets';
+  import { get } from 'svelte/store';
   import { notifyLocalFailure } from '$lib/notify';
   import { serviceLabel } from '$stores/services';
   import { confirmDownload } from '$stores/downloadConfirm';
@@ -25,6 +28,14 @@
   // Either action changes the site; no site event follows a .lerd.yaml or
   // sites.yaml write, so the list is reloaded to redraw the overview.
   async function act(action: 'service:add' | 'service:dismiss') {
+    // Another preset or version to choose from opens the picker first.
+    if (action === 'service:add') {
+      if (!get(presetsLoaded)) await loadPresets();
+      if (hasVariantChoice(get(presets), name)) {
+        openSiteServiceAddModal({ domain, name });
+        return;
+      }
+    }
     if (action === 'service:add' && !(await confirmDownload(serviceLabel(name), { service: name, action: 'add' }))) {
       return;
     }

@@ -1792,3 +1792,27 @@ func TestPresetMeta_CarriesSuggestFor(t *testing.T) {
 	}
 	t.Fatal("spamassassin missing from ListPresets")
 }
+
+// A drop-in fills the role its env_role names, or its family when it has none.
+func TestPresetFillsRole(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	for _, c := range []struct {
+		preset, role string
+		want         bool
+	}{
+		{"mariadb", "mysql", true},
+		{"mariadb", "mariadb", true},
+		{"postgres-pgvector", "postgres", true},
+		{"valkey", "redis", true},
+		{"mariadb", "postgres", false},
+		{"postgres", "mysql", false},
+	} {
+		p, err := LoadPreset(c.preset)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := p.FillsRole(c.role); got != c.want {
+			t.Errorf("%s.FillsRole(%q) = %v, want %v", c.preset, c.role, got, c.want)
+		}
+	}
+}

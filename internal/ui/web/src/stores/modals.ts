@@ -36,6 +36,7 @@ export type ModalKind =
   | "workspaceDelete"
   | "siteUnlink"
   | "siteServiceRemove"
+  | "siteServiceAdd"
   | "serviceInstall"
   | "changelog"
   | "error"
@@ -170,6 +171,12 @@ export interface SiteServiceRemoveTarget {
   name: string;
 }
 
+// A suggestion the site can answer with one of several presets or versions.
+export interface SiteServiceAddTarget {
+  domain: string;
+  name: string;
+}
+
 export interface ServiceInstallTarget {
   name: string;
 }
@@ -234,6 +241,7 @@ export interface ModalState {
   workspaceDelete?: WorkspaceDeleteTarget;
   siteUnlink?: SiteUnlinkTarget;
   siteServiceRemove?: SiteServiceRemoveTarget;
+  siteServiceAdd?: SiteServiceAddTarget;
   serviceInstall?: ServiceInstallTarget;
   error?: ErrorTarget;
 }
@@ -256,6 +264,10 @@ export function openSiteUnlinkModal(target: SiteUnlinkTarget) {
 
 export function openSiteServiceRemoveModal(target: SiteServiceRemoveTarget) {
   modal.set({ kind: "siteServiceRemove", siteServiceRemove: target });
+}
+
+export function openSiteServiceAddModal(target: SiteServiceAddTarget) {
+  modal.set({ kind: "siteServiceAdd", siteServiceAdd: target });
 }
 
 export function openChangelogModal() {

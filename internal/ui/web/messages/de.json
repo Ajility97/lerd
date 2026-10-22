@@ -1019,6 +1019,7 @@
   "sites_overview_runtimeWorkers": "Runtime & Worker",
   "sites_suggestedService_status": "Vorgeschlagen",
   "sites_suggestedService_add": "{name} zu dieser Site hinzufügen",
+  "sites_suggestedService_pick": "Wähle, welchen Dienst diese Site verwenden soll.",
   "sites_suggestedService_dismiss": "{name} für diese Site nicht mehr vorschlagen",
   "sites_suggestedService_failed": "{name} konnte für diese Site nicht aktualisiert werden",
   "sites_suggestedService_why": "Vorgeschlagen, weil dieses Projekt {package} benötigt. {reason}",
