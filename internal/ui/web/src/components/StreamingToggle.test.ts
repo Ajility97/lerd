@@ -29,4 +29,16 @@ describe('StreamingToggle', () => {
     await tick();
     expect(getByRole('button').getAttribute('aria-busy')).toBe('false');
   });
+
+  it('stays free when the mode later changes elsewhere', async () => {
+    status.set({ streaming_enabled: true, streaming_mode: true } as never);
+    const { getByRole } = render(StreamingToggle);
+    await fireEvent.click(getByRole('button'));
+    status.set({ streaming_enabled: true, streaming_mode: false } as never);
+    await tick();
+
+    status.set({ streaming_enabled: true, streaming_mode: true } as never);
+    await tick();
+    expect(getByRole('button').getAttribute('aria-busy')).toBe('false');
+  });
 });

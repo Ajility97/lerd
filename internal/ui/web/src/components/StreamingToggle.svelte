@@ -13,6 +13,10 @@
   let target = $state<boolean | null>(null);
   const busy = $derived(target !== null && target !== on);
 
+  $effect(() => {
+    if (target === on) target = null;
+  });
+
   async function toggle() {
     if (busy) return;
     target = !on;
