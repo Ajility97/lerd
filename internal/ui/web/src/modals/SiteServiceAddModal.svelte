@@ -64,11 +64,19 @@
   }
 
   async function add() {
-    if (!target || !picked) return;
-    if (!(await confirmDownload(serviceLabel(picked.name), { preset: picked.name, version }))) return;
+    if (busy || !target || !picked) return;
+    // Busy from the first await, and the pick held, so what gets added is what
+    // the download prompt described.
     busy = true;
     error = '';
-    const res = await addSuggestedService(target.domain, target.name, picked.name, version);
+    const { domain, name } = target;
+    const chosen = picked.name;
+    const tag = version;
+    if (!(await confirmDownload(serviceLabel(chosen), { preset: chosen, version: tag }))) {
+      busy = false;
+      return;
+    }
+    const res = await addSuggestedService(domain, name, chosen, tag);
     busy = false;
     if (!res.ok) {
       error = res.error || m.common_requestFailed();

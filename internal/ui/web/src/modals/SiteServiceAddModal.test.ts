@@ -81,6 +81,21 @@ describe('SiteServiceAddModal', () => {
     );
   });
 
+  // The pick is held while the download prompt is up, and a second click waits.
+  it('adds once, what the prompt described', async () => {
+    let answer!: (ok: boolean) => void;
+    confirmDownload.mockReturnValue(new Promise<boolean>((r) => (answer = r)));
+    open([postgres, pgvector]);
+    const button = screen.getByText('Add').closest('button')!;
+    await fireEvent.click(button);
+    await fireEvent.click(button);
+    answer(true);
+    await vi.waitFor(() => expect(addSuggestedService).toHaveBeenCalled());
+    expect(confirmDownload).toHaveBeenCalledTimes(1);
+    expect(addSuggestedService).toHaveBeenCalledTimes(1);
+    expect(addSuggestedService).toHaveBeenCalledWith('shop.test', 'postgres', 'postgres', '16');
+  });
+
   it('adds nothing when the download is declined', async () => {
     confirmDownload.mockResolvedValue(false);
     open([postgres, pgvector]);

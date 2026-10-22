@@ -31,6 +31,12 @@
     // Another preset or version to choose from opens the picker first.
     if (action === 'service:add') {
       if (!get(presetsLoaded)) await loadPresets();
+      // Without the list there is no telling whether a choice exists, so the
+      // default is not added in its place.
+      if (!get(presetsLoaded)) {
+        notifyLocalFailure('site_service', m.sites_suggestedService_failed({ name: serviceLabel(name) }), m.common_requestFailed());
+        return;
+      }
       if (hasVariantChoice(get(presets), name)) {
         openSiteServiceAddModal({ domain, name });
         return;

@@ -15,6 +15,11 @@ vi.mock('$stores/sites', async (importOriginal) => ({
   loadSites
 }));
 
+vi.mock('$stores/presets', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$stores/presets')>()),
+  loadPresets: vi.fn()
+}));
+
 const { confirmDownload } = vi.hoisted(() => ({ confirmDownload: vi.fn() }));
 vi.mock('$stores/downloadConfirm', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$stores/downloadConfirm')>()),
@@ -64,6 +69,17 @@ describe('SiteSuggestedServiceCard', () => {
     await vi.waitFor(() =>
       expect(get(modal)).toEqual({ kind: 'siteServiceAdd', siteServiceAdd: { domain: 'shop.test', name: 'mysql' } })
     );
+    expect(confirmDownload).not.toHaveBeenCalled();
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  // A preset list that failed to load says nothing about choices, so the
+  // default must not be added in place of the picker.
+  it('adds nothing when the presets cannot be loaded', async () => {
+    presetsLoaded.set(false);
+    const { getByLabelText } = render(SiteSuggestedServiceCard, { suggestion: { name: 'postgres' }, domain: 'shop.test' });
+    await fireEvent.click(getByLabelText(/add/i));
+    await new Promise((r) => setTimeout(r, 0));
     expect(confirmDownload).not.toHaveBeenCalled();
     expect(apiFetch).not.toHaveBeenCalled();
   });
