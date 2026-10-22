@@ -32,8 +32,8 @@ func peclInstallScript(t *testing.T) string {
 	return strings.Join(lines, "\n") + "\n"
 }
 
-// runPeclInstall runs the wrapper against stub php, pecl, wget, sha256sum and
-// mv, and returns which installers it called in order and how it exited.
+// runPeclInstall runs the wrapper against stub php, pecl, wget, sha256sum, mv
+// and build tools, and returns which installers it called in order and how it exited.
 func runPeclInstall(t *testing.T, spec string, env ...string) (string, error) {
 	t.Helper()
 	if _, err := os.Stat("/usr/local/bin/pie"); err == nil {
@@ -43,7 +43,10 @@ func runPeclInstall(t *testing.T, spec string, env ...string) (string, error) {
 	stubs := map[string]string{
 		"php":       `if [ "$1" = "-r" ]; then echo "$PHP_ID"; exit 0; fi; echo "pie $*" >> "$LOG"; exit "${PIE_RC:-0}"`,
 		"pecl":      `echo "pecl $*" >> "$LOG"; exit "${PECL_RC:-0}"`,
-		"wget":      `for url; do :; done; echo "wget $url" >> "$LOG"`,
+		"wget":      `for url; do :; done; echo "wget $url" >> "$LOG"; [ -z "$TARBALL" ] || cat "$TARBALL"`,
+		"phpize":    `echo phpize >> "$LOG"`,
+		"make":      `echo "make $*" >> "$LOG"`,
+		"nproc":     `echo 2`,
 		"sha256sum": `cat >/dev/null; exit "${SHA_RC:-0}"`,
 		"mv":        `exit 0`,
 	}
@@ -111,13 +114,35 @@ func TestPeclInstallAsksPIEForTheIgbinaryRC(t *testing.T) {
 	}
 }
 
-func TestPeclInstallFallsBackToTheTarball(t *testing.T) {
-	// The stub tarball is empty, so the build fails; the download is what matters.
+// sourceTarball packs a release tarball whose configure only logs, laid out
+// the way pecl.php.net ships one: a single versioned directory at the root.
+func sourceTarball(t *testing.T) string {
+	t.Helper()
+	src := t.TempDir()
+	pkg := filepath.Join(src, "igbinary-3.2.17RC1")
+	if err := os.Mkdir(pkg, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pkg, "configure"), []byte("#!/bin/sh\necho configure >> \"$LOG\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	tgz := filepath.Join(t.TempDir(), "igbinary.tgz")
+	if out, err := exec.Command("tar", "czf", tgz, "-C", src, "igbinary-3.2.17RC1").CombinedOutput(); err != nil {
+		t.Fatalf("tar: %v\n%s", err, out)
+	}
+	return tgz
+}
+
+func TestPeclInstallBuildsTheTarballWhenPeclFails(t *testing.T) {
+	got := installCalls(t, "igbinary", "PHP_ID=70433", "PECL_RC=1", "TARBALL="+sourceTarball(t))
+	if want := "pecl install igbinary | wget https://pecl.php.net/get/igbinary | phpize | configure | make -j2 | make install"; got != want {
+		t.Errorf("calls = %q, want %q", got, want)
+	}
+}
+
+func TestPeclInstallFailsWhenTheTarballDoesNot(t *testing.T) {
 	got, err := runPeclInstall(t, "igbinary", "PHP_ID=70433", "PECL_RC=1")
 	if err == nil {
-		t.Error("an empty tarball must fail the install")
-	}
-	if want := "pecl install igbinary | wget https://pecl.php.net/get/igbinary"; got != want {
-		t.Errorf("calls = %q, want %q", got, want)
+		t.Errorf("an empty download must fail the install, calls %q", got)
 	}
 }
