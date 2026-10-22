@@ -9,10 +9,9 @@ import (
 	"github.com/geodro/lerd/internal/config"
 )
 
-// noctaliaTemplate renders both of the palette's variants, not the one the
-// shell is in, so the dashboard's own light and dark modes each get theirs.
-// Borders take a surface step rather than outline_variant, which community
-// palettes leave to the outline itself, a line far heavier than lerd's.
+// noctaliaTemplate renders both of the palette's variants so lerd's light and
+// dark modes each get theirs. Borders take a surface step, since community
+// palettes leave outline_variant to the outline, far heavier than lerd's lines.
 const noctaliaTemplate = `accent: "{{colors.primary.light.hex}}"
 accent_dark: "{{colors.primary.dark.hex}}"
 bg: "{{colors.surface.dark.hex}}"
@@ -37,13 +36,16 @@ var runNoctaliaMsg = func(args ...string) error {
 	return exec.Command("noctalia", append([]string{"msg"}, args...)...).Run()
 }
 
-// installNoctaliaTemplate registers the lerd template with Noctalia, so every
-// palette change renders the file the dashboard follows. It reports whether
-// Noctalia is there to register with. A shell that is not running renders the
-// template when it next starts, so a failed reload is not an error.
+// installNoctaliaTemplate registers the lerd template with Noctalia, reporting
+// whether there is a Noctalia to register with. A shell that is not running
+// renders it when it next starts, so a failed reload is not an error.
 func installNoctaliaTemplate() (bool, error) {
 	if _, err := exec.LookPath("noctalia"); err != nil {
 		return false, nil
+	}
+	// lerd-ui watches this directory before the first render lands in it.
+	if err := os.MkdirAll(filepath.Dir(config.NoctaliaThemePath()), 0o755); err != nil {
+		return true, err
 	}
 	for path, data := range map[string]string{
 		config.NoctaliaTemplatePath():     noctaliaTemplate,

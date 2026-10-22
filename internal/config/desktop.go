@@ -21,10 +21,9 @@ type Desktop struct {
 	PollFile   string
 }
 
-// CurrentDesktop returns the desktop whose colours the dashboard follows, trying
-// the most definite evidence first: Omarchy's own state directory and the file
-// the lerd template renders under Noctalia, then Plasma and GNOME files any
-// machine may carry, then macOS and Windows.
+// CurrentDesktop returns the desktop whose colours the dashboard follows, most
+// definite evidence first: Omarchy's state and a running Noctalia, then Plasma
+// and GNOME files any machine may carry, then macOS and Windows.
 func CurrentDesktop() Desktop {
 	for _, read := range []func() Desktop{omarchyDesktop, noctaliaDesktop, plasmaDesktop, gnomeDesktop, macosDesktop, windowsDesktop} {
 		if d := read(); d.Theme != nil {

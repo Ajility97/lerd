@@ -106,8 +106,25 @@ func TestCurrentDesktopPrefersNoctaliaOverPlasma(t *testing.T) {
 	if d.Theme == nil || d.Theme.ID != NoctaliaThemeID {
 		t.Fatalf("CurrentDesktop() = %+v, want the Noctalia theme", d.Theme)
 	}
-	if d.WatchDir != filepath.Dir(NoctaliaThemePath()) {
-		t.Errorf("WatchDir = %q, want %q", d.WatchDir, filepath.Dir(NoctaliaThemePath()))
+}
+
+// The watch hangs off the registration alone, since at login Noctalia renders
+// its file after lerd-ui has started.
+func TestNoctaliaWatchFollowsTheRegistration(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	if dir, _ := NoctaliaWatch(); dir != "" {
+		t.Errorf("NoctaliaWatch() = %q with no registration, want none", dir)
+	}
+	if err := os.MkdirAll(filepath.Dir(NoctaliaRegistrationPath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(NoctaliaRegistrationPath(), []byte(""), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dir, names := NoctaliaWatch()
+	if dir != filepath.Dir(NoctaliaThemePath()) || len(names) != 1 || names[0] != "theme.yaml" {
+		t.Errorf("NoctaliaWatch() = %q, %v, want the rendered file", dir, names)
 	}
 }
 

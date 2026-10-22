@@ -131,6 +131,11 @@ func Start(currentVersion string) error {
 	if d.PollFile != "" {
 		pollFile(context.Background(), d.PollFile, 2*time.Second, broker.broadcastThemeList)
 	}
+	// Noctalia renders its file once the shell is up, often after lerd-ui
+	// started at login, so a registered template is watched either way.
+	if dir, names := config.NoctaliaWatch(); dir != "" {
+		_ = watchDir(context.Background(), dir, names, 300*time.Millisecond, broker.broadcastThemeList)
+	}
 	// Theme files and their stylesheets repaint every open dashboard as they are saved.
 	_ = os.MkdirAll(config.ThemesDir(), 0755)
 	_ = watchDir(context.Background(), config.ThemesDir(), nil, 300*time.Millisecond, broker.broadcastThemeList)

@@ -159,7 +159,7 @@ func runUninstall(force, keepData bool) error {
 		step("Removing the Noctalia theme template")
 		if err != nil {
 			fmt.Println(feedback.Amber("!"))
-			feedback.Note("remove it by hand: " + config.NoctaliaRegistrationPath())
+			feedback.Note(err.Error())
 		} else {
 			ok()
 		}

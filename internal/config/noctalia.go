@@ -11,20 +11,20 @@ import (
 // is reserved: a user theme file of the same name would be shadowed by it.
 const NoctaliaThemeID = "noctalia"
 
-// noctaliaDesktop reads Noctalia as a desktop to follow. Noctalia keeps no
-// colours file of its own; it renders user templates on every palette change,
-// and the lerd template writes its file in place, so the watch sits on its
-// directory and filters for the name.
+// noctaliaDesktop reads Noctalia as a desktop to follow. It carries no watch:
+// Noctalia often renders only after lerd-ui started, so NoctaliaWatch is set
+// up on its own whenever the template is registered.
 func noctaliaDesktop() Desktop {
-	theme := NoctaliaTheme()
-	if theme == nil {
-		return Desktop{}
+	return Desktop{Theme: NoctaliaTheme()}
+}
+
+// NoctaliaWatch returns the directory the lerd template renders into and the
+// file to filter for, or "" where the template is not registered.
+func NoctaliaWatch() (string, []string) {
+	if _, err := os.Stat(NoctaliaRegistrationPath()); err != nil {
+		return "", nil
 	}
-	return Desktop{
-		Theme:      theme,
-		WatchDir:   filepath.Dir(NoctaliaThemePath()),
-		WatchNames: []string{filepath.Base(NoctaliaThemePath())},
-	}
+	return filepath.Dir(NoctaliaThemePath()), []string{filepath.Base(NoctaliaThemePath())}
 }
 
 // NoctaliaThemePath is where the lerd template, registered as a Noctalia user
@@ -39,17 +39,15 @@ func NoctaliaTemplatePath() string {
 	return filepath.Join(ConfigDir(), "noctalia", "lerd.yaml")
 }
 
-// NoctaliaRegistrationPath registers the lerd template with Noctalia. It is a
-// file of its own in Noctalia's config directory, which Noctalia reads beside
-// settings.toml, so the settings its GUI manages stay untouched.
+// NoctaliaRegistrationPath registers the lerd template with Noctalia, in a file
+// of its own so the settings.toml its GUI manages stays untouched.
 func NoctaliaRegistrationPath() string {
 	return filepath.Join(xdgConfigHome(), "noctalia", "lerd.toml")
 }
 
-// NoctaliaTheme reads the palette the lerd template rendered as a dashboard
-// theme, or returns nil where there is none. Anything unreadable is absence
-// rather than an error, as with Omarchy: Noctalia rewrites the file on the next
-// palette change, and there is nothing in it the user could correct.
+// NoctaliaTheme reads the palette the lerd template rendered, or nil where
+// there is none. Anything unreadable is absence, as with Omarchy: Noctalia
+// rewrites the file on the next palette change.
 func NoctaliaTheme() *UITheme {
 	// The rendered file outlives the session, so on a machine that also runs
 	// Plasma it would shadow Plasma's entry long after Noctalia was left.
