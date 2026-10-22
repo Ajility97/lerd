@@ -17,7 +17,8 @@ RUN printf '%s\n' \
       '    pcov) pkg=pecl/pcov ;;' \
       '    redis) pkg=phpredis/phpredis ;;' \
       '    imagick) pkg=imagick/imagick ;;' \
-      '    igbinary) pkg=igbinary/igbinary ;;' \
+      '    # Packagist only has release candidates of igbinary, which PIE skips unless asked.' \
+      '    igbinary) pkg="igbinary/igbinary:^3.2@RC" ;;' \
       '    mongodb) pkg=mongodb/mongodb-extension ;;' \
       '    *) echo "no PIE package known for $spec" >&2; return 1 ;;' \
       '  esac' \
@@ -26,8 +27,10 @@ RUN printf '%s\n' \
       '  fi' \
       '  php /usr/local/bin/pie install --skip-enable-extension "$pkg"' \
       '}' \
+      '# pecl.php.net serves gzipped metadata from its CDN, which the pecl in older' \
+      '# images cannot parse, so a failed pecl install builds from the release tarball.' \
       'from_pecl() {' \
-      '  if command -v pecl >/dev/null 2>&1; then yes "" | pecl install "$spec"; return; fi' \
+      '  command -v pecl >/dev/null 2>&1 && yes "" | pecl install "$spec" && return 0' \
       '  dir=$(mktemp -d)' \
       '  wget -qO- "https://pecl.php.net/get/$spec" | tar xz -C "$dir" && (cd "$dir"/*/ && phpize && ./configure && make -j"$(nproc)" && make install)' \
       '  rc=$?; rm -rf "$dir"; return $rc' \

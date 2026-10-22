@@ -33,8 +33,8 @@ func peclInstallScript(t *testing.T) string {
 }
 
 // runPeclInstall runs the wrapper against stub php, pecl, wget, sha256sum and
-// mv, and returns which installers it called in order.
-func runPeclInstall(t *testing.T, spec string, env ...string) []string {
+// mv, and returns which installers it called in order and how it exited.
+func runPeclInstall(t *testing.T, spec string, env ...string) (string, error) {
 	t.Helper()
 	if _, err := os.Stat("/usr/local/bin/pie"); err == nil {
 		t.Skip("a real /usr/local/bin/pie skips the download path under test")
@@ -42,8 +42,8 @@ func runPeclInstall(t *testing.T, spec string, env ...string) []string {
 	dir := t.TempDir()
 	stubs := map[string]string{
 		"php":       `if [ "$1" = "-r" ]; then echo "$PHP_ID"; exit 0; fi; echo "pie $*" >> "$LOG"; exit "${PIE_RC:-0}"`,
-		"pecl":      `echo "pecl $*" >> "$LOG"`,
-		"wget":      `exit 0`,
+		"pecl":      `echo "pecl $*" >> "$LOG"; exit "${PECL_RC:-0}"`,
+		"wget":      `for url; do :; done; echo "wget $url" >> "$LOG"`,
 		"sha256sum": `cat >/dev/null; exit "${SHA_RC:-0}"`,
 		"mv":        `exit 0`,
 	}
@@ -59,16 +59,27 @@ func runPeclInstall(t *testing.T, spec string, env ...string) []string {
 	log := filepath.Join(dir, "calls.log")
 	cmd := exec.Command("sh", script, spec)
 	cmd.Env = append([]string{"PATH=" + dir + ":/usr/bin:/bin", "LOG=" + log}, env...)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("lerd-pecl-install %s: %v\n%s", spec, err, out)
-	}
+	err := cmd.Run()
 	data, _ := os.ReadFile(log)
-	return strings.Fields(strings.ReplaceAll(strings.TrimSpace(string(data)), "\n", " | "))
+	return strings.ReplaceAll(strings.TrimSpace(string(data)), "\n", " | "), err
 }
 
+// installCalls runs the wrapper and fails the test unless it succeeded.
+func installCalls(t *testing.T, spec string, env ...string) string {
+	t.Helper()
+	calls, err := runPeclInstall(t, spec, env...)
+	if err != nil {
+		t.Fatalf("lerd-pecl-install %s: %v (calls %q)", spec, err, calls)
+	}
+	return calls
+}
+
+// pieFetch is the stub log line for the wrapper downloading PIE itself.
+const pieFetch = "wget https://github.com/php/pie/releases/download/1.5.2/pie.phar | "
+
 func TestPeclInstallUsesPIEFirst(t *testing.T) {
-	got := strings.Join(runPeclInstall(t, "pcov", "PHP_ID=80400"), " ")
-	if got != "pie /usr/local/bin/pie install --skip-enable-extension pecl/pcov" {
+	got := installCalls(t, "pcov", "PHP_ID=80400")
+	if got != pieFetch+"pie /usr/local/bin/pie install --skip-enable-extension pecl/pcov" {
 		t.Errorf("calls = %q, want PIE only", got)
 	}
 }
@@ -79,16 +90,34 @@ func TestPeclInstallFallsBackToPecl(t *testing.T) {
 		env  []string
 		want string
 	}{
-		"PIE build fails":      {"xdebug", []string{"PHP_ID=80400", "PIE_RC=1"}, "pie /usr/local/bin/pie install --skip-enable-extension xdebug/xdebug | pecl install xdebug"},
-		"PIE checksum fails":   {"redis", []string{"PHP_ID=80400", "SHA_RC=1"}, "pecl install redis"},
+		"PIE build fails":      {"xdebug", []string{"PHP_ID=80400", "PIE_RC=1"}, pieFetch + "pie /usr/local/bin/pie install --skip-enable-extension xdebug/xdebug | pecl install xdebug"},
+		"PIE checksum fails":   {"redis", []string{"PHP_ID=80400", "SHA_RC=1"}, pieFetch + "pecl install redis"},
 		"PHP below 8.1":        {"xdebug-3.3.2", []string{"PHP_ID=80030"}, "pecl install xdebug-3.3.2"},
 		"no PIE package known": {"yaml", []string{"PHP_ID=80400"}, "pecl install yaml"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
-			if got := strings.Join(runPeclInstall(t, c.spec, c.env...), " "); got != c.want {
+			if got := installCalls(t, c.spec, c.env...); got != c.want {
 				t.Errorf("calls = %q, want %q", got, c.want)
 			}
 		})
+	}
+}
+
+func TestPeclInstallAsksPIEForTheIgbinaryRC(t *testing.T) {
+	got := installCalls(t, "igbinary", "PHP_ID=80400")
+	if got != pieFetch+"pie /usr/local/bin/pie install --skip-enable-extension igbinary/igbinary:^3.2@RC" {
+		t.Errorf("calls = %q, want PIE with the RC allowed", got)
+	}
+}
+
+func TestPeclInstallFallsBackToTheTarball(t *testing.T) {
+	// The stub tarball is empty, so the build fails; the download is what matters.
+	got, err := runPeclInstall(t, "igbinary", "PHP_ID=70433", "PECL_RC=1")
+	if err == nil {
+		t.Error("an empty tarball must fail the install")
+	}
+	if want := "pecl install igbinary | wget https://pecl.php.net/get/igbinary"; got != want {
+		t.Errorf("calls = %q, want %q", got, want)
 	}
 }
