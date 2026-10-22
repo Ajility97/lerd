@@ -125,8 +125,9 @@ WantedBy=multi-user.target
 // overrides global resolved.conf drop-ins. Per-interface DNS set via resolvectl is
 // respected. We set two routing domains: ~test routes .test queries to lerd's dnsmasq,
 // and ~. keeps the interface as the default route so all other DNS (internet) still works.
-// The DHCP-assigned DNS servers are preserved alongside lerd's so internet continues
-// to work even when lerd-dns is not yet running.
+// The DHCP-assigned DNS servers are preserved alongside lerd's, and the route is
+// only applied while something listens on :5300 so a stopped lerd-dns never sits
+// on the uplink.
 // When the network changes (LAN↔WiFi, switching networks), the script also rewrites
 // the lerd dnsmasq config and restarts lerd-dns so the new upstream DNS is picked up
 // immediately without requiring a manual lerd restart.
@@ -150,8 +151,12 @@ fi
 
 if [ "$ACTION" = "up" ] || [ "$ACTION" = "dhcp4-change" ] || [ "$ACTION" = "dhcp6-change" ]; then
     LERD_DNS=$(nmcli -g IP4.DNS device show "$IFACE" 2>/dev/null | tr '|' '\n' | grep -v '^$' | tr '\n' ' ')
-    resolvectl dns "$IFACE" 127.0.0.1:5300 $LERD_DNS 2>/dev/null || true
-    resolvectl domain "$IFACE" ~@TLD@ ~. 2>/dev/null || true
+    # A dead :5300 first on the uplink with ~. is where resolved fails over to
+    # after one dropped query, stalling all DNS. lerd start re-applies this.
+    if ss -Hlnu 'sport = :5300' 2>/dev/null | grep -q .; then
+        resolvectl dns "$IFACE" 127.0.0.1:5300 $LERD_DNS 2>/dev/null || true
+        resolvectl domain "$IFACE" ~@TLD@ ~. 2>/dev/null || true
+    fi
 elif [ "$ACTION" = "down" ]; then
     # Interface went down: switch lerd-dns to the remaining default interface's DNS
     # so upstream resolution keeps working (e.g. closing wired while on WiFi).

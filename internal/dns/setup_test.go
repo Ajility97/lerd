@@ -5,6 +5,7 @@ package dns
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -1076,4 +1077,48 @@ func TestHostUpstreamDNS_keepsLocalResolversButNotResolvedStubs(t *testing.T) {
 
 	assertSliceEqual(t, hostUpstreamDNS(), []string{"127.0.0.1", "192.168.1.1"})
 	assertSliceEqual(t, readUpstreamDNS(), []string{"192.168.1.1"})
+}
+
+// runDispatcher runs the hook for an "up" on wlan0 against stub commands, with
+// ss reporting listen as its output, and returns what resolvectl was asked.
+func runDispatcher(t *testing.T, listen string) string {
+	t.Helper()
+	bin := t.TempDir()
+	log := filepath.Join(bin, "resolvectl.log")
+	stubs := map[string]string{
+		"ss":         "printf '%s' \"$LISTEN\"",
+		"resolvectl": "echo \"$*\" >> " + log,
+		"nmcli":      "echo 192.168.1.1",
+		"runuser":    "exit 1",
+	}
+	for name, body := range stubs {
+		if err := os.WriteFile(filepath.Join(bin, name), []byte("#!/bin/sh\n"+body+"\n"), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	script := filepath.Join(bin, "99-lerd-dns")
+	if err := os.WriteFile(script, []byte(nmDispatcherScriptFor("test")), 0755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("/bin/sh", script, "wlan0", "up")
+	cmd.Env = []string{"PATH=" + bin + ":/usr/bin:/bin", "LISTEN=" + listen}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("dispatcher failed: %v\n%s", err, out)
+	}
+	got, _ := os.ReadFile(log)
+	return string(got)
+}
+
+// A dead 127.0.0.1:5300 first on the uplink with ~. is where resolved fails
+// over to after one dropped upstream query, and every lookup stalls from then on.
+func TestNMDispatcherScript_leavesUplinkAloneWhenLerdDNSIsDown(t *testing.T) {
+	if got := runDispatcher(t, ""); got != "" {
+		t.Errorf("with nothing on :5300 the hook must not touch the uplink, got:\n%s", got)
+	}
+}
+
+func TestNMDispatcherScript_routesUplinkWhenLerdDNSIsServing(t *testing.T) {
+	got := runDispatcher(t, "UNCONN 0 0 127.0.0.1:5300 0.0.0.0:*\n")
+	assertContains(t, got, "dns wlan0 127.0.0.1:5300 192.168.1.1")
+	assertContains(t, got, "domain wlan0 ~test ~.")
 }
