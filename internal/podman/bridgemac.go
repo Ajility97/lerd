@@ -11,14 +11,9 @@ import (
 // bridgeRun is the podman call PinBridgeMAC makes, a seam for tests.
 var bridgeRun = Run
 
-// PinBridgeMAC fixes a network's bridge to the MAC it has now. Before netavark
-// 1.9 a Linux bridge takes the lowest MAC among its ports, so a service
-// container starting or stopping could move it, and containers that cached the
-// old one lost the gateway, aardvark-dns with it, for up to 30s: nginx then
-// failed to resolve the PHP pool and answered 502 (Ubuntu 24.04, WSL). An
-// address set by hand stops the bridge following its ports. A no-op on newer
-// netavark, which pins it itself, and when the bridge is not up yet, since it
-// only exists while a container is on it.
+// PinBridgeMAC fixes the bridge MAC on netavark before 1.9, which lets it follow
+// the lowest port MAC so a container start or stop cut DNS for up to 30s. Newer
+// netavark, podman machine and a bridge not up yet are left alone.
 func PinBridgeMAC(network string) error {
 	if platform.Current.UsesMachineVM {
 		return nil
@@ -37,7 +32,10 @@ func PinBridgeMAC(network string) error {
 	}
 	link, err := bridgeRun("unshare", "--rootless-netns", "ip", "-br", "link", "show", iface)
 	if err != nil {
-		return nil
+		if strings.Contains(err.Error(), "does not exist") {
+			return nil
+		}
+		return err
 	}
 	f := strings.Fields(link)
 	if len(f) < 3 || strings.Count(f[2], ":") != 5 {

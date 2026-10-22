@@ -17,6 +17,13 @@ func fakeBridgeRun(t *testing.T, iface, link string) *[]string {
 
 func fakeBridgeRunOn(t *testing.T, backend, iface, link string) *[]string {
 	t.Helper()
+	return fakeBridgeRunErr(t, backend, iface, link, errors.New(`Device "podman1" does not exist.`))
+}
+
+// fakeBridgeRunErr is fakeBridgeRunOn with the error the link lookup returns
+// when link is empty.
+func fakeBridgeRunErr(t *testing.T, backend, iface, link string, linkErr error) *[]string {
+	t.Helper()
 	var calls []string
 	prev := bridgeRun
 	bridgeRun = func(args ...string) (string, error) {
@@ -29,7 +36,7 @@ func fakeBridgeRunOn(t *testing.T, backend, iface, link string) *[]string {
 			return iface, nil
 		case strings.Contains(joined, "-br link show"):
 			if link == "" {
-				return "", errors.New("Device does not exist")
+				return "", linkErr
 			}
 			return link, nil
 		}
@@ -142,5 +149,16 @@ func TestPinBridgeMAC_RefusesAnUnreadableNetavarkVersion(t *testing.T) {
 	err := PinBridgeMAC("lerd")
 	if err == nil || !strings.Contains(err.Error(), "netavark dev") {
 		t.Fatalf("want an error naming the version, got %v", err)
+	}
+}
+
+// Only a bridge that is not up yet is quiet; a lookup that could not run is
+// reported, so lerd start and install can print why nothing was pinned.
+func TestPinBridgeMAC_ReportsALookupThatCouldNotRun(t *testing.T) {
+	linuxHost(t)
+	fakeBridgeRunErr(t, "netavark 1.4.0", "podman1", "", errors.New(`exec: "ip": executable file not found in $PATH`))
+
+	if err := PinBridgeMAC("lerd"); err == nil {
+		t.Fatal("want the lookup error, got nil")
 	}
 }
