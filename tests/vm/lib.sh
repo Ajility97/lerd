@@ -63,6 +63,8 @@ expect_code() {
 	shift
 	got=$(code "$url")
 	echo "--- $url -> $got"
+	# 000 means no HTTP answer at all; say why, so a refused port, a timeout and a TLS failure read differently.
+	[ "$got" = 000 ] && curl -k -sS -o /dev/null --max-time 30 -w 'retry: %{http_code} after %{time_total}s\n' "$url" 2>&1 | sed 's/^/    /'
 	for want in "$@"; do
 		if [ "$got" = "$want" ]; then
 			_pass "$id$url $got"
