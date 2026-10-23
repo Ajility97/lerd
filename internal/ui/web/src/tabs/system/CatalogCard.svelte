@@ -30,7 +30,10 @@
   </div>
   <div class="flex-1 flex flex-col gap-1 p-3">
     <div class="flex items-baseline justify-between gap-2">
-      <span class="truncate text-sm font-semibold text-gray-900 dark:text-white">{e.name}</span>
+      <span class="min-w-0 flex items-baseline gap-1.5">
+        <span class="truncate text-sm font-semibold text-gray-900 dark:text-white">{e.name}</span>
+        {#if e.version}<span class="shrink-0 text-[10px] font-mono tabular-nums text-gray-400">{e.version}</span>{/if}
+      </span>
       {#if e.stars}<span class="shrink-0 text-[10px] tabular-nums text-gray-400">★ {e.stars.toLocaleString()}</span>{/if}
     </div>
     {#if e.description}<p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{e.description}</p>{/if}

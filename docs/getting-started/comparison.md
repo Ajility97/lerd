@@ -90,14 +90,16 @@ See [Laragon for Linux](/getting-started/laragon-linux) for the feature-by-featu
 
 ### Migrating from Sail to Lerd
 
-`lerd import sail` imports a Sail project's database and S3/MinIO files into lerd in one command, no manual dump/restore needed. It starts Sail temporarily with remapped ports (so there are no conflicts with lerd's running services), dumps the database, mirrors storage files, then tears Sail back down.
+The **sail** plugin imports a Sail project's database and S3/MinIO files into lerd in one command, no manual dump/restore needed. It starts Sail temporarily with remapped ports (so there are no conflicts with lerd's running services), dumps the database, mirrors storage files, then tears Sail back down.
 
 ```bash
+lerd plugin install sail
 cd ~/Projects/myapp
-lerd sail import
+lerd link && lerd env
+lerd sail:import
 ```
 
-See [Laravel Sail alternative](/getting-started/sail) for the full migration guide, and [Importing from Laravel Sail](/usage/import-sail) for the flag reference.
+See [Laravel Sail alternative](/getting-started/sail) for the full migration guide, and [Importing from Laravel Sail](/usage/import-sail) for the options.
 
 ---
 

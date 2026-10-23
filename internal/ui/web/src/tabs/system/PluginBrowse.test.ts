@@ -8,7 +8,7 @@ let posts: unknown[];
 
 beforeEach(() => {
   catalog = [
-    { name: 'old', repo: 'r', commit: A, stars: 50, updated_at: '2026-01-01', installed: false, compatible: true, category: 'Tools' },
+    { name: 'old', repo: 'r', commit: A, version: '1.2.0', stars: 50, updated_at: '2026-01-01', installed: false, compatible: true, category: 'Tools' },
     { name: 'fresh', repo: 'r', commit: 'b'.repeat(40), stars: 2, updated_at: '2026-10-01', installed: false, images: ['https://plugins.lerd.sh/images/fresh/1.png', 'https://plugins.lerd.sh/images/fresh/2.png'], compatible: true, category: 'Debugging' },
     { name: 'mine', repo: 'r', commit: A, installed: true, compatible: true, category: 'Tools' }
   ];
@@ -154,4 +154,13 @@ it('invites building and submitting a plugin under a listed catalog', async () =
   expect(getByText('Build the next one')).toBeTruthy();
   expect(getByText('lerd plugin new my-plugin')).toBeTruthy();
   expect(getByRole('link', { name: /submission guide/i }).getAttribute('href')).toContain('lerd-env/plugins/blob/main/SUBMITTING.md');
+});
+
+// The approved commit's version, on its card and in its detail.
+it('shows each listed plugin its version', async () => {
+  const { container, findByText, getByRole } = render(PluginBrowse);
+  await findByText('old');
+  expect(within(container.querySelector('#plugin-card-old') as HTMLElement).getByText('1.2.0')).toBeTruthy();
+  await fireEvent.click(await findByText('old'));
+  expect(within(getByRole('dialog')).getByText(/^v?1\.2\.0$/)).toBeTruthy();
 });
