@@ -119,12 +119,9 @@ func (p *Plugin) Features() []Feature {
 	return out
 }
 
-// DocsHTML renders the plugin's docs file to an HTML fragment, "" when it
-// declares none. It is read from disk, so it works offline.
-// Raw HTML is dropped. Images keep their place only when lerd serves the file
-// (fileURL gives its address); links leave the dashboard only for the web, since
-// a relative one points into a repository the reader may not have, and an
-// anchor would move the dashboard's own route.
+// DocsHTML renders the docs file offline, "" when there is none. Raw HTML is
+// dropped, local images resolve through fileURL, and only web links stay links:
+// a relative one points into a repository the reader may not have.
 func (p *Plugin) DocsHTML(fileURL func(rel string) string) (string, error) {
 	if p.Docs == "" {
 		return "", nil

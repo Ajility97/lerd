@@ -1,5 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import { apiFetch, apiJson } from '$lib/api';
+import { wsMessage } from '$lib/ws';
 
 export interface PluginPage {
   title: string;
@@ -37,6 +38,15 @@ export async function loadPlugins() {
     plugins.set([]);
   }
 }
+
+// A plugin update announced while the dashboard is open refreshes the badge
+// and the update buttons, which otherwise load only on mount.
+wsMessage.subscribe((msg) => {
+  const n = msg?.notification;
+  if (n?.kind !== 'update_available' || !n.data?.plugin) return;
+  void loadPlugins();
+  loadManagedPlugins().catch(() => {});
+});
 
 // One thing a plugin can put on a site, its page script or its Overview card,
 // and whether the site has it switched on.
