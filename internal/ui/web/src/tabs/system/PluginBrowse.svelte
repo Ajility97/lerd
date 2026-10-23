@@ -162,6 +162,7 @@
   <PluginDetailModal
     name={e.name}
     description={e.description}
+    version={e.version}
     author={e.author}
     images={e.images}
     repo={e.repo}

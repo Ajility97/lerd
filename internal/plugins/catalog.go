@@ -48,6 +48,8 @@ type Listing struct {
 	Author      string   `json:"author,omitempty"`
 	Category    string   `json:"category,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
+	// Version is the approved commit's own version, as its plugin.yaml says.
+	Version string `json:"version,omitempty"`
 	// Lerd is the approved commit's own `lerd` constraint.
 	Lerd string `json:"lerd,omitempty"`
 	// Requires is what the approved commit needs on the machine, as

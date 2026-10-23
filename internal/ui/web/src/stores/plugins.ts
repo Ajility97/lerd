@@ -111,6 +111,8 @@ export interface CatalogEntry {
   category?: string;
   tags?: string[];
   images?: string[];
+  // The approved commit's own version.
+  version?: string;
   lerd?: string;
   requires?: string[];
   platforms?: string[];
