@@ -1,4 +1,5 @@
 name: mongo
+label: "MongoDB"
 image: docker.io/library/mongo:7
 description: MongoDB document database
 stop_timeout: 60

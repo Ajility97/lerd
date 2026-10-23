@@ -1,4 +1,5 @@
 name: postgres-pgvector
+label: "PostgreSQL + pgvector"
 description: PostgreSQL with pgvector (vector embeddings, no PostGIS)
 family: postgres
 stop_timeout: 60

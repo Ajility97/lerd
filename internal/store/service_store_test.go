@@ -16,7 +16,7 @@ func serviceTestServer(t *testing.T) *httptest.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/index.json", func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`{"services":[
-			{"name":"demo","description":"Demo document store","family":"demo","dashboard":"http://localhost:9","depends_on":["mysql"],"color":"#00758F"},
+			{"name":"demo","description":"Demo document store","family":"demo","dashboard":"http://localhost:9","depends_on":["mysql"],"color":"#00758F","label":"DemoDB"},
 			{"name":"mariadb","description":"MariaDB","family":"mariadb","env_role":"mysql"},
 			{"name":"widget","description":"Widget cache"}
 		]}`))
@@ -55,6 +55,9 @@ func TestFetchServiceIndex(t *testing.T) {
 	}
 	if idx.Services[0].Color != "#00758F" {
 		t.Errorf("index entry lost color: %+v", idx.Services[0])
+	}
+	if idx.Services[0].Label != "DemoDB" {
+		t.Errorf("index entry lost label: %+v", idx.Services[0])
 	}
 }
 

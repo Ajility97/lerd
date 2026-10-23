@@ -1,4 +1,5 @@
 name: phpmyadmin
+label: "phpMyAdmin"
 image: docker.io/library/phpmyadmin:latest
 description: phpMyAdmin web UI for every installed lerd MySQL service
 ports:

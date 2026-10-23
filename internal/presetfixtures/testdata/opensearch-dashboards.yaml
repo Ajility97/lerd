@@ -1,4 +1,5 @@
 name: opensearch-dashboards
+label: "OpenSearch Dashboards"
 image: docker.io/opensearchproject/opensearch-dashboards:2.19.5
 description: OpenSearch Dashboards web UI for the lerd OpenSearch service
 ports:

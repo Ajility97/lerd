@@ -1,4 +1,5 @@
 name: mysql
+label: "MySQL"
 default: true
 update_strategy: minor
 track_latest: true

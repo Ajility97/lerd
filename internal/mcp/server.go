@@ -1741,6 +1741,7 @@ type presetVersionEntry struct {
 // starts after mysql but administers mariadb too).
 type presetEntry struct {
 	Name           string               `json:"name"`
+	Label          string               `json:"label,omitempty"`
 	Description    string               `json:"description,omitempty"`
 	Image          string               `json:"image,omitempty"`
 	Category       string               `json:"category,omitempty"`
@@ -1757,6 +1758,7 @@ type presetEntry struct {
 func newPresetEntry(p config.PresetMeta) presetEntry {
 	return presetEntry{
 		Name:           p.Name,
+		Label:          p.Label,
 		Description:    p.Description,
 		Image:          p.Image,
 		Category:       p.Category,

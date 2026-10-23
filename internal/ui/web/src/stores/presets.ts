@@ -1,6 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import { apiJson, apiFetch, apiUrl } from '$lib/api';
-import { loadServices, serviceLabel } from './services';
+import { loadServices, presetLabels, serviceLabel } from './services';
 import { loadServiceIcons } from './serviceIcons';
 import { goToTab } from './route';
 import { m } from '../paraglide/messages.js';
@@ -14,6 +14,7 @@ export interface PresetVersion {
 
 export interface Preset {
   name: string;
+  label?: string;
   description?: string;
   image?: string;
   dashboard?: string;
@@ -61,6 +62,7 @@ export async function loadPresets() {
       return enriched;
     });
     presets.set(next);
+    presetLabels.set(Object.fromEntries(next.filter((p) => p.label).map((p) => [p.name, p.label as string])));
     presetsLoaded.set(true);
   } catch {
     /* keep previous */

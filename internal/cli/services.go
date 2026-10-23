@@ -912,6 +912,7 @@ func ListInstallablePresets() ([]config.PresetMeta, error) {
 			seen[e.Name] = true
 			metas = append(metas, config.PresetMeta{
 				Name:           e.Name,
+				Label:          e.Label,
 				Description:    e.Description,
 				Dashboard:      e.Dashboard,
 				DependsOn:      e.DependsOn,
