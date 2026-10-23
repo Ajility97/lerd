@@ -880,6 +880,7 @@
   "siteWizard_titleParent": "Übergeordneten Ordner wählen",
   "siteWizard_titleSetup": "{project} einrichten",
   "siteWizard_useThisFolder": "Diesen Ordner verwenden",
+  "siteWizard_rememberFolder": "Nächstes Mal hier beginnen",
   "siteWizard_version": "Version",
   "siteWizard_versionLatest": "Neueste",
   "siteWizard_vitePitfall": "Vite blockiert weitergeleitete Anfragen anhand des Host-Headers. Trage die Domain der Site in server.allowedHosts in vite.config ein und ergänze --host im Befehl, sonst schlagen Anfragen über den Proxy fehl.",

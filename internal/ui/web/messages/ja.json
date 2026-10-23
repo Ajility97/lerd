@@ -880,6 +880,7 @@
   "siteWizard_titleParent": "親フォルダーを選択",
   "siteWizard_titleSetup": "{project} のセットアップ",
   "siteWizard_useThisFolder": "このフォルダーを使う",
+  "siteWizard_rememberFolder": "次回はここから開く",
   "siteWizard_version": "バージョン",
   "siteWizard_versionLatest": "最新",
   "siteWizard_vitePitfall": "Vite は Host ヘッダーでプロキシ経由のリクエストを拒否します。vite.config の server.allowedHosts にサイトのドメインを追加し、コマンドに --host を付けないと、プロキシ経由のリクエストは失敗します。",

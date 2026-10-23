@@ -880,6 +880,7 @@
   "siteWizard_titleParent": "Scegli la cartella superiore",
   "siteWizard_titleSetup": "Prepara {project}",
   "siteWizard_useThisFolder": "Usa questa cartella",
+  "siteWizard_rememberFolder": "Inizia da qui la prossima volta",
   "siteWizard_version": "Versione",
   "siteWizard_versionLatest": "Ultima",
   "siteWizard_vitePitfall": "Vite blocca le richieste passate dal proxy in base all'header Host. Aggiungi il dominio del sito a server.allowedHosts in vite.config e --host al comando, altrimenti le richieste attraverso il proxy falliscono.",

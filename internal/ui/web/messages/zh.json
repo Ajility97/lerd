@@ -880,6 +880,7 @@
   "siteWizard_titleParent": "选择上级文件夹",
   "siteWizard_titleSetup": "设置 {project}",
   "siteWizard_useThisFolder": "使用此文件夹",
+  "siteWizard_rememberFolder": "下次从这里开始",
   "siteWizard_version": "版本",
   "siteWizard_versionLatest": "最新",
   "siteWizard_vitePitfall": "Vite 会按 Host 头拦截经代理转发的请求。请把站点域名加入 vite.config 的 server.allowedHosts，并在命令中加上 --host，否则经代理的请求会失败。",

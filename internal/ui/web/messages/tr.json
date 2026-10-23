@@ -880,6 +880,7 @@
   "siteWizard_titleParent": "Üst klasörü seç",
   "siteWizard_titleSetup": "{project} kurulumu",
   "siteWizard_useThisFolder": "Bu klasörü kullan",
+  "siteWizard_rememberFolder": "Bir dahaki sefere buradan başla",
   "siteWizard_version": "Sürüm",
   "siteWizard_versionLatest": "En yeni",
   "siteWizard_vitePitfall": "Vite, proxy üzerinden gelen istekleri Host başlığına bakarak engeller. Sitenin alan adını vite.config içindeki server.allowedHosts listesine, komuta da --host ekle; yoksa proxy üzerinden gelen istekler başarısız olur.",
