@@ -55,3 +55,24 @@ export async function answerPluginRequest(
     reply(502, err instanceof Error ? err.message : String(err));
   }
 }
+
+// The dashboard tokens a plugin page's base stylesheet reads, by the name the
+// page knows them under.
+const THEME_VARS: Record<string, string> = {
+  '--lerd-accent': '--color-lerd-red',
+  '--lerd-accent-hover': '--color-lerd-redhov',
+  '--lerd-on-accent': '--color-lerd-onred',
+  '--lerd-border': '--color-lerd-border',
+  '--lerd-dark-card': '--color-lerd-card'
+};
+
+// pluginTheme is what a plugin page needs to look like the dashboard around it.
+export function pluginTheme(root: HTMLElement = document.documentElement) {
+  const style = getComputedStyle(root);
+  const vars: Record<string, string> = {};
+  for (const [name, token] of Object.entries(THEME_VARS)) {
+    const value = style.getPropertyValue(token).trim();
+    if (value) vars[name] = value;
+  }
+  return { type: 'lerd:theme', dark: root.classList.contains('dark'), vars };
+}

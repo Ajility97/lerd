@@ -10,9 +10,12 @@
   import InstalledPluginTile from './InstalledPluginTile.svelte';
   import PluginDetailModal from './PluginDetailModal.svelte';
   import PluginsEmpty from './PluginsEmpty.svelte';
+  import PluginInvite from './PluginInvite.svelte';
+  import PluginGlyph from './PluginGlyph.svelte';
   import { managedPlugins, loadManagedPlugins, installPlugin, removePlugin, updatePlugin } from '$stores/plugins';
   import { routeRest, goToTab } from '$stores/route';
   import { notifyLocalFailure, notifyLocalInfo } from '$lib/notify';
+  import { apiUrl } from '$lib/api';
   import { m } from '../../paraglide/messages.js';
 
   let source = $state('');
@@ -113,6 +116,11 @@
               <InstalledPluginTile plugin={p} onopen={() => (openName = p.name)} />
             {/each}
           </div>
+          <PluginInvite glyph="download" title={m.system_plugins_browseTitle()} body={m.system_plugins_browseBody()}>
+            <button type="button" onclick={() => goToTab('plugins', 'browse')} class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-lerd-red hover:bg-lerd-redhov text-lerd-onred text-xs font-semibold">
+              <PluginGlyph name="download" class="w-3.5 h-3.5" />{m.system_plugins_browseAction()}
+            </button>
+          </PluginInvite>
         {/if}
       </section>
     {/if}
@@ -131,7 +139,10 @@
     adds={p.adds}
     requires={p.requires}
     error={p.error}
-    failure={p.failure}
+    images={p.screenshots?.map(apiUrl)}
+    installed
+    features={p.features}
+    hasDocs={p.has_docs}
     onclose={() => (openName = '')}
   >
     {#snippet actions()}

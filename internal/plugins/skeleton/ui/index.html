@@ -3,17 +3,15 @@
 <head>
   <meta charset="utf-8">
   <title>Hello</title>
-  <style>
-    body { font: 14px system-ui, sans-serif; margin: 2rem; color: #ddd; background: transparent; }
-    @media (prefers-color-scheme: light) { body { color: #222; } }
-    input, button { font: inherit; padding: .4rem .6rem; }
-  </style>
+  <!-- lerd styles this page like the dashboard: use its lerd-* classes and write layout only. -->
 </head>
 <body>
-  <h1>Hello</h1>
-  <p>This page lives in the plugin's <code>ui/</code> folder and talks to its own <code>api</code> endpoint.</p>
-  <form id="f"><input id="site" placeholder="site name" required> <button>Greet</button></form>
-  <pre id="out"></pre>
+  <section class="lerd-section">
+    <span class="lerd-label">Hello</span>
+    <p class="lerd-muted">This page lives in the plugin's <code>ui/</code> folder and talks to its own <code>api</code> endpoint.</p>
+    <form id="f" class="lerd-toolbar"><input id="site" placeholder="site name" required> <button class="primary">Greet</button></form>
+    <pre id="out" class="lerd-card lerd-mono"></pre>
+  </section>
   <script src="lerd.js"></script>
   <script>
     document.getElementById('f').addEventListener('submit', async (e) => {

@@ -1,0 +1,198 @@
+/* lerd's look for plugin pages, added to every one the dashboard serves. Each
+   rule sits in :where(), which weighs nothing, so any rule the plugin writes
+   wins. Colours follow the dashboard's theme, which theme.js receives. The
+   classes below are the dashboard's own pieces; see lerd.sh/features/plugins. */
+:root {
+  color-scheme: light dark;
+  --lerd-accent: #ff2d20;
+  --lerd-accent-hover: #e02419;
+  --lerd-on-accent: #ffffff;
+  --lerd-text: oklch(0.21 0.034 264.665);
+  --lerd-text-strong: oklch(0.373 0.034 259.733);
+  --lerd-text-muted: #656c7c;
+  --lerd-card: #ffffff;
+  --lerd-surface: #ffffff;
+  --lerd-surface-hover: #f3f4f6;
+  --lerd-line: oklch(0.928 0.006 264.531);
+  --lerd-ok: oklch(0.596 0.145 163.225);
+  --lerd-warn: #d97706;
+  --lerd-bad: #dc2626;
+}
+:root.dark {
+  --lerd-text: oklch(0.967 0.003 264.542);
+  --lerd-text-strong: oklch(0.928 0.006 264.531);
+  --lerd-text-muted: #99a1af;
+  --lerd-card: var(--lerd-dark-card, #161616);
+  --lerd-surface: var(--lerd-dark-card, #161616);
+  --lerd-surface-hover: rgba(255, 255, 255, 0.06);
+  --lerd-line: var(--lerd-border, #262626);
+  --lerd-ok: oklch(0.765 0.177 163.223);
+  --lerd-warn: #fbbf24;
+  --lerd-bad: #f87171;
+}
+
+/* Author styles beat the browser's own [hidden] rule, so the display given to
+   buttons below would otherwise keep a hidden one on screen. */
+[hidden] { display: none !important; }
+
+:where(body) {
+  margin: 0;
+  padding: 16px;
+  font: 13px/1.5 Inter, ui-sans-serif, system-ui, sans-serif;
+  color: var(--lerd-text);
+  background: transparent;
+}
+:where(a) { color: var(--lerd-accent); text-decoration: none; }
+:where(a:hover) { text-decoration: underline; }
+:where(code, pre, kbd, samp, .lerd-mono) { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+:where(img, video, canvas, svg) { max-width: 100%; height: auto; }
+:where(hr) { border: 0; border-top: 1px solid var(--lerd-line); margin: 16px 0; }
+:where(h1, h2, h3) { margin: 0 0 8px; font-weight: 600; color: var(--lerd-text); }
+:where(h1) { font-size: 16px; }
+:where(h2, h3) { font-size: 14px; }
+
+/* Buttons: the dashboard's 28px control, primary in the theme's accent. */
+:where(button, input[type="button"], input[type="submit"], input[type="reset"]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--lerd-text-strong);
+  background: var(--lerd-surface);
+  border: 1px solid var(--lerd-line);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+:where(button:hover:not(:disabled)) { background: var(--lerd-surface-hover); }
+:where(button:disabled) { opacity: 0.5; cursor: default; }
+:where(button.primary, button[type="submit"]) {
+  color: var(--lerd-on-accent);
+  background: var(--lerd-accent);
+  border-color: transparent;
+}
+:where(button.primary:hover:not(:disabled), button[type="submit"]:hover:not(:disabled)) { background: var(--lerd-accent-hover); }
+:where(button.danger:hover:not(:disabled)) { color: var(--lerd-bad); border-color: currentColor; }
+:where(:focus-visible) { outline: 2px solid var(--lerd-accent); outline-offset: 2px; }
+
+/* Fields */
+:where(input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"]), select) {
+  height: 28px;
+  box-sizing: border-box;
+}
+:where(input:not([type="checkbox"], [type="radio"], [type="button"], [type="submit"], [type="reset"]), select, textarea) {
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--lerd-text);
+  background: var(--lerd-surface);
+  border: 1px solid var(--lerd-line);
+  border-radius: 6px;
+  padding: 0 10px;
+}
+:where(textarea) { padding: 6px 10px; }
+:where(input:focus, select:focus, textarea:focus) { outline: none; border-color: var(--lerd-accent); }
+:where(input[type="checkbox"], input[type="radio"]) { accent-color: var(--lerd-accent); width: 14px; height: 14px; margin: 0; }
+:where(label) { cursor: pointer; }
+:where(summary) { cursor: pointer; }
+
+/* Section label: the small uppercase heading above each block. */
+:where(.lerd-label) {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--lerd-text-muted);
+}
+:where(.lerd-section) { margin-bottom: 20px; }
+:where(.lerd-muted) { color: var(--lerd-text-muted); font-size: 12px; }
+
+/* Card: a bordered block; .flush drops its padding for a table or list. */
+:where(.lerd-card) {
+  background: var(--lerd-card);
+  border: 1px solid var(--lerd-line);
+  border-radius: 8px;
+  padding: 12px;
+}
+:where(.lerd-card.flush) { padding: 0; overflow: hidden; }
+
+/* Toolbar: a row of controls; .spacer pushes what follows to the right. */
+:where(.lerd-toolbar) { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+:where(.lerd-toolbar .spacer) { flex: 1; }
+
+/* Tables, as the dashboard draws its lists of routes and queries. */
+:where(table) { width: 100%; border-collapse: collapse; font-size: 12px; }
+:where(th) {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--lerd-text-muted);
+}
+:where(td) { padding: 8px 12px; border-top: 1px solid var(--lerd-line); }
+:where(tr.clickable) { cursor: pointer; }
+:where(tr.clickable:hover td, tr.selected td) { background: var(--lerd-surface-hover); }
+
+/* List rows inside a flush card. */
+:where(.lerd-row) { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--lerd-line); }
+:where(.lerd-row:first-child) { border-top: 0; }
+
+/* Pill: a method, a status or a count. */
+:where(.lerd-pill) {
+  display: inline-block;
+  padding: 2px 5px;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  color: var(--lerd-text-muted);
+  background: color-mix(in oklab, currentColor 12%, transparent);
+}
+:where(.lerd-pill.ok) { color: var(--lerd-ok); }
+:where(.lerd-pill.warn) { color: var(--lerd-warn); }
+:where(.lerd-pill.bad) { color: var(--lerd-bad); }
+:where(.lerd-pill.accent) { color: var(--lerd-accent); }
+
+/* Tabs: an underlined row; mark the open one with aria-selected="true". */
+:where(.lerd-tabs) { display: flex; gap: 16px; border-bottom: 1px solid var(--lerd-line); margin-bottom: 12px; }
+:where(.lerd-tabs button) {
+  height: auto;
+  padding: 0 0 6px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  color: var(--lerd-text-muted);
+}
+:where(.lerd-tabs button:hover:not(:disabled)) { background: none; color: var(--lerd-text); }
+:where(.lerd-tabs button[aria-selected="true"]) { color: var(--lerd-accent); border-bottom-color: var(--lerd-accent); }
+
+/* Empty state: a centred title and a line of help. */
+:where(.lerd-empty) { padding: 40px 16px; text-align: center; color: var(--lerd-text-muted); font-size: 12px; }
+:where(.lerd-empty strong) { display: block; margin-bottom: 4px; font-size: 14px; font-weight: 500; color: var(--lerd-text); }
+
+/* Dialog: a <dialog> opened with showModal() looks like the dashboard's own,
+   its buttons in a .lerd-toolbar at the end. */
+:where(dialog) {
+  width: min(420px, calc(100vw - 32px));
+  padding: 20px;
+  color: var(--lerd-text);
+  background: var(--lerd-card);
+  border: 1px solid var(--lerd-line);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+:where(dialog)::backdrop { background: rgba(0, 0, 0, 0.5); }
+:where(dialog h2, dialog h3) { margin-bottom: 6px; }
+:where(dialog p) { margin: 0 0 16px; color: var(--lerd-text-muted); }
+:where(dialog .lerd-toolbar) { justify-content: flex-end; margin: 0; }

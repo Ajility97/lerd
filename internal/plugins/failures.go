@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -57,6 +58,7 @@ func Record(f Failure) bool {
 	}
 	prev, ok := LastFailure(f.Plugin)
 	writeFailure(f)
+	appendHistory(f)
 	return !ok || prev.Surface != f.Surface || prev.What != f.What || prev.Error != f.Error || f.At.Sub(prev.At) >= failureRepeat
 }
 
@@ -70,9 +72,61 @@ func LastFailure(name string) (Failure, bool) {
 	return f, true
 }
 
-// ClearFailure forgets the plugin's failure, once it is removed or replaced.
+// ClearFailure forgets the plugin's failures, once it is removed or replaced.
 func ClearFailure(name string) {
 	_ = os.Remove(filepath.Join(failuresDir(), name+".json"))
+	_ = os.Remove(historyPath(name))
+}
+
+// failureHistory is how many failures the dashboard's Logs tab can go back.
+const failureHistory = 50
+
+func historyPath(name string) string { return filepath.Join(failuresDir(), name+".log") }
+
+// Failures returns the plugin's recent failures, newest first. A failure kept
+// by a lerd from before the log file is the whole history until a new one.
+func Failures(name string) []Failure {
+	data, err := os.ReadFile(historyPath(name))
+	if err != nil {
+		if f, ok := LastFailure(name); ok {
+			return []Failure{f}
+		}
+		return nil
+	}
+	var out []Failure
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		var f Failure
+		if json.Unmarshal([]byte(line), &f) == nil {
+			out = append(out, f)
+		}
+	}
+	slices.Reverse(out)
+	return out
+}
+
+// appendHistory adds f to the plugin's history, one JSON object per line,
+// dropping the oldest past failureHistory.
+func appendHistory(f Failure) {
+	if !nameRe.MatchString(f.Plugin) {
+		return
+	}
+	line, err := json.Marshal(f)
+	if err != nil {
+		return
+	}
+	lines := []string{}
+	if data, err := os.ReadFile(historyPath(f.Plugin)); err == nil {
+		lines = strings.Split(strings.TrimSpace(string(data)), "\n")
+	}
+	lines = append(lines, string(line))
+	if len(lines) > failureHistory {
+		lines = lines[len(lines)-failureHistory:]
+	}
+	path := historyPath(f.Plugin)
+	config.GuardRealWrite(path)
+	if os.MkdirAll(failuresDir(), 0o755) == nil {
+		_ = os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
+	}
 }
 
 func writeFailure(f Failure) {

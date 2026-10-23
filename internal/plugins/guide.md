@@ -27,6 +27,9 @@ lerd: ">=1.38"              # oldest lerd it needs, a lower bound only; `new` fi
 platforms: [linux, macos]   # omit for both; WSL counts as linux
 version: 0.1.0
 description: One line, shown in the dashboard and the catalog
+docs: DOCS.md               # instructions shown on the plugin's Documentation tab, offline
+icon: icon.svg              # single-colour SVG on its card; a rail page's icon stands in when omitted
+screenshots: [docs/tab.png] # shown on its card in the dashboard; png, jpg, gif or webp
 
 commands:                   # lerd notes:add
   - {name: add, usage: Add a note to this site, run: bin/add}
@@ -80,11 +83,12 @@ Time limits: hooks and API 30s, MCP tools 2m, site commands 30m, CLI none. `time
 - Scripts only run on the machine, never in a container: shell, Python, Node, anything but PHP, which lerd refuses. PHP code runs through `$LERD_BIN php ...` in the site's folder.
 - Write portable shell when `platforms` lists macos: no `sed -i`, `tac`, `\|` in sed, `readlink -f` or `date -d`.
 - Mark `loopback_only: true` on every endpoint that runs code, changes files or restarts anything, so a dashboard on the LAN never reaches it.
+- A page gets the dashboard's language as `lerd.context.lang` (`en`, `ro`, `zh-TW`...). English is enough; a plugin that adds translations picks its strings by it and falls back to English.
 - Pages run in a sandboxed frame. Load the boilerplate's `ui/lerd.js` and call `lerd.api('<path>', {method, body})`; it reaches only this plugin's endpoints and resolves with the response text. A site tab or Overview card reads the site from `lerd.context.site`, and `domain` and `branch` beside it.
 - An Overview card is a short summary, not a page: it grows to its content up to 800px, so keep it to a row or two and leave the detail to a site tab. It shows only on sites where the user ran `lerd plugin card <name> on` or switched it on in the site's header.
 - Treat every value from the API, a site or a file as untrusted in a page: set `textContent`, or escape it before it goes into `innerHTML`.
 - A page script shares the site's page with the app: draw inside a closed shadow root, as the boilerplate's `ui/page.js` does, and fetch only `/_lerd/plugins/<name>/api/...`. It is off until the user runs `lerd plugin page <name> on` in the project.
-- Follow the colour scheme with `prefers-color-scheme`, and ship a single-colour SVG icon, since the rail draws it as a mask.
+- Pages get lerd's look on their own, and must keep it: plain `<button>`, `<input>`, `<table>` and checkboxes already match the dashboard and its theme. Build the rest from lerd's classes: `lerd-label` for a section heading, `lerd-card` (`flush` for a table or rows) with `lerd-row` rows, `lerd-toolbar`, `lerd-tabs` with `aria-selected="true"`, `lerd-pill` (`ok`, `warn`, `bad`, `accent`), `lerd-empty`, `lerd-muted` and `lerd-mono`; `class="primary"` on the main button. Ask before anything destructive with a `<dialog>` opened by `showModal()`, its buttons in a `lerd-toolbar`, which looks like lerd's own dialogs, rather than `confirm()`. Write CSS for layout only, never colours, borders or fonts of your own. Ship a single-colour SVG icon, since the rail draws it as a mask.
 - A service goes in `services/<name>.yaml`, written like a lerd-services preset, with the image pinned to a version and its source named in the plugin's README. A framework goes in `frameworks/<name>.yaml`. Names lerd already has are refused.
 - `dump()` from PHP goes to the dashboard's Dumps tab while lerd's debug bridge is on, so print with `echo` or `print_r` where the output is the answer.
 
@@ -96,6 +100,10 @@ Time limits: hooks and API 30s, MCP tools 2m, site commands 30m, CLI none. `time
 - Hooks: cause the event (`lerd service start <svc>`, `lerd link`) and read `hooks.log` in the data folder.
 - Pages, tabs and cards: open the dashboard and check the frame shows real data with no console errors; for a card, `lerd plugin card <name> on` in the project first; for a page script, `lerd plugin page <name> on` and load the site.
 - Failures from any surface show on the plugin's card on the dashboard's Plugins page and in `plugin` `list`.
+
+## Docs and screenshots
+
+Write `DOCS.md` for the person who just installed the plugin: what it does, every command and tab, and anything to set up. It is the plugin's Documentation tab in the dashboard and works offline, so do not leave the boilerplate's text in it. Keep it apart from the README, which is the repository's page. Relative images in it show only when they are screenshots or under `ui/`, since those are the only plugin files lerd serves, and relative links to other files are shown as plain text. When the plugin adds a page, tab, card or page script, take a screenshot of it, list it under `screenshots`, and check it shows on the plugin's card.
 
 ## Sharing it
 

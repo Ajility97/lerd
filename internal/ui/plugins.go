@@ -2,12 +2,14 @@ package ui
 
 import (
 	"bytes"
+	"embed"
 	"encoding/json"
 	"io"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -67,23 +69,50 @@ func pluginFileURL(name, rel string) string { return "/plugins/" + name + "/" + 
 // the dashboard's standing. It reaches its own endpoints through the frame bridge.
 const pluginSandboxCSP = "sandbox allow-scripts allow-forms allow-popups allow-modals"
 
-// handlePluginUI serves GET /plugins/<name>/ui/<file>, the one directory of a
-// plugin the dashboard exposes.
+// pluginKit is lerd's look for plugin pages, served under /plugins/_lerd/; no
+// plugin can take that name, since a name starts with a letter.
+//
+//go:embed pluginkit
+var pluginKit embed.FS
+
+// pluginKitTags goes first in every plugin page's head, so the page's own
+// styles come after it.
+const pluginKitTags = `<link rel="stylesheet" href="/plugins/_lerd/base.css"><script src="/plugins/_lerd/theme.js"></script>`
+
+var headTagRe = regexp.MustCompile(`(?i)<head(\s[^>]*)?>`)
+
+// injectPluginKit adds the kit right after the page's <head>, or ahead of
+// everything when it has none.
+func injectPluginKit(page []byte) []byte {
+	loc := headTagRe.FindIndex(page)
+	if loc == nil {
+		return append([]byte(pluginKitTags), page...)
+	}
+	return slices.Concat(page[:loc[1]], []byte(pluginKitTags), page[loc[1]:])
+}
+
+// handlePluginUI serves GET /plugins/<name>/<file>: the plugin's ui/ folder,
+// its icon and the screenshots its manifest lists, nothing else of it.
 func handlePluginUI(w http.ResponseWriter, r *http.Request) {
 	rest := strings.TrimPrefix(path.Clean(r.URL.Path), "/plugins/")
 	name, rel, _ := strings.Cut(rest, "/")
-	if !strings.HasPrefix(rel, plugins.UIDir+"/") {
-		http.NotFound(w, r)
+	if name == "_lerd" {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		http.ServeFileFS(w, r, pluginKit, "pluginkit/"+rel)
 		return
 	}
 	p, err := plugins.Find(name)
-	if err != nil {
+	if err != nil || !p.Serves(rel) {
 		http.NotFound(w, r)
 		return
 	}
-	// The prefix check above is on text; a link under ui/ can still name any
-	// file the user can read, so the file it resolves to must be in ui/ too.
-	file, ok := resolveWithin(filepath.Join(p.Dir, plugins.UIDir), filepath.Join(p.Dir, filepath.FromSlash(rel)))
+	// Serves checks the text; a link can still name any file the user can
+	// read, so the file it resolves to must stay where the text said.
+	within := filepath.Join(p.Dir, plugins.UIDir)
+	if !strings.HasPrefix(rel, plugins.UIDir+"/") {
+		within = p.Dir
+	}
+	file, ok := resolveWithin(within, filepath.Join(p.Dir, filepath.FromSlash(rel)))
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -102,6 +131,15 @@ func handlePluginUI(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Security-Policy", pluginSandboxCSP)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if strings.EqualFold(filepath.Ext(file), ".html") {
+		page, err := io.ReadAll(f)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.ServeContent(w, r, info.Name(), info.ModTime(), bytes.NewReader(injectPluginKit(page)))
+		return
+	}
 	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
 }
 
@@ -352,7 +390,7 @@ type managedPlugin struct {
 	Adds        []string `json:"adds,omitempty"`
 	Requires    []string `json:"requires,omitempty"`
 	Error       string   `json:"error,omitempty"`
-	// Icon is its rail icon, when it has a page, drawn on its card.
+	// Icon is drawn on its card: its own icon, or its rail page's.
 	Icon string `json:"icon,omitempty"`
 	// Repo and Commit are where the catalog installed it from; empty when not listed.
 	Repo   string `json:"repo,omitempty"`
@@ -361,6 +399,11 @@ type managedPlugin struct {
 	Update string `json:"update,omitempty"`
 	// Failure is the plugin's latest failure, with where to report it.
 	Failure *pluginFailure `json:"failure,omitempty"`
+	// Features names each thing it adds; Screenshots are their URLs; HasDocs
+	// says GET /api/plugin-manager/<name>/docs has its instructions.
+	Features    []plugins.Feature `json:"features,omitempty"`
+	Screenshots []string          `json:"screenshots,omitempty"`
+	HasDocs     bool              `json:"has_docs,omitempty"`
 }
 
 type pluginFailure struct {
@@ -403,6 +446,29 @@ func handlePluginManager(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, entries)
+	case r.Method == http.MethodGet && strings.HasSuffix(name, "/logs"):
+		p, err := plugins.Find(strings.TrimSuffix(name, "/logs"))
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		out := []pluginFailure{}
+		for _, f := range plugins.Failures(p.Name) {
+			out = append(out, pluginFailure{Failure: f, ReportURL: f.ReportURL()})
+		}
+		writeJSON(w, out)
+	case r.Method == http.MethodGet && strings.HasSuffix(name, "/docs"):
+		p, err := plugins.Find(strings.TrimSuffix(name, "/docs"))
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		html, err := p.DocsHTML(func(rel string) string { return pluginFileURL(p.Name, rel) })
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]string{"html": html})
 	case r.Method == http.MethodPost && strings.HasSuffix(name, "/update"):
 		if err := plugins.UpdateListed(strings.TrimSuffix(name, "/update")); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -449,9 +515,13 @@ func managedPlugins() []managedPlugin {
 	list, errs := plugins.Load()
 	out := make([]managedPlugin, 0, len(list)+len(errs))
 	for _, p := range list {
-		row := managedPlugin{Name: p.Name, Version: p.Version, Description: p.Description, Adds: p.Surfaces(), Requires: p.Requirements(), Failure: failureFor(p.Name)}
-		if p.UI != nil && p.UI.Page != nil && p.UI.Page.Icon != "" {
-			row.Icon = pluginFileURL(p.Name, p.UI.Page.Icon)
+		row := managedPlugin{Name: p.Name, Version: p.Version, Description: p.Description, Adds: p.Surfaces(), Requires: p.Requirements(), Failure: failureFor(p.Name),
+			Features: p.Features(), HasDocs: p.Docs != ""}
+		for _, rel := range p.Screenshots {
+			row.Screenshots = append(row.Screenshots, pluginFileURL(p.Name, rel))
+		}
+		if icon := p.CardIcon(); icon != "" {
+			row.Icon = pluginFileURL(p.Name, icon)
 		}
 		if src, ok := plugins.InstalledSource(p.Name); ok {
 			row.Repo, row.Commit = src.Repo, src.Commit

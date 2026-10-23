@@ -145,3 +145,13 @@ it('says why when the catalog cannot be reached', async () => {
   await findByText('The plugin catalog could not be loaded');
   await findByText(/no route/);
 });
+
+// Once plugins are listed the build steps are gone, so the catalog keeps
+// asking for more under its cards.
+it('invites building and submitting a plugin under a listed catalog', async () => {
+  const { findByText, getByText, getByRole } = render(PluginBrowse);
+  await findByText('fresh');
+  expect(getByText('Build your own')).toBeTruthy();
+  expect(getByText('lerd plugin new my-plugin')).toBeTruthy();
+  expect(getByRole('link', { name: /submission guide/i }).getAttribute('href')).toContain('lerd-env/plugins/blob/main/SUBMITTING.md');
+});

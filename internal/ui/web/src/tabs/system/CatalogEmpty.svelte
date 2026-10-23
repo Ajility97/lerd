@@ -2,11 +2,11 @@
   import PluginArt from './PluginArt.svelte';
   import PluginGlyph from './PluginGlyph.svelte';
   import PluginNewCommand from './PluginNewCommand.svelte';
+  import { PLUGIN_SUBMIT_GUIDE } from '$stores/plugins';
   import { m } from '../../paraglide/messages.js';
 
   // What Browse shows while the catalog lists nothing: how a plugin gets into
   // it, from the first command to the pull request a maintainer reviews.
-  const SUBMITTING = 'https://github.com/lerd-env/plugins/blob/main/SUBMITTING.md';
   const EXAMPLE = 'https://github.com/lerd-env/plugins/pull/1';
   const steps = [
     [m.system_plugins_step1Title, m.system_plugins_step1Body],
@@ -33,7 +33,7 @@
     {/each}
   </ol>
   <div class="mt-5 flex flex-wrap justify-center gap-2">
-    <a href={SUBMITTING} target="_blank" rel="noopener noreferrer" class="{LINK} bg-lerd-red hover:bg-lerd-redhov text-lerd-onred">
+    <a href={PLUGIN_SUBMIT_GUIDE} target="_blank" rel="noopener noreferrer" class="{LINK} bg-lerd-red hover:bg-lerd-redhov text-lerd-onred">
       <PluginGlyph name="page" class="w-3.5 h-3.5" />{m.system_plugins_submitGuide()}
     </a>
     <a href={EXAMPLE} target="_blank" rel="noopener noreferrer" class="{LINK} border border-gray-200 dark:border-lerd-border bg-white dark:bg-lerd-card text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:hover:border-white/15">

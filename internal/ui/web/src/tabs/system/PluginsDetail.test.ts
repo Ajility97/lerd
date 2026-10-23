@@ -33,7 +33,9 @@ it('lists plugins as cards and opens one to show what it adds and requires', asy
 
   await fireEvent.click(getByRole('button', { name: /^hello/ }));
   const dialog = within(getByRole('dialog'));
+  await fireEvent.click(dialog.getByRole('tab', { name: 'Features' }));
   expect(dialog.getByText('page')).toBeTruthy();
+  await fireEvent.click(dialog.getByRole('tab', { name: 'Overview' }));
   expect(dialog.getByText('python3')).toBeTruthy();
   expect(dialog.getByText('jq')).toBeTruthy();
   expect(dialog.getByText('Not listed in the catalog')).toBeTruthy();
@@ -45,23 +47,53 @@ it('shows why a broken plugin failed in its detail', async () => {
   expect(await within(getByRole('dialog')).findByText(/api_version 9 needs a newer lerd/)).toBeTruthy();
 });
 
-// The author can only fix what they hear about, so a failure links straight to
-// a filled-in issue on the plugin's repository.
-it('shows a plugin\'s last failure with a link to report it', async () => {
-  installed = [
-    {
-      name: 'hello',
-      failure: { plugin: 'hello', surface: 'hook', what: 'site.linked', error: 'boom\nmore', at: '2026-10-15T10:00:00Z', report_url: 'https://github.com/acme/hello/issues/new?title=x' }
-    }
+// The author can only fix what they hear about, so the Logs tab lists the
+// plugin's failures in full, each with a link to a filled-in issue.
+it('lists a plugin\'s failures on its Logs tab, each with a link to report it', async () => {
+  installed = [{ name: 'hello', failure: { plugin: 'hello', surface: 'hook', what: 'site.linked', error: 'boom', at: '2026-10-15T10:00:00Z' } }];
+  const logs = [
+    { plugin: 'hello', surface: 'hook', what: 'site.linked', error: 'boom\nmore', at: '2026-10-15T10:00:00Z', report_url: 'https://github.com/acme/hello/issues/new?title=x' },
+    { plugin: 'hello', surface: 'api', what: 'greet', error: 'older', at: '2026-10-14T10:00:00Z' }
   ];
+  const plain = globalThis.fetch;
+  globalThis.fetch = vi.fn(async (url: string, init?: RequestInit) =>
+    String(url).endsWith('/api/plugin-manager/hello/logs') ? new Response(JSON.stringify(logs)) : plain(url, init)
+  ) as unknown as typeof fetch;
   const { findByText, getByRole } = render(PluginsDetail);
-  // The list is a store the other tests filled too, so wait for this one's
-  // fetch before opening the card, and let the dialog catch up after.
   await waitFor(() => expect(calls.some((c) => c.url.endsWith('/api/plugin-manager'))).toBe(true));
   await fireEvent.click(await findByText('hello'));
   const dialog = within(getByRole('dialog'));
-  expect(await dialog.findByText(/boom/)).toBeTruthy();
-  expect(dialog.getByRole('link', { name: 'Report to the author' }).getAttribute('href')).toBe('https://github.com/acme/hello/issues/new?title=x');
+  expect(dialog.queryByText(/boom/)).toBeNull();
+  await fireEvent.click(dialog.getByRole('tab', { name: 'Logs' }));
+  expect(await dialog.findByText(/boom\s+more/)).toBeTruthy();
+  expect(dialog.getByText('older')).toBeTruthy();
+  expect(dialog.getAllByRole('link', { name: 'Report to the author' })).toHaveLength(1);
+});
+
+// Docs and screenshots come from the installed plugin, so they read offline.
+it('shows an installed plugin\'s features, screenshots and docs', async () => {
+  installed = [{
+    name: 'hello', has_docs: true, screenshots: ['/plugins/hello/docs/tab.png'],
+    features: [{ kind: 'command', name: 'lerd hello:greet', detail: 'Print a greeting' }]
+  }];
+  const plain = globalThis.fetch;
+  globalThis.fetch = vi.fn(async (url: string, init?: RequestInit) =>
+    String(url).endsWith('/api/plugin-manager/hello/docs')
+      ? new Response(JSON.stringify({ html: '<h1>Hello docs</h1><img src="x" onerror="alert(1)">' }))
+      : plain(url, init)
+  ) as unknown as typeof fetch;
+  const { findByText, getByRole } = render(PluginsDetail);
+  await waitFor(() => expect(calls.some((c) => c.url.endsWith('/api/plugin-manager'))).toBe(true));
+  await fireEvent.click(await findByText('hello'));
+  const dialog = within(getByRole('dialog'));
+  expect(getByRole('dialog').querySelector('img[src="/plugins/hello/docs/tab.png"]')).toBeTruthy();
+  expect(dialog.queryByText('lerd hello:greet')).toBeNull();
+  await fireEvent.click(dialog.getByRole('tab', { name: 'Features' }));
+  expect(dialog.getByText('lerd hello:greet')).toBeTruthy();
+  expect(dialog.getByText('Print a greeting')).toBeTruthy();
+  await fireEvent.click(dialog.getByRole('tab', { name: 'Documentation' }));
+  expect(await dialog.findByText('Hello docs')).toBeTruthy();
+  expect(getByRole('dialog').querySelector('[onerror]')).toBeNull();
 });
 
 // A broken plugin is exactly the one a user most needs to get rid of.
@@ -108,5 +140,14 @@ it('shows what plugins add and both ways to get one when none is installed', asy
   expect(getByText('Overview cards')).toBeTruthy();
   expect(getByText('lerd plugin new my-plugin')).toBeTruthy();
   await fireEvent.click(getByRole('button', { name: 'Browse plugins' }));
+  expect(location.hash).toBe('#plugins/browse');
+});
+
+// With plugins installed the empty state is gone, so the list still points at
+// the catalog.
+it('points at the catalog under the installed plugins', async () => {
+  const { findByText, getByRole } = render(PluginsDetail);
+  await findByText('hello');
+  await fireEvent.click(getByRole('button', { name: /Browse plugins/ }));
   expect(location.hash).toBe('#plugins/browse');
 });

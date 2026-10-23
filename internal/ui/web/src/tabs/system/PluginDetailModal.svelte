@@ -4,12 +4,16 @@
   import Icon from '$components/Icon.svelte';
   import PluginIcon from '$components/PluginIcon.svelte';
   import PluginRequirements from '$components/PluginRequirements.svelte';
-  import type { PluginFailure } from '$stores/plugins';
+  import DetailTabs from '$components/DetailTabs.svelte';
+  import DOMPurify from 'dompurify';
+  import { apiUrl } from '$lib/api';
+  import { loadPluginDocs, loadPluginLogs, type PluginFailure, type PluginFeature } from '$stores/plugins';
   import { m } from '../../paraglide/messages.js';
 
   // One plugin in full, opened from an installed card or a catalog card: its
-  // screenshots, where it comes from and what it adds. The caller brings the
-  // actions, since installing, updating and removing live with each list.
+  // screenshots, where it comes from and what it adds. An installed plugin also
+  // gets its docs and its failure log as tabs. The caller brings the actions,
+  // since installing, updating and removing live with each list.
   interface Props {
     name: string;
     description?: string;
@@ -26,11 +30,52 @@
     lerd?: string;
     tags?: string[];
     error?: string;
-    failure?: PluginFailure;
+    // Set for an installed plugin: what it adds by name, and whether it has docs.
+    installed?: boolean;
+    features?: PluginFeature[];
+    hasDocs?: boolean;
     onclose: () => void;
     actions?: Snippet;
   }
-  let { name, description, version, author, icon, images = [], repo, commit, adds = [], requires = [], missing = [], platforms = [], lerd, tags = [], error, failure, onclose, actions }: Props = $props();
+  let { name, description, version, author, icon, images = [], repo, commit, adds = [], requires = [], missing = [], platforms = [], lerd, tags = [], error, installed = false, features = [], hasDocs = false, onclose, actions }: Props = $props();
+
+  type Tab = 'overview' | 'features' | 'docs' | 'logs';
+  let tab = $state<Tab>('overview');
+  const tabs = $derived([
+    { id: 'overview' as Tab, label: m.sites_tabs_overview() },
+    { id: 'features' as Tab, label: m.system_plugins_tabFeatures(), hidden: !features.length && !adds.length },
+    { id: 'docs' as Tab, label: m.system_plugins_docs(), hidden: !hasDocs },
+    { id: 'logs' as Tab, label: m.services_tabs_logs(), hidden: !installed }
+  ]);
+  // Docs and logs load when their tab is first opened.
+  let docs = $state<Promise<string> | null>(null);
+  let logs = $state<Promise<PluginFailure[]> | null>(null);
+  function selectTab(id: Tab) {
+    tab = id;
+    if (id === 'docs') docs ??= loadPluginDocs(name).then(docsHTML);
+    if (id === 'logs') logs ??= loadPluginLogs(name);
+  }
+  // Plugin files are served by lerd-ui itself, which is not the dashboard's
+  // origin when it is opened at lerd.localhost.
+  function docsHTML(html: string): string {
+    const t = document.createElement('template');
+    t.innerHTML = DOMPurify.sanitize(html, { ADD_ATTR: ['target'] });
+    for (const img of t.content.querySelectorAll<HTMLImageElement>('img[src^="/plugins/"]')) img.src = apiUrl(img.getAttribute('src')!);
+    return t.innerHTML;
+  }
+  const FEATURE_LABELS: Record<string, () => string> = {
+    command: m.system_plugins_feature_command,
+    site_command: m.system_plugins_feature_site_command,
+    mcp: m.system_plugins_feature_mcp,
+    hook: m.system_plugins_feature_hook,
+    page: m.system_plugins_feature_page,
+    site_tab: m.system_plugins_feature_site_tab,
+    overview_card: m.system_plugins_feature_overview_card,
+    page_script: m.system_plugins_feature_page_script,
+    provides: m.system_plugins_feature_provides,
+    service: m.system_plugins_feature_service,
+    framework: m.system_plugins_feature_framework
+  };
 
   const PLATFORM_NAMES: Record<string, string> = { linux: 'Linux', macos: 'macOS' };
   let shown = $state(0);
@@ -55,22 +100,26 @@
 
 <svelte:window onkeydown={onKey} />
 
-<Modal open title={name} {onclose} size={images.length ? 'xl' : 'lg'} footer={actions}>
-  <div class="p-5 space-y-5">
-    <div class="flex items-start gap-3">
-      <span class="shrink-0 flex items-center justify-center w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300">
-        <PluginIcon {icon} />
-      </span>
-      <div class="min-w-0">
-        <p class="text-sm text-gray-700 dark:text-gray-200">{description ?? ''}</p>
-        <p class="mt-0.5 text-xs text-gray-400">
-          {#if author}{m.system_plugins_by({ author })}{/if}
-          {#if author && version} · {/if}
-          {#if version}<span class="font-mono tabular-nums">{version}</span>{/if}
-        </p>
+{#snippet heading()}
+  <div class="flex items-center gap-3.5">
+    <span class="shrink-0 flex items-center justify-center w-11 h-11 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200 ring-1 ring-gray-200/70 dark:ring-white/5">
+      <PluginIcon {icon} />
+    </span>
+    <div class="min-w-0">
+      <div class="flex items-baseline gap-2 min-w-0">
+        <span class="truncate font-semibold text-gray-900 dark:text-white">{name}</span>
+        {#if version}<span class="shrink-0 text-[11px] font-mono tabular-nums text-gray-400">v{version}</span>{/if}
+        {#if author}<span class="shrink-0 truncate text-[11px] text-gray-400">{m.system_plugins_by({ author })}</span>{/if}
       </div>
+      {#if description}<p class="mt-0.5 text-xs leading-snug text-gray-500 dark:text-gray-400">{description}</p>{/if}
     </div>
+  </div>
+{/snippet}
 
+<Modal open title={name} {heading} {onclose} size={images.length || hasDocs ? 'xl' : 'lg'} footer={actions}>
+  <DetailTabs {tabs} active={tab} onchange={selectTab} />
+  <div class="p-5 space-y-5">
+    {#if tab === 'overview'}
     {#if images.length}
       <figure class="space-y-2" onmouseenter={() => (hovered = true)} onmouseleave={() => (hovered = false)}>
         <!-- A fixed frame, so stepping between screenshots of other shapes never resizes the dialog. -->
@@ -109,16 +158,6 @@
     {#if error}
       <p class="text-xs text-red-600 dark:text-red-400 break-words">{m.system_plugins_broken()}: {error}</p>
     {/if}
-    {#if failure}
-      <div class="flex items-start gap-3 rounded-lg border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/5 px-3 py-2">
-        <p class="flex-1 min-w-0 text-xs text-red-700 dark:text-red-300 break-words">
-          {m.system_plugins_lastFailure({ what: failure.what })}: {failure.error.split('\n')[0]}
-        </p>
-        {#if failure.report_url}
-          <a href={failure.report_url} target="_blank" rel="noopener noreferrer" class="shrink-0 text-xs font-medium text-lerd-red hover:underline">{m.system_plugins_report()}</a>
-        {/if}
-      </div>
-    {/if}
 
     <dl class="grid grid-cols-[7rem_1fr] gap-x-4 gap-y-2.5 text-xs">
       {@render label(m.system_plugins_source())}
@@ -130,12 +169,6 @@
           {m.system_plugins_notListed()}
         {/if}
       </dd>
-      {#if adds.length}
-        {@render label(m.system_plugins_adds())}
-        <dd class="flex flex-wrap gap-1">
-          {#each adds as a (a)}<span class="text-[10px] font-mono px-1.5 py-0.5 rounded-sm bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400">{a}</span>{/each}
-        </dd>
-      {/if}
       {#if requires.length}
         {@render label(m.system_plugins_requires())}
         <dd><PluginRequirements {requires} {missing} bare /></dd>
@@ -155,6 +188,56 @@
         </dd>
       {/if}
     </dl>
+    {:else if tab === 'features'}
+      {#if features.length}
+        <ul class="space-y-3 text-xs">
+          {#each features as f, i (i)}
+            <li class="min-w-0">
+              <span class="text-[10px] uppercase tracking-wider text-gray-400">{FEATURE_LABELS[f.kind]?.() ?? f.kind}</span>
+              {#if f.name}<span class="ml-1.5 font-mono text-gray-700 dark:text-gray-200">{f.name}</span>{/if}
+              {#if f.detail}<p class="text-gray-500 dark:text-gray-400 break-words">{f.detail}</p>{/if}
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <div class="flex flex-wrap gap-1">
+          {#each adds as a (a)}<span class="text-[10px] font-mono px-1.5 py-0.5 rounded-sm bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400">{a}</span>{/each}
+        </div>
+      {/if}
+    {:else if tab === 'docs' && docs}
+      {#await docs}
+        <p class="text-xs text-gray-400">…</p>
+      {:then html}
+        <article class="docs-prose">{@html html}</article>
+      {:catch err}
+        <p class="text-xs text-red-600 dark:text-red-400">{err.message}</p>
+      {/await}
+    {:else if tab === 'logs' && logs}
+      {#await logs}
+        <p class="text-xs text-gray-400">…</p>
+      {:then list}
+        {#if list.length === 0}
+          <p class="text-xs text-gray-500 dark:text-gray-400">{m.system_plugins_noFailures()}</p>
+        {:else}
+          <ol class="space-y-3">
+            {#each list as f, i (i)}
+              <li class="rounded-lg border border-gray-200 dark:border-lerd-border">
+                <div class="flex items-center gap-3 px-3 py-1.5 text-xs border-b border-gray-100 dark:border-lerd-border">
+                  <span class="text-gray-400 tabular-nums">{new Date(f.at).toLocaleString()}</span>
+                  <span class="font-mono text-gray-700 dark:text-gray-200 min-w-0 truncate">{f.surface} · {f.what}</span>
+                  {#if f.report_url}
+                    <a href={f.report_url} target="_blank" rel="noopener noreferrer" class="ml-auto shrink-0 font-medium text-lerd-red hover:underline">{m.system_plugins_report()}</a>
+                  {/if}
+                </div>
+                <pre class="px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap break-words text-red-700 dark:text-red-300 max-h-60 overflow-auto">{f.error}</pre>
+              </li>
+            {/each}
+          </ol>
+        {/if}
+      {:catch err}
+        <p class="text-xs text-red-600 dark:text-red-400">{err.message}</p>
+      {/await}
+    {/if}
   </div>
 </Modal>
 

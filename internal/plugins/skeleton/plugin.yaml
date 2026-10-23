@@ -5,6 +5,12 @@ name: hello
 version: 0.1.0
 description: A starting point for a lerd plugin
 
+# Shown on the plugin's Documentation tab in the dashboard, offline. Keep the
+# README for the repository; this is what someone reads once it is installed.
+docs: DOCS.md
+# Drawn on its card in the dashboard; one colour, since it is used as a mask.
+icon: ui/icon.svg
+
 # `lerd hello:greet [site]`
 commands:
   - name: greet

@@ -83,3 +83,33 @@ func TestReportURL_KeepsTheLinkShort(t *testing.T) {
 		t.Errorf("a report link of %d bytes is refused by GitHub", len(got))
 	}
 }
+
+func TestFailures_KeepsARecentHistoryNewestFirst(t *testing.T) {
+	isolate(t)
+	for i := 0; i < failureHistory+5; i++ {
+		Record(Failure{Plugin: "hello", Surface: SurfaceCLI, What: "greet", Error: "boom " + string(rune('a'+i%26))})
+	}
+	Record(Failure{Plugin: "hello", Surface: SurfaceHook, What: "site.linked", Error: "latest"})
+	got := Failures("hello")
+	if len(got) != failureHistory {
+		t.Fatalf("kept %d failures, want the last %d", len(got), failureHistory)
+	}
+	if got[0].Error != "latest" || got[0].At.IsZero() {
+		t.Errorf("newest first, got %+v", got[0])
+	}
+	if len(Failures("other")) != 0 {
+		t.Error("another plugin has no history")
+	}
+	ClearFailure("hello")
+	if len(Failures("hello")) != 0 {
+		t.Error("ClearFailure must forget the history too")
+	}
+}
+
+func TestFailures_FallsBackToTheLatestKeptBeforeTheLog(t *testing.T) {
+	isolate(t)
+	writeFailure(Failure{Plugin: "hello", Surface: SurfaceHook, What: "site.linked", Error: "old"})
+	if got := Failures("hello"); len(got) != 1 || got[0].Error != "old" {
+		t.Errorf("Failures = %+v, want the latest failure alone", got)
+	}
+}

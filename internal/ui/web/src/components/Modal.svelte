@@ -22,8 +22,10 @@
     children: Snippet;
     footer?: Snippet;
     actions?: Snippet;
+    /** Drawn in place of the plain title, which still names the dialog. */
+    heading?: Snippet;
   }
-  let { open, title, onclose, size = 'md', tall = false, fullscreen = false, children, footer, actions }: Props = $props();
+  let { open, title, onclose, size = 'md', tall = false, fullscreen = false, children, footer, actions, heading }: Props = $props();
   const uid = $props.id();
   const titleId = `${uid}-title`;
 
@@ -76,7 +78,12 @@
         : `max-h-[calc(100dvh-2rem)] border-gray-200 dark:border-lerd-border rounded-xl shadow-2xl ${widthClass} mx-4 ${tall ? 'h-[85vh]' : ''}`}"
     >
       <div class="shrink-0 flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100 dark:border-lerd-border">
-        <h3 id={titleId} class="min-w-0 break-words font-semibold text-gray-900 dark:text-white">{title}</h3>
+        {#if heading}
+          <div class="min-w-0 flex-1">{@render heading()}</div>
+          <h3 id={titleId} class="sr-only">{title}</h3>
+        {:else}
+          <h3 id={titleId} class="min-w-0 break-words font-semibold text-gray-900 dark:text-white">{title}</h3>
+        {/if}
         {#if actions}
           <div class="ml-auto shrink-0 flex items-center gap-2">{@render actions()}</div>
         {/if}

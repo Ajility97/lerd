@@ -15,6 +15,9 @@ export interface PluginInfo {
   overview_card?: PluginPage;
 }
 
+// Where an author learns how to get a plugin listed.
+export const PLUGIN_SUBMIT_GUIDE = 'https://github.com/lerd-env/plugins/blob/main/SUBMITTING.md';
+
 export const plugins = writable<PluginInfo[]>([]);
 
 // Plugins that draw a page on the rail, and those that add a tab to every site.
@@ -91,6 +94,29 @@ export interface ManagedPlugin {
   update?: string;
   // Its latest failure, with a filled-in issue on its repository when known.
   failure?: PluginFailure;
+  // What it adds, named the way the user meets each; its screenshots' URLs;
+  // and whether it ships docs to read in the dashboard.
+  features?: PluginFeature[];
+  screenshots?: string[];
+  has_docs?: boolean;
+}
+
+export interface PluginFeature {
+  kind: string;
+  name: string;
+  detail?: string;
+}
+
+// The plugin's docs as an HTML fragment lerd rendered from its markdown.
+export async function loadPluginDocs(name: string): Promise<string> {
+  const body = await apiJson<{ html?: string }>('/api/plugin-manager/' + encodeURIComponent(name) + '/docs');
+  return body?.html ?? '';
+}
+
+// The plugin's recent failures, newest first.
+export async function loadPluginLogs(name: string): Promise<PluginFailure[]> {
+  const list = await apiJson<PluginFailure[]>('/api/plugin-manager/' + encodeURIComponent(name) + '/logs');
+  return Array.isArray(list) ? list : [];
 }
 
 export interface PluginFailure {
