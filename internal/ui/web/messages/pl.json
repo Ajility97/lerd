@@ -1019,6 +1019,7 @@
   "sites_overview_runtimeWorkers": "Runtime i workery",
   "sites_suggestedService_status": "Sugerowane",
   "sites_suggestedService_add": "Dodaj {name} do tej witryny",
+  "sites_suggestedService_pick": "Wybierz, której usługi ma używać ta strona.",
   "sites_suggestedService_dismiss": "Nie sugeruj {name} dla tej witryny",
   "sites_suggestedService_failed": "Nie udało się zaktualizować {name} dla tej witryny",
   "sites_suggestedService_why": "Sugerowane, bo ten projekt wymaga {package}. {reason}",

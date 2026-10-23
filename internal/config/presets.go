@@ -192,6 +192,8 @@ type PresetMeta struct {
 	Versions       []PresetVersion `json:"versions,omitempty"`
 	DefaultVersion string          `json:"default_version,omitempty"`
 	Category       string          `json:"category,omitempty"`
+	Family         string          `json:"family,omitempty"`
+	EnvRole        string          `json:"env_role,omitempty"`
 	Icon           string          `json:"icon,omitempty"`
 	Color          string          `json:"color,omitempty"`
 	AdminFor       []string        `json:"admin_for,omitempty"`
@@ -225,6 +227,8 @@ func ListPresets() ([]PresetMeta, error) {
 			Versions:       p.Versions,
 			DefaultVersion: p.DefaultVersion,
 			Category:       p.Category,
+			Family:         p.Family,
+			EnvRole:        p.EnvRole,
 			Icon:           p.Icon,
 			Color:          NormalizeBrandColor(p.Color),
 			AdminFor:       p.AdminFor,
@@ -234,6 +238,13 @@ func ListPresets() ([]PresetMeta, error) {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out, nil
+}
+
+// FillsRole reports whether a site can take this preset up for role: it is
+// the preset of that name or a drop-in for it, pgvector for postgres, mariadb
+// for mysql. The web UI's presetsFillingRole mirrors it.
+func (p *Preset) FillsRole(role string) bool {
+	return p.Name == role || p.EnvRole == role || (p.EnvRole == "" && p.Family == role)
 }
 
 // presetCache memoises parsed Presets so the daemon doesn't re-parse on every

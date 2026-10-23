@@ -1019,6 +1019,7 @@
   "sites_overview_runtimeWorkers": "ランタイムとワーカー",
   "sites_suggestedService_status": "おすすめ",
   "sites_suggestedService_add": "このサイトに {name} を追加",
+  "sites_suggestedService_pick": "このサイトで使うものを選んでください。",
   "sites_suggestedService_dismiss": "このサイトで {name} を提案しない",
   "sites_suggestedService_failed": "このサイトの {name} を更新できませんでした",
   "sites_suggestedService_why": "このプロジェクトが {package} を必要とするため提案しています。{reason}",

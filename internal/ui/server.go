@@ -131,6 +131,11 @@ func Start(currentVersion string) error {
 	if d.PollFile != "" {
 		pollFile(context.Background(), d.PollFile, 2*time.Second, broker.broadcastThemeList)
 	}
+	// Noctalia renders its file once the shell is up, often after lerd-ui
+	// started at login, so a registered template is watched either way.
+	if dir, names := config.NoctaliaWatch(); dir != "" {
+		_ = watchDir(context.Background(), dir, names, 300*time.Millisecond, broker.broadcastThemeList)
+	}
 	// Theme files and their stylesheets repaint every open dashboard as they are saved.
 	_ = os.MkdirAll(config.ThemesDir(), 0755)
 	_ = watchDir(context.Background(), config.ThemesDir(), nil, 300*time.Millisecond, broker.broadcastThemeList)
@@ -1957,6 +1962,8 @@ type PresetResponse struct {
 	DefaultVersion string                 `json:"default_version,omitempty"`
 	InstalledTags  []string               `json:"installed_tags,omitempty"`
 	Category       string                 `json:"category,omitempty"`
+	Family         string                 `json:"family,omitempty"`
+	EnvRole        string                 `json:"env_role,omitempty"`
 	Icon           string                 `json:"icon,omitempty"`
 	Color          string                 `json:"color,omitempty"`
 	AdminFor       []string               `json:"admin_for,omitempty"`
@@ -2020,6 +2027,8 @@ func handleServicePresets(w http.ResponseWriter, r *http.Request) {
 			DefaultVersion: p.DefaultVersion,
 			InstalledTags:  installedTags,
 			Category:       p.Category,
+			Family:         p.Family,
+			EnvRole:        p.EnvRole,
 			Icon:           p.Icon,
 			Color:          p.Color,
 			AdminFor:       p.AdminFor,
@@ -4302,7 +4311,8 @@ func handleSiteAction(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, SiteActionResponse{OK: true})
 		return
 	case "service:add":
-		if err := addSiteService(site, r.URL.Query().Get("name")); err != nil {
+		q := r.URL.Query()
+		if err := addSiteService(site, q.Get("name"), q.Get("preset"), q.Get("version")); err != nil {
 			writeJSON(w, SiteActionResponse{Error: err.Error()})
 			return
 		}

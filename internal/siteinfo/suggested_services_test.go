@@ -19,7 +19,7 @@ func TestSuggestedServices(t *testing.T) {
 		{Name: "redis", Package: "drupal/redis"},
 		{Name: "valkey", Package: "drupal/redis"},
 	}
-	got := suggestedServices(pkg, []string{"mysql", "valkey"}, []string{"selenium"}, none)
+	got := suggestedServices(pkg, []string{"mysql", "valkey"}, []string{"selenium"}, none, none)
 	want := []config.ServiceSuggestion{
 		{Name: "redis", Package: "predis/predis"},
 		{Name: "solr", Reason: "Search backend", Package: "drupal/search_api_solr"},
@@ -27,8 +27,19 @@ func TestSuggestedServices(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
-	if got := suggestedServices(nil, []string{"mysql"}, nil, none); got != nil {
+	if got := suggestedServices(nil, []string{"mysql"}, nil, none, none); got != nil {
 		t.Errorf("no package suggestions should give nil, got %v", got)
+	}
+}
+
+// A package's service whose role the site fills with a drop-in it picked,
+// valkey for redis, is answered even though the package never named valkey.
+func TestSuggestedServicesQuietOnceARoleIsFilled(t *testing.T) {
+	none := func(string) bool { return false }
+	pkg := []config.ServiceSuggestion{{Name: "redis", Package: "predis/predis"}}
+	filled := func(role string) bool { return role == "redis" }
+	if got := suggestedServices(pkg, []string{"valkey"}, nil, filled, none); got != nil {
+		t.Errorf("a filled role is still offered: %v", got)
 	}
 }
 

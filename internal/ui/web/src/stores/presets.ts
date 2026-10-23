@@ -21,6 +21,8 @@ export interface Preset {
   // Declared by the preset YAML: discovery category, icon-set key, brand
   // colour, and the services this preset's admin UI administers.
   category?: string;
+  family?: string;
+  env_role?: string;
   icon?: string;
   color?: string;
   admin_for?: string[];
@@ -89,6 +91,18 @@ export const installablePresets = derived(presets, ($p) =>
 export const discoverablePresets = derived(presets, ($p) =>
   $p.filter((p) => (p.missing_deps || []).length === 0 && !p.installed)
 );
+
+// presetsFillingRole lists the presets a site can take up for a suggested
+// role: the preset of that name and its drop-ins. Mirrors Go's Preset.FillsRole.
+export function presetsFillingRole(list: Preset[], role: string): Preset[] {
+  return list.filter((p) => p.name === role || p.env_role === role || (!p.env_role && p.family === role));
+}
+
+// hasVariantChoice is whether adding role means picking a preset or a version.
+export function hasVariantChoice(list: Preset[], role: string): boolean {
+  const fits = presetsFillingRole(list, role);
+  return fits.length > 1 || (fits[0]?.versions || []).length > 1;
+}
 
 export function availableVersions(p: Preset): PresetVersion[] {
   const installed = new Set(p.installed_tags || []);
