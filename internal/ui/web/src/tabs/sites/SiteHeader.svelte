@@ -475,7 +475,8 @@
       {/if}
     </div>
   {:else if noRepo && !site.paused}
-    <div class="flex items-center page-header px-3">
+    <div class="flex items-center page-header">
+      <div class="px-3">
       <button
         type="button"
         onclick={runInitGit}
@@ -488,6 +489,7 @@
         </svg>
         <span>{m.sites_initGit()}</span>
       </button>
+      </div>
     </div>
   {:else if $sidePanelHidden && $isDesktop}
     <!-- The list's restore button pins to this strip; without it it would cover the address row. -->

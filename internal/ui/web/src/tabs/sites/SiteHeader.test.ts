@@ -188,6 +188,15 @@ describe('SiteHeader', () => {
       );
     });
 
+    // With the list hidden the header strips its first child's left padding,
+    // which would leave the button's icon against its edge.
+    it('keeps the button off the header strip first slot', async () => {
+      stubCheckouts([]);
+      const { findByText } = render(Harness, { props: { site } });
+      const button = (await findByText('Initialize git')).closest('button');
+      expect(button?.closest('.page-header')?.firstElementChild).not.toBe(button);
+    });
+
     // The sites list replaces the site object all the time; an update that
     // changes nothing about the repository neither asks again nor hides the button.
     it('does not ask again when a list refresh changes nothing about the repository', async () => {
