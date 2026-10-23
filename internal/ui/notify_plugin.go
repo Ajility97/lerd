@@ -72,6 +72,9 @@ const (
 	pluginMessageBodyMax  = 300
 	pluginMessageLimit    = 10
 	pluginMessageWindow   = time.Minute
+	// pluginMessageMaxBytes leaves room for a title and body at their limits
+	// written entirely as \u escapes, the way Python's json.dumps sends emoji.
+	pluginMessageMaxBytes = 64 << 10
 )
 
 var pluginMessageTag = regexp.MustCompile(`^[a-z0-9-]{1,64}$`)
@@ -122,9 +125,12 @@ func (m pluginMessageRequest) validate() string {
 // pluginMessageNotification builds the notification for a plugin's message.
 // The title always names the plugin, so a plugin cannot pass for lerd itself.
 func pluginMessageNotification(plugin string, m pluginMessageRequest) push.Notification {
-	tag := "lerd-plugin-" + plugin
+	// Only a tag the plugin asked for: a shared default would collapse every
+	// untagged message into one. The colon cannot appear in a plugin name or a
+	// tag, so two plugins never land on the same tag.
+	tag := ""
 	if m.Tag != "" {
-		tag += "-" + m.Tag
+		tag = "lerd-plugin-message:" + plugin + ":" + m.Tag
 	}
 	return push.Notification{
 		Kind:     "plugin_message",
@@ -158,7 +164,7 @@ func handlePluginMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req pluginMessageRequest
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, pluginMessageMaxBytes))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
 		http.Error(w, "invalid body: "+err.Error(), http.StatusBadRequest)

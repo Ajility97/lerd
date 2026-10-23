@@ -78,7 +78,7 @@ Time limits: hooks and API 30s, MCP tools 2m, site commands 30m, CLI none. `time
 
 `curl -fsS -H "X-Lerd-Plugin-Token: $LERD_API_TOKEN" "$LERD_API_URL/api/sites"` lists the sites; `/api/services`, `/api/status`, `/api/stats` and `/api/disk` are the dashboard's own data.
 
-To tell the user something, such as a command to run, POST `{"title": "...", "body": "...", "url": "#sites/<site>", "tag": "..."}` to `$LERD_API_URL/api/notifications/plugin` with the token: only `title` is required (100 characters, `body` 300), `url` must start with `#`, a repeated `tag` replaces the earlier message, unknown fields are refused, and each plugin gets ten a minute. It reaches the user as a notification titled with the plugin's name. Never use it to report progress, and fall back to stderr when it fails, since older lerd answers 404.
+To tell the user something, such as a command to run, POST `{"title": "...", "body": "...", "url": "#sites/<site>", "tag": "..."}` to `$LERD_API_URL/api/notifications/plugin` with the token: only `title` is required (100 characters, `body` 300), `url` must start with `#`, a repeated `tag` replaces the earlier browser notification (desktop notifications show each), unknown fields are refused, and each plugin gets ten a minute. It reaches the user as a notification titled with the plugin's name. Never use it to report progress, and fall back to stderr when it fails, since older lerd answers 404.
 
 ## Rules
 

@@ -53,7 +53,7 @@ func TestPluginMessage_DispatchesUnderTokensPlugin(t *testing.T) {
 			t.Fatal(err)
 		}
 		if n.Kind != "plugin_message" || n.Title != "echo: Hosts out of date" || n.Body != "Run sync." ||
-			n.URL != "#sites/x" || n.Tag != "lerd-plugin-echo-hosts" || n.Params["plugin"] != "echo" {
+			n.URL != "#sites/x" || n.Tag != "lerd-plugin-message:echo:hosts" || n.Params["plugin"] != "echo" {
 			t.Errorf("notification = %+v", n)
 		}
 	case <-time.After(200 * time.Millisecond):
@@ -138,5 +138,37 @@ func TestPluginMessage_RateLimitedPerPlugin(t *testing.T) {
 	}
 	if !allowPluginMessage("echo", now.Add(pluginMessageWindow)) {
 		t.Error("message after the window refused")
+	}
+}
+
+// Without a tag of its own a message carries none, so two different messages
+// sent close together are both shown rather than collapsed into one.
+func TestPluginMessage_UntaggedMessagesStayApart(t *testing.T) {
+	if tag := pluginMessageNotification("echo", pluginMessageRequest{Title: "hi"}).Tag; tag != "" {
+		t.Errorf("tag = %q, want none", tag)
+	}
+}
+
+// The plugin and its tag are kept apart, so no two plugins share a tag.
+func TestPluginMessage_TagsNeverCollideAcrossPlugins(t *testing.T) {
+	a := pluginMessageNotification("foo", pluginMessageRequest{Title: "x", Tag: "bar-baz"}).Tag
+	b := pluginMessageNotification("foo-bar", pluginMessageRequest{Title: "x", Tag: "baz"}).Tag
+	if a == b {
+		t.Errorf("both plugins got tag %q", a)
+	}
+}
+
+// A message at both limits written as \u escapes, as Python's json.dumps sends
+// emoji, is accepted.
+func TestPluginMessage_AcceptsEscapedMessageAtLimits(t *testing.T) {
+	notifyGateConfigDir(t)
+	installAPIPlugin(t)
+	resetPluginMessageRate(t)
+	emoji := `\ud83d\ude00`
+	body := `{"title":"` + strings.Repeat(emoji, 100) + `","body":"` + strings.Repeat(emoji, 300) + `"}`
+	rec := httptest.NewRecorder()
+	handlePluginMessage(rec, pluginMessageRequestFor(t, body))
+	if rec.Code != http.StatusNoContent {
+		t.Errorf("status = %d, want 204 (%s)", rec.Code, rec.Body)
 	}
 }

@@ -267,7 +267,7 @@ curl -fsS -X POST -H "X-Lerd-Plugin-Token: $LERD_API_TOKEN" -H 'Content-Type: ap
 | `title` | required | At most 100 characters. Shown as `<plugin>: <title>`, so a message never passes for lerd's own |
 | `body` | optional | At most 300 characters |
 | `url` | optional | A dashboard link starting with `#`, such as `#sites/myapp`, opened when the notification is clicked |
-| `tag` | optional | `a-z`, `0-9` and `-`. A newer message with the same tag replaces the older one |
+| `tag` | optional | `a-z`, `0-9` and `-`, at most 64. In the browser and Web Push, a newer message with the same tag replaces the older one. The dashboard drops a repeat with the same tag within two seconds, and desktop notifications show each message. Without a tag, every message stands alone |
 
 It is delivered like every other notification, to the dashboard, Web Push or the desktop, under its own **Plugin messages** category the user can switch off. The plugin is the one the token belongs to. lerd answers `204` once it is sent, or when notifications are off; `400` for a field it does not know or a value out of bounds; `401` without a valid token; `429` past ten messages a minute from the same plugin. Older lerd answers `404`, so a plugin that relies on it declares the release that added it in `lerd:`.
 
