@@ -74,10 +74,9 @@ type DashboardLogin struct {
 	Expires string `yaml:"expires" json:"expires"`
 }
 
-// DashboardTokenLogin describes a dashboard's own login API: the path a JSON body
-// of provisioned credentials is POSTed to, the response field carrying the
-// session token, and the page that takes it. Open substitutes {token} and
-// {path}, the page asked for under the mount, both query-escaped.
+// DashboardTokenLogin is a dashboard's own login API: where the credentials are
+// POSTed, the response field holding the token, and the page that takes it,
+// with {token} and {path} (the page asked for) substituted query-escaped.
 type DashboardTokenLogin struct {
 	Request string            `yaml:"request" json:"request"`
 	Body    map[string]string `yaml:"body" json:"body"`

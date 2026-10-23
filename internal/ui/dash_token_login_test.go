@@ -37,14 +37,14 @@ func serveTokenLogin(t *testing.T, dashboard, path string) *httptest.ResponseRec
 
 func TestServeDashTokenLogin_RedirectsWithToken(t *testing.T) {
 	srv, got := tokenLoginUpstream(t, "a+b/c")
-	rec := serveTokenLogin(t, srv.URL, "/_svc/tokenapp/websites")
+	rec := serveTokenLogin(t, srv.URL, "/_svc/tokenapp/websites?range=7d")
 	if rec.Code != http.StatusFound {
 		t.Fatalf("status = %d, want 302", rec.Code)
 	}
 	if (*got)["username"] != "admin" || (*got)["password"] != "pw" {
 		t.Errorf("login body = %v", *got)
 	}
-	want := srv.URL + "/sso?token=" + url.QueryEscape("a+b/c") + "&url=" + url.QueryEscape("/websites")
+	want := srv.URL + "/sso?token=" + url.QueryEscape("a+b/c") + "&url=" + url.QueryEscape("/websites?range=7d")
 	if loc := rec.Header().Get("Location"); loc != want {
 		t.Errorf("Location = %q, want %q", loc, want)
 	}

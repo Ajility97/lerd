@@ -18,10 +18,9 @@ var dashTokenLoginFor = config.DashboardTokenLoginFor
 
 var dashTokenClient = &http.Client{Timeout: 10 * time.Second}
 
-// serveDashTokenLogin opens a dashboard that cannot be proxied already logged
-// in: it posts lerd's credentials to the dashboard's own login API and
-// redirects the frame to the page that takes the token. Any failure along the
-// way redirects to the plain dashboard, whose own login form still works.
+// serveDashTokenLogin logs in through the dashboard's own API and redirects the
+// frame to the page that takes the token. Any failure redirects to the plain
+// dashboard, whose own login form still works.
 func serveDashTokenLogin(w http.ResponseWriter, r *http.Request, svc *config.CustomService, login *config.DashboardTokenLogin, body map[string]string) {
 	target, err := url.Parse(resolveDashboardURL(svc, loadServicesMap()))
 	if err != nil || target.Host == "" || !isLoopbackTarget(target.Hostname()) {
@@ -41,6 +40,9 @@ func serveDashTokenLogin(w http.ResponseWriter, r *http.Request, svc *config.Cus
 	path := strings.TrimPrefix(r.URL.Path, strings.TrimSuffix(dashProxyPath(svc.Name), "/"))
 	if path == "" {
 		path = "/"
+	}
+	if r.URL.RawQuery != "" {
+		path += "?" + r.URL.RawQuery
 	}
 	open := strings.NewReplacer("{token}", url.QueryEscape(token), "{path}", url.QueryEscape(path)).Replace(login.Open)
 	http.Redirect(w, r, origin+open, http.StatusFound)
