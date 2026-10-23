@@ -53,7 +53,7 @@ The backup is named after the file it copies, so it sits beside the configuratio
 The backup lets you:
 - **See exactly what lerd changed**: diff `.env.before_lerd` against `.env`
 - **Restore the original** with `lerd env:restore` (see below)
-- **Preserve original Sail credentials**: `lerd import sail` reads S3 configuration from `.env.before_lerd` when it exists, so the original Sail MinIO bucket and endpoint are used even after lerd has overwritten `.env`
+- **Preserve original Sail credentials**: the [sail plugin](/usage/import-sail) reads Sail's settings from `.env.before_lerd` when it exists, so the original Sail MinIO bucket and endpoint are used even after lerd has overwritten `.env`
 
 Example output when the backup is created:
 
