@@ -8,6 +8,7 @@ import { editors } from '$stores/editors';
 import { status } from '$stores/status';
 import { status as dumpsStatus } from '$stores/dumps';
 import { sidePanelHidden } from '$stores/sidePanel';
+import { noRepoBySite } from '$lib/gitStatus';
 
 const site = {
   domain: 'app.test',
@@ -165,7 +166,10 @@ describe('SiteHeader', () => {
   });
 
   describe('without git', () => {
-    afterEach(() => vi.unstubAllGlobals());
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      noRepoBySite.set({});
+    });
     const stubCheckouts = (checkouts: unknown[]) => {
       const fetchMock = vi.fn(async (url: string) =>
         new Response(JSON.stringify(url.includes('git-status') ? { checkouts } : { ok: true }))
@@ -182,6 +186,43 @@ describe('SiteHeader', () => {
       await waitFor(() =>
         expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/api/sites/app.test/git:init'))).toBe(true)
       );
+    });
+
+    // The sites list replaces the site object all the time; an update that
+    // changes nothing about the repository neither asks again nor hides the button.
+    it('does not ask again when a list refresh changes nothing about the repository', async () => {
+      stubCheckouts([]);
+      const { findByText, queryByText, rerender } = render(Harness, { props: { site } });
+      await findByText('Initialize git');
+
+      const pending = vi.fn(() => new Promise(() => {}));
+      vi.stubGlobal('fetch', pending);
+      await rerender({ site: { ...site, php_version: '8.4' } as unknown as Site });
+      expect(pending).not.toHaveBeenCalled();
+      expect(queryByText('Initialize git')).toBeInTheDocument();
+    });
+
+    // A parent repository added or removed while the header is open is noticed
+    // on the next periodic read, and the answer shown meanwhile stays up.
+    it('re-asks on window focus and shows the new answer', async () => {
+      stubCheckouts([]);
+      const { findByText, queryByText } = render(Harness, { props: { site } });
+      await findByText('Initialize git');
+
+      stubCheckouts([{ branch: 'main', path: '/home/u/Code', main: true }]);
+      window.dispatchEvent(new Event('focus'));
+      await waitFor(() => expect(queryByText('Initialize git')).not.toBeInTheDocument());
+    });
+
+    it('shows the last answer at once when the site is opened again', async () => {
+      stubCheckouts([]);
+      const first = render(Harness, { props: { site } });
+      await first.findByText('Initialize git');
+      first.unmount();
+
+      vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+      const { queryByText } = render(Harness, { props: { site } });
+      expect(queryByText('Initialize git')).toBeInTheDocument();
     });
 
     // A subfolder of a larger repo has no branch of its own but is already under git.
