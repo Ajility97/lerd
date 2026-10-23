@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestMachineListHelperProcess is the child the fake machineCmdContext spawns:
@@ -83,7 +84,7 @@ func fakeMachineStates(t *testing.T, states ...string) {
 	t.Helper()
 	prevCmd, prevPoll := machineCmdContext, machineStatePoll
 	t.Cleanup(func() { machineCmdContext, machineStatePoll = prevCmd, prevPoll })
-	machineStatePoll = 0
+	machineStatePoll = 10 * time.Millisecond
 	i := 0
 	machineCmdContext = func(ctx context.Context, args ...string) *exec.Cmd {
 		out := ""
@@ -100,7 +101,7 @@ func fakeMachineStates(t *testing.T, states ...string) {
 func TestStopMachineAndWaitReturnsOnceStopped(t *testing.T) {
 	fakeMachineStates(t, "running\n", "stopping\n", "stopped\n")
 
-	if err := stopMachineAndWait("lerd", 10); err != nil {
+	if err := stopMachineAndWait("lerd", 10*time.Second); err != nil {
 		t.Fatalf("got %v, want nil", err)
 	}
 }
@@ -109,7 +110,7 @@ func TestStopMachineAndWaitReturnsOnceStopped(t *testing.T) {
 func TestStopMachineAndWaitNamesTheStateItGaveUpOn(t *testing.T) {
 	fakeMachineStates(t, "stopping\n")
 
-	err := stopMachineAndWait("lerd", 3)
+	err := stopMachineAndWait("lerd", 300*time.Millisecond)
 	if err == nil || !strings.Contains(err.Error(), "stopping") {
 		t.Fatalf("got %v, want an error naming the stopping state", err)
 	}

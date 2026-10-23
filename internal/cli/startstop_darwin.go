@@ -394,7 +394,7 @@ func startPodmanMachineIfNeeded() error {
 					}
 					reason := strings.Join(parts, " and ")
 					feedback.Line(fmt.Sprintf("Stopping Podman Machine to %s…", reason))
-					if err := stopMachineAndWait(m.name, 60); err != nil {
+					if err := stopMachineAndWait(m.name, 2*time.Minute); err != nil {
 						feedback.Warn("%v", err)
 					}
 				}

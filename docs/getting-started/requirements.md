@@ -81,7 +81,7 @@ On first start `lerd` sizes the Podman Machine VM based on your host RAM so 8 GB
 | 9-31 GB  | 4 GB                  |
 | ≥ 32 GB  | 6 GB                  |
 
-The memory value is a ceiling, not a reservation: the VM only uses what your containers actually request. If the VM runs out of memory the dashboard says so and offers a restart with more, or you can do it from the terminal:
+The memory value is a ceiling, not a reservation: the VM only uses what your containers actually request. If the VM runs out of memory the dashboard says so and offers a restart with more. The confirm stays open while the VM restarts, showing each step, and if the restart fails it shows the error with a retry at the same size. You can also do it from the terminal:
 
 ```bash
 lerd machine memory 6

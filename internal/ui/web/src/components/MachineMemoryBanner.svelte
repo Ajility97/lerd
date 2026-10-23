@@ -20,6 +20,8 @@
   let confirming = $state(false);
   let resizing = $state(false);
   let failure = $state('');
+  // Held from the click, since the reboot clears the kills and with them the suggestion.
+  let targetGB = $state(0);
 
   const kills = $derived($machineMemory.kills ?? []);
   const suggestedGB = $derived(($machineMemory.suggested_mib ?? 0) / 1024);
@@ -33,9 +35,9 @@
   );
   // The modal stays open through the restart, so progress and failure land in it.
   const confirmBody = $derived.by(() => {
-    if (resizing) return ($lerdStarting && ($lerdStartUnit || startStepLabel($lerdStartStep))) || m.machine_memory_confirm_body({ gb: suggestedGB });
+    if (resizing) return ($lerdStarting && ($lerdStartUnit || startStepLabel($lerdStartStep))) || m.machine_memory_confirm_body({ gb: targetGB });
     if (failure) return m.machine_memory_banner_failed({ error: failure });
-    return m.machine_memory_confirm_body({ gb: suggestedGB });
+    return m.machine_memory_confirm_body({ gb: targetGB });
   });
 
   // The count starts over on every boot, so a lower one is a new boot.
@@ -54,7 +56,7 @@
     if (busy) return;
     resizing = true;
     failure = '';
-    if (!(await lerdResizeMachine(suggestedGB * 1024))) failure = $lerdStartError || '?';
+    if (!(await lerdResizeMachine(targetGB * 1024))) failure = $lerdStartError || '?';
     resizing = false;
     if (!failure) confirming = false;
     await loadMachineMemory();
@@ -67,7 +69,10 @@
     {subtitle}
     actionLabel={canResize ? m.machine_memory_banner_restart({ gb: suggestedGB }) : undefined}
     dismissLabel={m.machine_memory_banner_dismiss()}
-    onAction={() => (confirming = true)}
+    onAction={() => {
+      targetGB = suggestedGB;
+      confirming = true;
+    }}
     onDismiss={() => (dismissedAt = kills.length)}
   >
     {#snippet icon()}
@@ -85,7 +90,7 @@
     open={confirming}
     title={m.machine_memory_confirm_title()}
     body={confirmBody}
-    confirmLabel={m.machine_memory_banner_restart({ gb: suggestedGB })}
+    confirmLabel={m.machine_memory_banner_restart({ gb: targetGB })}
     loading={resizing}
     onconfirm={resize}
     onclose={() => {
