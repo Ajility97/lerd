@@ -33,6 +33,40 @@ describe('NotificationCenter', () => {
     expect(get(unreadNotifications)).toBe(0);
   });
 
+  it('marks which entries arrived since the panel was last opened', async () => {
+    notificationHistory.set([
+      rec({ id: 2, title: 'Update finished: mysql', failed: false }),
+      rec({ id: 1, read: true })
+    ]);
+    const { getByLabelText, getAllByLabelText } = render(NotificationCenter);
+    await fireEvent.click(getByLabelText('Notifications'));
+    const marks = getAllByLabelText('New');
+    expect(marks).toHaveLength(1);
+    expect(marks[0].closest('li')?.textContent).toContain('Update finished: mysql');
+  });
+
+  it('drops the marker once the new entries have been seen', async () => {
+    notificationHistory.set([rec()]);
+    const { getByLabelText, queryAllByLabelText } = render(NotificationCenter);
+    await fireEvent.click(getByLabelText('Notifications'));
+    await fireEvent.click(getByLabelText('Notifications'));
+    await fireEvent.click(getByLabelText('Notifications'));
+    expect(queryAllByLabelText('New')).toHaveLength(0);
+  });
+
+  it('does not mark an entry new twice when it arrived while the panel was open', async () => {
+    const { getByLabelText, queryAllByLabelText, findByText } = render(NotificationCenter);
+    await fireEvent.click(getByLabelText('Notifications'));
+    notificationHistory.set([rec()]);
+    await findByText('Migrate failed: mariadb-11-4');
+    expect(queryAllByLabelText('New')).toHaveLength(1);
+
+    await fireEvent.keyDown(window, { key: 'Escape' });
+    expect(get(unreadNotifications)).toBe(0);
+    await fireEvent.click(getByLabelText('Notifications'));
+    expect(queryAllByLabelText('New')).toHaveLength(0);
+  });
+
   it('keeps a missed failure readable after the toast is gone', async () => {
     notificationHistory.set([rec()]);
     const { getByLabelText, getByText } = render(NotificationCenter);

@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "Nie musisz sprawdzać pulpitu. lerd wyświetli powiadomienie o przechwyconej poczcie, awariach workerów i ukończonych operacjach.",
   "notify_banner_title": "Otrzymuj powiadomienia z lerd",
   "notify_center_empty": "Jeszcze nic. Zakończone operacje, błędy i przechwycone wiadomości pojawią się tutaj.",
+  "notify_center_new": "Nowe",
   "notify_center_title": "Powiadomienia",
   "notify_dump_body": "{text}",
   "notify_dump_title": "Zrzut z {site}",

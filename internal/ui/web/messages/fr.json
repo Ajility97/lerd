@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "Plus besoin de surveiller le tableau de bord. lerd affiche une notification pour les e-mails capturés, les échecs de workers et les opérations terminées.",
   "notify_banner_title": "Recevoir les notifications de lerd",
   "notify_center_empty": "Rien pour l'instant. Les opérations terminées, les échecs et les e-mails capturés apparaissent ici.",
+  "notify_center_new": "Nouveau",
   "notify_center_title": "Notifications",
   "notify_dump_body": "{text}",
   "notify_dump_title": "Dump de {site}",

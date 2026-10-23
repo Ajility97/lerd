@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "Tidak perlu memeriksa dasbor. lerd akan memunculkan notifikasi untuk email yang ditangkap, kegagalan worker, dan operasi yang selesai.",
   "notify_banner_title": "Dapatkan notifikasi dari lerd",
   "notify_center_empty": "Belum ada. Operasi yang selesai, kegagalan, dan email yang ditangkap muncul di sini.",
+  "notify_center_new": "Baru",
   "notify_center_title": "Notifikasi",
   "notify_dump_body": "{text}",
   "notify_dump_title": "Dump dari {site}",

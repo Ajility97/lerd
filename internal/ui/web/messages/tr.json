@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "Panoyu kontrol etmeyi atlayın. Lerd yakalanan mailler, worker hataları ve tamamlanan işlemler için bir bildirim açacak.",
   "notify_banner_title": "Lerd'den bildirim alın",
   "notify_center_empty": "Henüz bir şey yok. Tamamlanan işlemler, hatalar ve yakalanan e-postalar burada görünür.",
+  "notify_center_new": "Yeni",
   "notify_center_title": "Bildirimler",
   "notify_dump_body": "{text}",
   "notify_dump_title": "{site} sitesinden dump",

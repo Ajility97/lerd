@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "ダッシュボードを確認する手間が省けます。キャプチャしたメール、ワーカーの失敗、完了した操作について lerd が通知を表示します。",
   "notify_banner_title": "lerd から通知を受け取る",
   "notify_center_empty": "まだ何もありません。完了した操作、失敗、キャプチャしたメールがここに表示されます。",
+  "notify_center_new": "新着",
   "notify_center_title": "通知",
   "notify_dump_body": "{text}",
   "notify_dump_title": "{site} からのダンプ",

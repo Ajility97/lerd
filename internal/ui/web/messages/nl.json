@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "Je hoeft het dashboard niet meer in de gaten te houden. lerd toont een melding bij opgevangen e-mail, mislukte workers en afgeronde bewerkingen.",
   "notify_banner_title": "Meldingen van lerd ontvangen",
   "notify_center_empty": "Nog niets. Voltooide bewerkingen, fouten en opgevangen e-mail verschijnen hier.",
+  "notify_center_new": "Nieuw",
   "notify_center_title": "Meldingen",
   "notify_dump_body": "{text}",
   "notify_dump_title": "Dump van {site}",

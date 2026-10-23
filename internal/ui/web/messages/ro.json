@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "Nu mai verifica tabloul de bord. lerd va afișa o notificare pentru mail-ul capturat, eșecurile workerilor și operațiunile finalizate.",
   "notify_banner_title": "Primește notificări de la lerd",
   "notify_center_empty": "Încă nimic. Operațiunile finalizate, erorile și e-mailurile capturate apar aici.",
+  "notify_center_new": "Nou",
   "notify_center_title": "Notificări",
   "notify_dump_body": "{text}",
   "notify_dump_title": "Dump de la {site}",

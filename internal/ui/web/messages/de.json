@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "Spar dir den Blick aufs Dashboard. lerd meldet abgefangene E-Mails, Worker-Fehler und abgeschlossene Vorgänge per Benachrichtigung.",
   "notify_banner_title": "Benachrichtigungen von lerd erhalten",
   "notify_center_empty": "Noch nichts. Abgeschlossene Vorgänge, Fehler und abgefangene E-Mails erscheinen hier.",
+  "notify_center_new": "Neu",
   "notify_center_title": "Benachrichtigungen",
   "notify_dump_body": "{text}",
   "notify_dump_title": "Dump von {site}",

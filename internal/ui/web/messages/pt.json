@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "Não precisa ficar conferindo o painel. O lerd exibe uma notificação para e-mails capturados, falhas de workers e operações concluídas.",
   "notify_banner_title": "Receba notificações do lerd",
   "notify_center_empty": "Ainda nada. Operações concluídas, falhas e e-mails capturados aparecem aqui.",
+  "notify_center_new": "Novo",
   "notify_center_title": "Notificações",
   "notify_dump_body": "{text}",
   "notify_dump_title": "Dump de {site}",
