@@ -41,6 +41,7 @@ ui:
 		"bin/say":       "#!/bin/sh\nin=$(cat)\n[ \"$LERD_QUERY\" = \"fail=1\" ] && { echo nope >&2; exit 1; }\nprintf '{\"method\":\"%s\",\"query\":\"%s\",\"body\":\"%s\",\"surface\":\"%s\"}' \"$LERD_METHOD\" \"$LERD_QUERY\" \"$in\" \"$LERD_SURFACE\"\n",
 		"ui/index.html": "<p>echo</p>",
 		"ui/site.html":  "<p>site</p>",
+		"ui/old.htm":    "<p>old</p>",
 		"ui/icon.svg":   "<svg/>",
 	}
 	for rel, body := range files {
@@ -615,5 +616,182 @@ func TestPluginEndpoint_StopsAtItsTimeout(t *testing.T) {
 	}
 	if time.Since(start) > 3*time.Second {
 		t.Error("the endpoint must answer at its limit")
+	}
+}
+
+// installDocumentedPlugin adds the echo plugin docs and a screenshot, beside a
+// png the manifest does not list.
+func installDocumentedPlugin(t *testing.T) string {
+	t.Helper()
+	installAPIPlugin(t)
+	dir := filepath.Join(plugins.Dir(), "echo")
+	if err := os.MkdirAll(filepath.Join(dir, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"docs/tab.png":   "png",
+		"docs/other.png": "png",
+		"DOCS.md":        "# Echo\n\n![tab](docs/tab.png)\n",
+	}
+	for rel, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, rel), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	manifest := filepath.Join(dir, plugins.ManifestFile)
+	data, _ := os.ReadFile(manifest)
+	if err := os.WriteFile(manifest, append(data, []byte("docs: DOCS.md\nscreenshots: [docs/tab.png]\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestPluginUI_ServesListedScreenshotsOnly(t *testing.T) {
+	installDocumentedPlugin(t)
+	for path, want := range map[string]int{
+		"/plugins/echo/docs/tab.png":   http.StatusOK,
+		"/plugins/echo/docs/other.png": http.StatusNotFound,
+		"/plugins/echo/DOCS.md":        http.StatusNotFound,
+	} {
+		rec := httptest.NewRecorder()
+		handlePluginUI(rec, localRequest(http.MethodGet, path, ""))
+		if rec.Code != want {
+			t.Errorf("%s = %d, want %d", path, rec.Code, want)
+		}
+	}
+}
+
+// A listed screenshot that is a link must not reach a file outside the plugin.
+func TestPluginUI_RefusesAScreenshotLinkedOutOfThePlugin(t *testing.T) {
+	dir := installDocumentedPlugin(t)
+	secret := filepath.Join(t.TempDir(), "secret.png")
+	if err := os.WriteFile(secret, []byte("private"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tab := filepath.Join(dir, "docs", "tab.png")
+	if err := os.Remove(tab); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, tab); err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	handlePluginUI(rec, localRequest(http.MethodGet, "/plugins/echo/docs/tab.png", ""))
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("linked screenshot = %d, want 404", rec.Code)
+	}
+}
+
+func TestPluginManager_DescribesFeaturesScreenshotsAndDocs(t *testing.T) {
+	installDocumentedPlugin(t)
+	rows := managedPlugins()
+	if len(rows) != 1 {
+		t.Fatalf("rows = %+v", rows)
+	}
+	r := rows[0]
+	if !r.HasDocs || strings.Join(r.Screenshots, ",") != "/plugins/echo/docs/tab.png" {
+		t.Errorf("has_docs = %v, screenshots = %v", r.HasDocs, r.Screenshots)
+	}
+	var kinds []string
+	for _, f := range r.Features {
+		kinds = append(kinds, f.Kind+":"+f.Name)
+	}
+	if strings.Join(kinds, ",") != "page:Echo,site_tab:Echo" {
+		t.Errorf("features = %v", kinds)
+	}
+
+	rec := httptest.NewRecorder()
+	handlePluginManager(rec, localRequest(http.MethodGet, "/api/plugin-manager/echo/docs", ""))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `/plugins/echo/docs/tab.png`) || !strings.Contains(rec.Body.String(), "Echo") {
+		t.Errorf("docs = %d %s", rec.Code, rec.Body)
+	}
+	rec = httptest.NewRecorder()
+	handlePluginManager(rec, localRequest(http.MethodGet, "/api/plugin-manager/nope/docs", ""))
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("unknown plugin docs = %d, want 404", rec.Code)
+	}
+}
+
+func TestPluginManager_LogsListRecentFailures(t *testing.T) {
+	installAPIPlugin(t)
+	plugins.Record(plugins.Failure{Plugin: "echo", Surface: plugins.SurfaceAPI, What: "say", Error: "first"})
+	plugins.Record(plugins.Failure{Plugin: "echo", Surface: plugins.SurfaceHook, What: "site.linked", Error: "second"})
+	rec := httptest.NewRecorder()
+	handlePluginManager(rec, localRequest(http.MethodGet, "/api/plugin-manager/echo/logs", ""))
+	var got []pluginFailure
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || len(got) != 2 || got[0].Error != "second" {
+		t.Fatalf("logs = %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestInjectPluginKit(t *testing.T) {
+	for name, c := range map[string]struct{ in, want string }{
+		"after head":         {"<!doctype html><html><head><title>x</title></head>", "<head>" + pluginKitTags + "<title>"},
+		"head with attrs":    {"<HEAD lang=\"en\"><style>b{}</style>", "<HEAD lang=\"en\">" + pluginKitTags + "<style>"},
+		"no head":            {"<p>bare</p>", pluginKitTags + "<p>bare</p>"},
+		"header is not head": {"<header>x</header>", pluginKitTags + "<header>"},
+	} {
+		if got := string(injectPluginKit([]byte(c.in))); !strings.Contains(got, c.want) {
+			t.Errorf("%s: got %q, want it to contain %q", name, got, c.want)
+		}
+	}
+}
+
+// Every page gets lerd's look and theme ahead of its own styles; other files
+// are served as they are.
+func TestPluginUI_AddsTheKitToPagesOnly(t *testing.T) {
+	installAPIPlugin(t)
+	rec := httptest.NewRecorder()
+	handlePluginUI(rec, localRequest(http.MethodGet, "/plugins/echo/ui/index.html", ""))
+	if body := rec.Body.String(); rec.Code != http.StatusOK || !strings.HasPrefix(body, pluginKitTags) || !strings.Contains(body, "<p>echo</p>") {
+		t.Errorf("page = %d %q", rec.Code, body)
+	}
+	rec = httptest.NewRecorder()
+	handlePluginUI(rec, localRequest(http.MethodGet, "/plugins/echo/ui/old.htm", ""))
+	if !strings.HasPrefix(rec.Body.String(), pluginKitTags) {
+		t.Errorf("an .htm page got no kit: %q", rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	handlePluginUI(rec, localRequest(http.MethodGet, "/plugins/echo/ui/icon.svg", ""))
+	if rec.Body.String() != "<svg/>" {
+		t.Errorf("icon changed: %q", rec.Body.String())
+	}
+	for path, kind := range map[string]string{"/plugins/_lerd/base.css": "text/css", "/plugins/_lerd/theme.js": "javascript"} {
+		rec = httptest.NewRecorder()
+		handlePluginUI(rec, localRequest(http.MethodGet, path, ""))
+		if rec.Code != http.StatusOK || !strings.Contains(rec.Header().Get("Content-Type"), kind) || rec.Body.Len() == 0 {
+			t.Errorf("%s = %d %q", path, rec.Code, rec.Header().Get("Content-Type"))
+		}
+	}
+}
+
+// The kit gives buttons a display of their own, which would otherwise outrank
+// the browser's [hidden] rule and keep a hidden button on screen.
+func TestPluginKit_KeepsHiddenElementsHidden(t *testing.T) {
+	css, err := pluginKit.ReadFile("pluginkit/base.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(css), "[hidden] { display: none !important; }") {
+		t.Error("base.css must restore [hidden] over its own display rules")
+	}
+}
+
+// A plugin that stops loading keeps its failure log, the one place that says why.
+func TestPluginManager_LogsOfABrokenPlugin(t *testing.T) {
+	installAPIPlugin(t)
+	plugins.Record(plugins.Failure{Plugin: "echo", Surface: plugins.SurfaceAPI, What: "say", Error: "boom"})
+	if err := os.WriteFile(filepath.Join(plugins.Dir(), "echo", plugins.ManifestFile), []byte("api_version: 9\nname: echo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	handlePluginManager(rec, localRequest(http.MethodGet, "/api/plugin-manager/echo/logs", ""))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "boom") {
+		t.Errorf("logs = %d %s", rec.Code, rec.Body)
+	}
+	rec = httptest.NewRecorder()
+	handlePluginManager(rec, localRequest(http.MethodGet, "/api/plugin-manager/..%2Fx/logs", ""))
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("a name that is not a plugin's = %d, want 404", rec.Code)
 	}
 }

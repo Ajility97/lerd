@@ -3,13 +3,11 @@
 <head>
   <meta charset="utf-8">
   <title>Hello</title>
-  <style>
-    body { font: 14px system-ui, sans-serif; margin: 1rem; color: #ddd; background: transparent; }
-    @media (prefers-color-scheme: light) { body { color: #222; } }
-  </style>
+  <!-- lerd styles this page like the dashboard: use its lerd-* classes and write layout only. -->
 </head>
 <body>
-  <pre id="out">Loading...</pre>
+  <span class="lerd-label">Hello</span>
+  <pre id="out" class="lerd-card lerd-mono">Loading...</pre>
   <script src="lerd.js"></script>
   <script>
     const out = document.getElementById('out');

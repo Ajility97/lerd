@@ -1,5 +1,6 @@
 import { writable, derived } from 'svelte/store';
 import { apiFetch, apiJson } from '$lib/api';
+import { wsMessage } from '$lib/ws';
 
 export interface PluginPage {
   title: string;
@@ -13,13 +14,20 @@ export interface PluginInfo {
   page?: PluginPage;
   site_tab?: PluginPage;
   overview_card?: PluginPage;
+  // The catalog approved a newer commit than the one installed.
+  update?: boolean;
 }
+
+// Where an author learns how to get a plugin listed.
+export const PLUGIN_SUBMIT_GUIDE = 'https://github.com/lerd-env/plugins/blob/main/SUBMITTING.md';
 
 export const plugins = writable<PluginInfo[]>([]);
 
 // Plugins that draw a page on the rail, and those that add a tab to every site.
 export const railPlugins = derived(plugins, ($p) => $p.filter((p) => p.page));
 export const siteTabPlugins = derived(plugins, ($p) => $p.filter((p) => p.site_tab));
+// How many installed plugins have a newer approved commit, for the rail's badge.
+export const pluginUpdates = derived(plugins, ($p) => $p.filter((p) => p.update).length);
 
 export async function loadPlugins() {
   // A lerd-ui from before plugins answers this path with something else.
@@ -30,6 +38,14 @@ export async function loadPlugins() {
     plugins.set([]);
   }
 }
+
+// The hourly catalog check refreshes the badge and the update buttons, which
+// otherwise load only on mount.
+wsMessage.subscribe((msg) => {
+  if (msg?.type !== 'plugins') return;
+  void loadPlugins();
+  loadManagedPlugins().catch(() => {});
+});
 
 // One thing a plugin can put on a site, its page script or its Overview card,
 // and whether the site has it switched on.
@@ -84,13 +100,41 @@ export interface ManagedPlugin {
   error?: string;
   // Its rail icon, when it has a page.
   icon?: string;
+  // Who the catalog lists it by, for one installed from the catalog.
+  author?: string;
   // Where the catalog installed it from; absent when not listed.
   repo?: string;
   commit?: string;
-  // A newer approved commit, when there is one.
+  // A newer approved commit, when there is one, its version and GitHub's
+  // comparison of the two commits.
   update?: string;
+  update_version?: string;
+  changes?: string;
   // Its latest failure, with a filled-in issue on its repository when known.
   failure?: PluginFailure;
+  // What it adds, named the way the user meets each; its screenshots' URLs;
+  // and whether it ships docs to read in the dashboard.
+  features?: PluginFeature[];
+  screenshots?: string[];
+  has_docs?: boolean;
+}
+
+export interface PluginFeature {
+  kind: string;
+  name: string;
+  detail?: string;
+}
+
+// The plugin's docs as an HTML fragment lerd rendered from its markdown.
+export async function loadPluginDocs(name: string): Promise<string> {
+  const body = await apiJson<{ html?: string }>('/api/plugin-manager/' + encodeURIComponent(name) + '/docs');
+  return body?.html ?? '';
+}
+
+// The plugin's recent failures, newest first.
+export async function loadPluginLogs(name: string): Promise<PluginFailure[]> {
+  const list = await apiJson<PluginFailure[]>('/api/plugin-manager/' + encodeURIComponent(name) + '/logs');
+  return Array.isArray(list) ? list : [];
 }
 
 export interface PluginFailure {
@@ -171,4 +215,11 @@ async function mutate(path: string, init: RequestInit): Promise<string> {
   const error = res.ok ? '' : (await res.text()).trim() || res.statusText;
   await Promise.all([loadManagedPlugins(), loadPlugins()]);
   return error;
+}
+
+// The GitHub account that owns a plugin's repository, which the author's name
+// links to: the author field is free text, the owner is always a real account.
+export function authorProfile(repo?: string): string | null {
+  const m = /^https:\/\/github\.com\/([^/]+)\//.exec((repo ?? '') + '/');
+  return m ? `https://github.com/${m[1]}` : null;
 }

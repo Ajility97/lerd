@@ -25,7 +25,7 @@
       <span class="flex items-center gap-1.5">
         <span class="truncate text-sm font-semibold text-gray-900 dark:text-white">{p.name}</span>
         {#if p.version}<span class="shrink-0 text-[10px] font-mono tabular-nums text-gray-400">{p.version}</span>{/if}
-        {#if p.update}<span class="shrink-0 text-[10px] font-medium text-emerald-600 dark:text-emerald-400" title={m.system_plugins_update()}>↑</span>{/if}
+        {#if p.update}<span class="shrink-0 text-[10px] font-medium font-mono text-emerald-600 dark:text-emerald-400" title={m.system_plugins_updateAvailable()}>↑ {p.update_version ?? ''}</span>{/if}
       </span>
       <span class="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400">
         <StatusDot color={dot} />

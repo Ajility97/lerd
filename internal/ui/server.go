@@ -283,6 +283,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/internal/snapshot-run", handleInternalSnapshotNotify)
 	mux.HandleFunc("/api/internal/plugin-failed", handleInternalPluginFailed)
 	notifyPluginFailures()
+	watchPluginUpdates()
 	mux.HandleFunc("/api/auto-snapshot", withCORS(handleAutoSnapshot))
 	mux.HandleFunc("/api/auto-snapshot/", withCORS(handleAutoSnapshotSite))
 	mux.HandleFunc("/api/databases", withCORS(handleDatabases))

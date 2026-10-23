@@ -13,6 +13,7 @@
   import { managedPlugins, loadManagedPlugins, installPlugin, removePlugin, updatePlugin } from '$stores/plugins';
   import { routeRest, goToTab } from '$stores/route';
   import { notifyLocalFailure, notifyLocalInfo } from '$lib/notify';
+  import { apiUrl } from '$lib/api';
   import { m } from '../../paraglide/messages.js';
 
   let source = $state('');
@@ -38,6 +39,12 @@
     } finally {
       updating = '';
     }
+  }
+
+  // Every plugin with a newer approved commit, updated one after another.
+  const updatable = $derived($managedPlugins.filter((p) => p.update));
+  async function updateAll() {
+    for (const p of updatable) await update(p.name);
   }
 
   onMount(() => {
@@ -100,6 +107,11 @@
       <section class="flex-1 flex flex-col gap-2.5">
         <div class="flex items-center justify-between gap-3">
           <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{m.system_plugins_tabInstalled()}</h2>
+          {#if updatable.length}
+            <button type="button" onclick={updateAll} disabled={updating !== ''} class="ml-auto inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:underline disabled:opacity-50">
+              {m.system_plugins_updateAll({ count: updatable.length })}
+            </button>
+          {/if}
           <button type="button" onclick={() => (adding = true)} class="inline-flex items-center gap-1 text-xs font-medium text-lerd-red hover:text-lerd-redhov">
             <Icon name="plus" class="w-3.5 h-3.5" />
             {m.system_plugins_installFrom()}
@@ -113,6 +125,7 @@
               <InstalledPluginTile plugin={p} onopen={() => (openName = p.name)} />
             {/each}
           </div>
+          <div class="mt-6 border-t border-gray-100 dark:border-lerd-border pt-2"><PluginsEmpty more /></div>
         {/if}
       </section>
     {/if}
@@ -131,7 +144,14 @@
     adds={p.adds}
     requires={p.requires}
     error={p.error}
-    failure={p.failure}
+    author={p.author}
+    images={p.screenshots?.map(apiUrl)}
+    installed
+    update={p.update}
+    updateVersion={p.update_version}
+    changes={p.changes}
+    features={p.features}
+    hasDocs={p.has_docs}
     onclose={() => (openName = '')}
   >
     {#snippet actions()}

@@ -279,3 +279,63 @@ func TestCatalog_EnvPointsAtAnotherIndexWithItsOwnCache(t *testing.T) {
 		t.Errorf("InstallListed from the other index: %v", err)
 	}
 }
+
+// The installed list names a catalog plugin's author from the catalog lerd
+// already has, and never fetches it just for that.
+func TestCachedListing_ReadsOnlyTheCache(t *testing.T) {
+	isolate(t)
+	if _, ok := CachedListing("hello"); ok {
+		t.Fatal("no cache, no listing")
+	}
+	hits := serveIndex(t, Listing{Name: "hello", Repo: "https://github.com/acme/hello", Commit: strings.Repeat("a", 40), Author: "acme"})
+	if _, ok := CachedListing("hello"); ok || *hits != 0 {
+		t.Fatalf("a missing cache must not be fetched, %d fetches", *hits)
+	}
+	if _, err := LoadCatalog(); err != nil {
+		t.Fatal(err)
+	}
+	l, ok := CachedListing("hello")
+	if !ok || l.Author != "acme" || *hits != 1 {
+		t.Errorf("listing = %+v %v, fetches %d", l, ok, *hits)
+	}
+}
+
+// The dashboard reads updates from the catalog lerd already holds, so drawing
+// the plugins never waits on the network; the hourly refresh brings new ones.
+func TestCachedUpdate_AndRefreshOlderThan(t *testing.T) {
+	isolate(t)
+	repo, approved := gitRepo(t, "hello")
+	serveIndex(t, Listing{Name: "hello", Repo: "file://" + repo, Commit: approved})
+	if _, err := InstallListed("hello"); err != nil {
+		t.Fatal(err)
+	}
+	newer := strings.Repeat("b", 40)
+	hits := serveIndex(t, Listing{Name: "hello", Repo: "file://" + repo, Commit: newer, Version: "0.2.0"})
+	if _, ok := CachedUpdate("hello"); ok || *hits != 0 {
+		t.Fatalf("the cache still holds the installed commit, and nothing may be fetched; %d fetches", *hits)
+	}
+	if err := RefreshCatalogOlderThan(time.Hour); err != nil || *hits != 0 {
+		t.Fatalf("a fresh cache is not refetched: %v, %d fetches", err, *hits)
+	}
+	old := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(catalogCachePath(), old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := RefreshCatalogOlderThan(time.Hour); err != nil || *hits != 1 {
+		t.Fatalf("an hour-old cache is refetched: %v, %d fetches", err, *hits)
+	}
+	l, ok := CachedUpdate("hello")
+	if !ok || l.Commit != newer || l.Version != "0.2.0" {
+		t.Errorf("update = %+v %v", l, ok)
+	}
+}
+
+func TestListing_ChangesURL(t *testing.T) {
+	l := Listing{Repo: "https://github.com/acme/hello", Commit: "bbb"}
+	if got := l.ChangesURL("aaa"); got != "https://github.com/acme/hello/compare/aaa...bbb" {
+		t.Errorf("ChangesURL = %q", got)
+	}
+	if got := (Listing{Repo: "https://gitlab.com/acme/hello", Commit: "bbb"}).ChangesURL("aaa"); got != "" {
+		t.Errorf("a host lerd cannot compare on gives no link, got %q", got)
+	}
+}

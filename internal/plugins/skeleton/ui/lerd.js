@@ -1,6 +1,5 @@
-// lerd runs plugin pages in a sandboxed frame, so they reach the API through the
-// dashboard rather than fetching it themselves. lerd.api only reaches this
-// plugin's own endpoints; lerd.context holds the site a site tab is showing.
+// Plugin pages run sandboxed, so lerd.api reaches this plugin's own endpoints
+// through the dashboard. lerd.context holds the site and the dashboard's language.
 window.lerd = (() => {
   const params = new URLSearchParams(location.search);
   const pending = new Map();
@@ -25,7 +24,10 @@ window.lerd = (() => {
     context: {
       site: params.get('site') || '',
       domain: params.get('domain') || '',
-      branch: params.get('branch') || ''
+      branch: params.get('branch') || '',
+      // The dashboard's language, like en, ro or zh-TW, for a page that
+      // translates itself.
+      lang: params.get('lang') || 'en'
     },
     api(path, { method = 'GET', body } = {}) {
       const id = ++next;

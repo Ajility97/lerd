@@ -42,6 +42,14 @@ type Manifest struct {
 	Requires []string `yaml:"requires,omitempty" json:"requires,omitempty"`
 	// Platforms lists where the plugin runs, linux or macos; empty means both.
 	Platforms []string `yaml:"platforms,omitempty" json:"platforms,omitempty"`
+	// Icon is a single-colour SVG drawn for the plugin on its card, whatever it
+	// adds; a rail page's own icon stands in when it is empty.
+	Icon string `yaml:"icon,omitempty" json:"icon,omitempty"`
+	// Docs is a markdown file of instructions the dashboard shows once the
+	// plugin is installed, apart from the README its repository shows.
+	Docs string `yaml:"docs,omitempty" json:"docs,omitempty"`
+	// Screenshots are images in the plugin shown on its card in the dashboard.
+	Screenshots []string `yaml:"screenshots,omitempty" json:"screenshots,omitempty"`
 }
 
 // Command is a CLI command, invoked as `lerd <plugin>:<name>`.
@@ -194,6 +202,9 @@ func (p *Plugin) validate() error {
 		if err := p.checkExecutable(run); err != nil {
 			return err
 		}
+	}
+	if err := p.validateDocs(); err != nil {
+		return err
 	}
 	if err := p.checkRequirements(); err != nil {
 		return err

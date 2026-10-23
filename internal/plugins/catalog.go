@@ -138,6 +138,22 @@ func refreshCatalog() error {
 	return os.Rename(tmp, path)
 }
 
+// CachedListing is the catalog's listing for name from the copy lerd already
+// holds, never fetching: for showing what the catalog says about a plugin that
+// is installed, where a slow network must not hold the list up.
+func CachedListing(name string) (Listing, bool) {
+	c, err := readCatalogCache()
+	if err != nil {
+		return Listing{}, false
+	}
+	for _, l := range c.Plugins {
+		if l.Name == name {
+			return l, true
+		}
+	}
+	return Listing{}, false
+}
+
 func readCatalogCache() (*Catalog, error) {
 	data, err := os.ReadFile(catalogCachePath())
 	if err != nil {
@@ -291,6 +307,39 @@ func PendingUpdate(name string) (*Listing, bool) {
 		return nil, false
 	}
 	return l, true
+}
+
+// CachedUpdate is PendingUpdate read from the catalog lerd already holds,
+// never fetching: the dashboard draws updates without waiting on the network,
+// and the hourly refresh brings new ones in.
+func CachedUpdate(name string) (*Listing, bool) {
+	src, ok := InstalledSource(name)
+	if !ok {
+		return nil, false
+	}
+	l, ok := CachedListing(name)
+	if !ok || l.Commit == src.Commit || !Compatible(l.Lerd) || !RunsHere(l.Platforms) {
+		return nil, false
+	}
+	return &l, true
+}
+
+// RefreshCatalogOlderThan fetches the catalog when the copy lerd holds is
+// older than age.
+func RefreshCatalogOlderThan(age time.Duration) error {
+	if info, err := os.Stat(catalogCachePath()); err == nil && time.Since(info.ModTime()) < age {
+		return nil
+	}
+	return refreshCatalog()
+}
+
+// ChangesURL is GitHub's comparison of the installed commit with the approved
+// one, "" for a repository GitHub does not host.
+func (l Listing) ChangesURL(installed string) string {
+	if !strings.HasPrefix(l.Repo, "https://github.com/") {
+		return ""
+	}
+	return strings.TrimSuffix(l.Repo, ".git") + "/compare/" + installed + "..." + l.Commit
 }
 
 // InstalledSource reports the listing commit an installed plugin came from;

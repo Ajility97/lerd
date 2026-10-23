@@ -4,7 +4,7 @@ import PluginFrame from './PluginFrame.svelte';
 
 // The frame is what keeps a plugin page off lerd's origin: scripts yes, the
 // dashboard's own standing never.
-it('sandboxes the page and hands it its context', () => {
+it('sandboxes the page and hands it its context and the dashboard language', () => {
   // Wrapped in props: `context` is also a Svelte mount option.
   const { container } = render(PluginFrame, {
     props: {
@@ -18,5 +18,5 @@ it('sandboxes the page and hands it its context', () => {
   const sandbox = frame.getAttribute('sandbox') ?? '';
   expect(sandbox).toContain('allow-scripts');
   expect(sandbox).not.toContain('allow-same-origin');
-  expect(frame.getAttribute('src')).toBe('/plugins/hello/ui/site.html?site=shop&domain=shop.test&branch=');
+  expect(frame.getAttribute('src')).toBe('/plugins/hello/ui/site.html?site=shop&domain=shop.test&branch=&lang=en');
 });

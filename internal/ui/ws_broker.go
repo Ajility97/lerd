@@ -122,6 +122,12 @@ func (b *wsBroker) broadcastThemeList() {
 	b.broadcast(wsMessage{Kinds: []string{"theme_list"}})
 }
 
+// broadcastPlugins tells every open dashboard the catalog was read again, so
+// its update badge and buttons follow even with notifications switched off.
+func (b *wsBroker) broadcastPlugins() {
+	b.broadcast(wsMessage{Kinds: []string{"plugins"}})
+}
+
 // broadcastSetup tells every open dashboard the first-run checklist moved on.
 // It carries no payload; the state is one settings request away.
 func (b *wsBroker) broadcastSetup() {

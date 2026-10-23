@@ -146,6 +146,16 @@ it('says why when the catalog cannot be reached', async () => {
   await findByText(/no route/);
 });
 
+// Once plugins are listed the build steps are gone, so the catalog keeps
+// asking for more under its cards.
+it('invites building and submitting a plugin under a listed catalog', async () => {
+  const { findByText, getByText, getByRole } = render(PluginBrowse);
+  await findByText('fresh');
+  expect(getByText('Build the next one')).toBeTruthy();
+  expect(getByText('lerd plugin new my-plugin')).toBeTruthy();
+  expect(getByRole('link', { name: /submission guide/i }).getAttribute('href')).toContain('lerd-env/plugins/blob/main/SUBMITTING.md');
+});
+
 // The approved commit's version, on its card and in its detail.
 it('shows each listed plugin its version', async () => {
   const { container, findByText, getByRole } = render(PluginBrowse);

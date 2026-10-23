@@ -32,17 +32,19 @@ The dashboard does the same on its **Plugins** page, which the puzzle-piece butt
 
 A plugin that fails to load is skipped and listed with its error; it never stops lerd or the other plugins.
 
+An installed plugin's card opens with its icon, name, version and author over four tabs. **Overview** shows its screenshots, where it came from and what it requires. **Features** names everything it adds: each command with its usage, each site command, AI tool, page, tab and hook. **Documentation**, when the plugin has docs, shows its own instructions. **Logs** lists its recent failures in full, newest first, each with a **Report to the author** link when it came from the catalog. lerd keeps the last 50 in a log file per plugin, `plugin-failures/<name>.log` in its data folder.
+
 ### Building one with an AI assistant
 
 Ask your assistant for the plugin you want. lerd's MCP server has a `plugin` tool whose `guide` teaches it how a plugin is written, the rules it follows and how to check each surface works; `new` scaffolds the boilerplate and `list` shows what loaded and why anything did not. Claude Code also gets the guide as `plugins.md` beside lerd's skill when you run `lerd mcp:inject`. The assistant can install a plugin from a folder; installing from a git URL or the catalog stays a command you run.
 
 ### The catalog
 
-[plugins.lerd.sh](https://plugins.lerd.sh) lists the plugins approved in the [lerd-env/plugins](https://github.com/lerd-env/plugins) registry, and the dashboard's **Browse** tab shows the same list as cards with each plugin's first screenshot, filtered by category, searched and sorted, a page at a time. Each card names the version the catalog approved beside the plugin's name, read from that commit's plugin.yaml, and so does its detail; a catalog from before versions were listed shows none. Opening a card shows all its screenshots and details, with the Install button. Each listing names a repository and the exact commit a maintainer approved, and that commit is the only one lerd installs: it fetches that commit alone, checks it is the one it got, and keeps no git history beside it, so a repository that moves on later changes nothing on your machine. When a newer commit is approved, the plugin shows an **Update** button and `lerd plugin update` moves to it, keeping the data the plugin stored.
+[plugins.lerd.sh](https://plugins.lerd.sh) lists the plugins approved in the [lerd-env/plugins](https://github.com/lerd-env/plugins) registry, and the dashboard's **Browse** tab shows the same list as cards with each plugin's first screenshot, filtered by category, searched and sorted, a page at a time. Each card names the version the catalog approved beside the plugin's name, read from that commit's plugin.yaml, and so does its detail; a catalog from before versions were listed shows none. Opening a card shows all its screenshots and details, with the Install button. Each listing names a repository and the exact commit a maintainer approved, and that commit is the only one lerd installs: it fetches that commit alone, checks it is the one it got, and keeps no git history beside it, so a repository that moves on later changes nothing on your machine. When a newer commit is approved, the dashboard says so: the Plugins button on the rail carries a count, the plugin's card shows `↑` with the new version, and its detail shows the version it moves from and to, with a **What changed** link to GitHub's comparison of the two commits. **Update** in the detail, **Update all** on the Installed page or `lerd plugin update` moves to it, keeping the data the plugin stored. The dashboard re-reads the catalog every hour for this, and raises one notification per newly approved commit, under the same Updates setting as lerd's own; nothing on the page waits on that check.
 
 To be listed, a plugin meets the registry's [approval terms](https://github.com/lerd-env/plugins/blob/main/SUBMITTING.md). Among them, everything it runs is a script a reviewer can read, in shell, Python, Node or similar: compiled binaries are not listed, though a plugin you install from a folder or your own repository can be a binary too.
 
-lerd reads the catalog at most once a day and keeps the last copy, so browsing and installed plugins work offline. To try another index, such as a registry pull request's, set `LERD_PLUGIN_CATALOG` to its `index.json` URL for the command: `LERD_PLUGIN_CATALOG=http://127.0.0.1:8000/index.json lerd plugin search`. That index is cached on its own, so the real catalog is never mixed in. Plugins installed from a folder or a repository of your own show as not listed and are never updated from the catalog.
+lerd reads the catalog at most once a day from the command line and every hour while the dashboard runs, and keeps the last copy, so browsing and installed plugins work offline. To try another index, such as a registry pull request's, set `LERD_PLUGIN_CATALOG` to its `index.json` URL for the command: `LERD_PLUGIN_CATALOG=http://127.0.0.1:8000/index.json lerd plugin search`. That index is cached on its own, so the real catalog is never mixed in. Plugins installed from a folder or a repository of your own show as not listed and are never updated from the catalog.
 
 ---
 
@@ -54,6 +56,9 @@ Every key except `api_version` and `name` is optional. Paths are relative to the
 api_version: 1
 name: hello                 # lowercase letters, digits and dashes; must match the folder name
 lerd: ">=1.37"              # the oldest lerd it runs on; lerd plugin new fills in the one that wrote it
+docs: DOCS.md               # instructions on its Documentation tab in the dashboard, read offline
+icon: icon.svg              # single-colour SVG on its card; its rail page's icon when omitted
+screenshots: [docs/tab.png] # images shown on its card in the dashboard
 platforms: [linux, macos]   # where it runs; both when omitted
 version: 0.1.0
 description: A starting point for a lerd plugin
@@ -111,6 +116,12 @@ ui:                         # files live under ui/, the only folder the dashboar
 ```
 
 A manifest written for a newer lerd still loads as long as its `api_version` is one this lerd knows: unknown keys are ignored. An unknown value in a known key, such as a hook for an event this lerd doesn't have, refuses the plugin with a message naming it.
+
+### Docs and screenshots
+
+`docs` names a markdown file in the plugin, `DOCS.md` in the boilerplate, which the dashboard renders on the plugin's **Documentation** tab from the installed copy, so it reads without a network. It is for the person who installed the plugin: what it does, how to use each part and what to set up. The README stays the repository's page, free to say anything else. `screenshots` lists images in the plugin, png, jpg, gif or webp, shown on its card. `icon` is a single-colour SVG drawn on the plugin's card, in the theme's colour like lerd's own icons; a plugin without one shows its rail page's icon, or a puzzle piece.
+
+Only the plugin's `ui/` folder, its `icon` and the files listed under `screenshots` are served over HTTP, so an image in the docs shows when it is one of those, and a relative link to another file in the plugin is shown as plain text. Raw HTML in the docs is dropped. A `docs` file that is missing or not markdown, or a screenshot that is missing or not an image, refuses the plugin with a message naming it.
 
 ### Which lerd a plugin runs on
 
@@ -254,8 +265,33 @@ const text = await lerd.api('greet?site=' + encodeURIComponent(lerd.context.site
 await lerd.api('save', { method: 'POST', body: { key: 'value' } });
 ```
 
-`lerd.api` only reaches `/api/plugins/<this plugin>/`. The rail icon is drawn as a mask in the rail's own colour, so ship a single-colour SVG.
+`lerd.api` only reaches `/api/plugins/<this plugin>/`.
 
+### Speaking the user's language
+
+A page also receives the dashboard's language as `lang`, like `en`, `ro` or `zh-TW`: `lerd.context.lang` in the boilerplate's `ui/lerd.js`, and the page's `<html lang>` when it sets none of its own. A plugin that ships translations picks its strings by it, falling back to English. Switching the dashboard's language reloads the dashboard, and the page with it.
+
+### Looking like lerd
+
+Every plugin page the dashboard serves starts with lerd's own look, in the dashboard's light or dark mode and its theme's accent, following the user as they switch. Plain elements already match: a `<button>` is lerd's 28px control, `<input>`, `<select>` and `<textarea>` are its fields, a `<table>` has its uppercase headers and row lines, and checkboxes take the accent. Mark the main button `class="primary"` and a destructive one `class="danger"`.
+
+For the rest, use the dashboard's own pieces:
+
+| Class | What it draws |
+|---|---|
+| `lerd-label` | The small uppercase heading above a block |
+| `lerd-section` | A block with the dashboard's spacing below it |
+| `lerd-card` | A bordered card; add `flush` for one holding a table or rows |
+| `lerd-row` | A row in a flush card, with a line between rows |
+| `lerd-toolbar` | A row of buttons; a `spacer` inside pushes what follows to the right |
+| `lerd-tabs` | Underlined tabs; mark the open one `aria-selected="true"` |
+| `lerd-pill` | A method, status or count; `ok`, `warn`, `bad` or `accent` colour it |
+| `lerd-empty` | A centred empty state, its title in a `<strong>` |
+| `lerd-muted`, `lerd-mono` | Secondary text, and code-styled text |
+| `clickable`, `selected` on a `<tr>` | A table row that opens something, and the one that is open |
+| `<dialog>` | A dialog like the dashboard's, opened with `showModal()`, its buttons in a `lerd-toolbar` |
+
+Every rule has no weight, so any CSS the page writes wins over it; keep the page's own CSS to layout. The colours are custom properties too: `--lerd-accent`, `--lerd-on-accent`, `--lerd-text`, `--lerd-text-muted`, `--lerd-card`, `--lerd-line`, `--lerd-ok`, `--lerd-warn` and `--lerd-bad`, and the root has the `dark` class in dark mode. Plugins in the catalog are asked to build their pages from these, so every plugin looks like part of lerd.
 ---
 
 ## Scripts on site pages
@@ -274,13 +310,13 @@ Those calls hand the endpoint the site, and when the page is a worktree's they r
 
 ## Access and security
 
-A plugin runs as you, with everything you can do, so install only plugins you trust. Its API endpoints sit behind the same rules as lerd's own: open on the lerd host, closed to the LAN unless [remote control](../reference/commands.md#full-lan-exposure-dns-based) is on and the browser has signed in, and an endpoint marked `loopback_only` stays closed to remote dashboards until `lerd remote-control full-access on`. Only the plugin's `ui/` folder is served over HTTP, and a link in it that leads outside the folder is not followed.
+A plugin runs as you, with everything you can do, so install only plugins you trust. Its API endpoints sit behind the same rules as lerd's own: open on the lerd host, closed to the LAN unless [remote control](../reference/commands.md#full-lan-exposure-dns-based) is on and the browser has signed in, and an endpoint marked `loopback_only` stays closed to remote dashboards until `lerd remote-control full-access on`. Only the plugin's `ui/` folder, its icon and its listed screenshots are served over HTTP, and a link among them that leads elsewhere is not followed.
 
 ---
 
 ## When a plugin fails
 
-Lerd keeps each plugin's latest failure, whichever surface it came from: a hook, a command, a site command, an API endpoint, an MCP tool or a job it is in charge of. Its card on the **Plugins** page, opened, shows what failed and the first line of the error, and for a plugin installed from the catalog a **Report to the author** link opens a new issue on its repository, filled in with the plugin's commit, your lerd version and the error. A failing `lerd <plugin>:<command>` prints the same link in the terminal.
+Lerd records each plugin's failures, whichever surface they came from: a hook, a command, a site command, an API endpoint, an MCP tool or a job it is in charge of. The last 50 stay in the plugin's own log file, `plugin-failures/<name>.log` in lerd's data folder. Its card on the **Plugins** page shows an amber dot after a failure, and its **Logs** tab lists them in full, newest first. For a plugin installed from the catalog, each one has a **Report to the author** link that opens a new issue on its repository, filled in with the plugin's commit, your lerd version and the error. A failing `lerd <plugin>:<command>` prints the same link in the terminal.
 
 A failure you were not watching, such as a hook the watcher ran, also raises a **Plugin failures** notification, which can be switched off in the notification settings like any other. The same failure again within the hour stays quiet. Reports go to the plugin's author rather than to lerd, since only they can fix their plugin; the issue says where to send it on if lerd turns out to be at fault.
 

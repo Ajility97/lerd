@@ -155,6 +155,9 @@
     </div>
     <Pager page={current} total={shown.length} size={PAGE_SIZE} onchange={(p) => (page = p)} />
   {/if}
+  {#if loaded && !loadError && entries.length > 0}
+    <div class="mt-6 border-t border-gray-100 dark:border-lerd-border pt-2"><CatalogEmpty more /></div>
+  {/if}
 </div>
 
 {#if open}

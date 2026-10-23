@@ -1,6 +1,7 @@
 <script lang="ts">
   import { apiUrl } from '$lib/api';
-  import { answerPluginRequest } from '$lib/pluginBridge';
+  import { answerPluginRequest, pluginTheme } from '$lib/pluginBridge';
+  import { locale } from '$stores/locale';
 
   interface Props {
     plugin: string;
@@ -17,8 +18,10 @@
   let frame = $state<HTMLIFrameElement | null>(null);
   let height = $state(48);
 
+  // The page learns the dashboard's language with its context, so it can speak
+  // it too; a change of language reloads the dashboard and with it the page.
   const src = $derived.by(() => {
-    const q = new URLSearchParams(context).toString();
+    const q = new URLSearchParams({ ...context, lang: $locale }).toString();
     return apiUrl(url) + (q ? '?' + q : '');
   });
 
@@ -34,6 +37,15 @@
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
   });
+
+  // The page draws in the dashboard's theme: told on load, and again whenever
+  // the theme moves the root's class or palette.
+  const sendTheme = () => frame?.contentWindow?.postMessage(pluginTheme(), '*');
+  $effect(() => {
+    const watch = new MutationObserver(sendTheme);
+    watch.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    return () => watch.disconnect();
+  });
 </script>
 
 <!-- No allow-same-origin: the page must never act with the dashboard's standing.
@@ -44,6 +56,7 @@
     {src}
     {title}
     sandbox="allow-scripts allow-forms allow-popups allow-modals"
+    onload={sendTheme}
     class="{autoHeight ? 'block' : 'flex-1'} w-full border-0 bg-transparent"
     style:height={autoHeight ? `${height}px` : undefined}
   ></iframe>
