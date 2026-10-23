@@ -146,8 +146,9 @@ it('shows what plugins add and both ways to get one when none is installed', asy
 // With plugins installed the empty state is gone, so the list still points at
 // the catalog.
 it('points at the catalog under the installed plugins', async () => {
-  const { findByText, getByRole } = render(PluginsDetail);
+  const { findByText, getByRole, getByText } = render(PluginsDetail);
   await findByText('hello');
+  expect(getByText('Make Lerd do even more')).toBeTruthy();
   await fireEvent.click(getByRole('button', { name: /Browse plugins/ }));
   expect(location.hash).toBe('#plugins/browse');
 });

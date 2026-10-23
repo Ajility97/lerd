@@ -1887,5 +1887,9 @@
   "system_plugins_feature_service": "Servis",
   "system_plugins_feature_framework": "Framework",
   "system_plugins_noFailures": "Kayıtlı hata yok.",
-  "system_plugins_tabFeatures": "Özellikler"
+  "system_plugins_tabFeatures": "Özellikler",
+  "system_plugins_catalogMoreTitle": "Bir sonrakini sen yap",
+  "system_plugins_catalogMoreLead": "Bir şey mi eksik? Onun için bir eklenti yap ve gönder, Lerd kullanan herkes için burada görünsün.",
+  "system_plugins_installedMoreTitle": "Lerd'e daha da fazlasını yaptır",
+  "system_plugins_installedMoreLead": "Katalogda daha fazlasını bul ya da ihtiyacın olan eklentiyi yap."
 }

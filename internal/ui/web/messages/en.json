@@ -1887,5 +1887,9 @@
   "system_plugins_feature_service": "Service",
   "system_plugins_feature_framework": "Framework",
   "system_plugins_noFailures": "No failures recorded.",
-  "system_plugins_tabFeatures": "Features"
+  "system_plugins_tabFeatures": "Features",
+  "system_plugins_catalogMoreTitle": "Build the next one",
+  "system_plugins_catalogMoreLead": "Missing something? Build a plugin for it and submit it, and it shows up here for everyone who uses Lerd.",
+  "system_plugins_installedMoreTitle": "Make Lerd do even more",
+  "system_plugins_installedMoreLead": "Find more in the catalog, or build the plugin you need."
 }

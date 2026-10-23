@@ -1887,5 +1887,9 @@
   "system_plugins_feature_service": "Dienst",
   "system_plugins_feature_framework": "Framework",
   "system_plugins_noFailures": "Keine Fehler aufgezeichnet.",
-  "system_plugins_tabFeatures": "Funktionen"
+  "system_plugins_tabFeatures": "Funktionen",
+  "system_plugins_catalogMoreTitle": "Bau das nächste",
+  "system_plugins_catalogMoreLead": "Fehlt dir etwas? Bau ein Plugin dafür und reiche es ein, dann erscheint es hier für alle, die Lerd nutzen.",
+  "system_plugins_installedMoreTitle": "Lass Lerd noch mehr tun",
+  "system_plugins_installedMoreLead": "Finde mehr im Katalog oder bau das Plugin, das du brauchst."
 }

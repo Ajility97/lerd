@@ -7,11 +7,8 @@
   import Pager from '$components/Pager.svelte';
   import CatalogCard from './CatalogCard.svelte';
   import CatalogEmpty from './CatalogEmpty.svelte';
-  import PluginInvite from './PluginInvite.svelte';
-  import PluginGlyph from './PluginGlyph.svelte';
-  import PluginNewCommand from './PluginNewCommand.svelte';
   import PluginDetailModal from './PluginDetailModal.svelte';
-  import { loadCatalog, installListedPlugin, PLUGIN_SUBMIT_GUIDE, type CatalogEntry } from '$stores/plugins';
+  import { loadCatalog, installListedPlugin, type CatalogEntry } from '$stores/plugins';
   import { notifyLocalFailure, notifyLocalInfo } from '$lib/notify';
   import { m } from '../../paraglide/messages.js';
 
@@ -159,12 +156,7 @@
     <Pager page={current} total={shown.length} size={PAGE_SIZE} onchange={(p) => (page = p)} />
   {/if}
   {#if loaded && !loadError && entries.length > 0}
-    <PluginInvite glyph="code" title={m.system_plugins_buildTitle()} body={m.system_plugins_buildBody()}>
-      <div class="w-64"><PluginNewCommand /></div>
-      <a href={PLUGIN_SUBMIT_GUIDE} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-gray-200 dark:border-lerd-border text-xs font-semibold text-gray-700 dark:text-gray-200 hover:border-gray-300 dark:hover:border-white/15">
-        <PluginGlyph name="page" class="w-3.5 h-3.5" />{m.system_plugins_submitGuide()}
-      </a>
-    </PluginInvite>
+    <div class="mt-6 border-t border-gray-100 dark:border-lerd-border pt-2"><CatalogEmpty more /></div>
   {/if}
 </div>
 

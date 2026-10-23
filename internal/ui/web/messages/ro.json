@@ -1887,5 +1887,9 @@
   "system_plugins_feature_service": "Serviciu",
   "system_plugins_feature_framework": "Framework",
   "system_plugins_noFailures": "Nicio eroare înregistrată.",
-  "system_plugins_tabFeatures": "Funcții"
+  "system_plugins_tabFeatures": "Funcții",
+  "system_plugins_catalogMoreTitle": "Construiește-l pe următorul",
+  "system_plugins_catalogMoreLead": "Îți lipsește ceva? Construiește un plugin pentru asta și trimite-l, iar el apare aici pentru toți cei care folosesc Lerd.",
+  "system_plugins_installedMoreTitle": "Fă Lerd să facă și mai mult",
+  "system_plugins_installedMoreLead": "Găsește mai multe în catalog sau construiește pluginul de care ai nevoie."
 }

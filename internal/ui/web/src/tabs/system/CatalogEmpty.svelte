@@ -5,8 +5,10 @@
   import { PLUGIN_SUBMIT_GUIDE } from '$stores/plugins';
   import { m } from '../../paraglide/messages.js';
 
-  // What Browse shows while the catalog lists nothing: how a plugin gets into
-  // it, from the first command to the pull request a maintainer reviews.
+  // How a plugin gets into the catalog, from the first command to the pull
+  // request a maintainer reviews: the whole of Browse while the catalog lists
+  // nothing, and its foot, with more set, once it lists some.
+  let { more = false }: { more?: boolean } = $props();
   const EXAMPLE = 'https://github.com/lerd-env/plugins/pull/1';
   const steps = [
     [m.system_plugins_step1Title, m.system_plugins_step1Body],
@@ -18,8 +20,8 @@
 
 <div class="w-full mx-auto max-w-4xl pt-4 pb-6 text-center">
   <div class="flex justify-center"><PluginArt kind="catalog" /></div>
-  <h2 class="mt-4 text-xl font-semibold tracking-tight text-gray-900 dark:text-white">{m.system_plugins_catalogEmpty()}</h2>
-  <p class="mx-auto mt-1.5 max-w-lg text-sm text-gray-500 dark:text-gray-400">{m.system_plugins_catalogEmptyLead()}</p>
+  <h2 class="mt-4 text-xl font-semibold tracking-tight text-gray-900 dark:text-white">{more ? m.system_plugins_catalogMoreTitle() : m.system_plugins_catalogEmpty()}</h2>
+  <p class="mx-auto mt-1.5 max-w-lg text-sm text-gray-500 dark:text-gray-400">{more ? m.system_plugins_catalogMoreLead() : m.system_plugins_catalogEmptyLead()}</p>
   <ol class="mt-6 grid gap-3 sm:grid-cols-3 text-left">
     {#each steps as [title, body], i (i)}
       <li class="flex flex-col gap-2 rounded-xl border border-gray-200/80 dark:border-lerd-border bg-white dark:bg-lerd-card p-4">

@@ -1887,5 +1887,9 @@
   "system_plugins_feature_service": "Layanan",
   "system_plugins_feature_framework": "Framework",
   "system_plugins_noFailures": "Tidak ada kegagalan tercatat.",
-  "system_plugins_tabFeatures": "Fitur"
+  "system_plugins_tabFeatures": "Fitur",
+  "system_plugins_catalogMoreTitle": "Buat yang berikutnya",
+  "system_plugins_catalogMoreLead": "Ada yang kurang? Buat plugin untuk itu dan kirimkan, maka plugin itu muncul di sini untuk semua pengguna Lerd.",
+  "system_plugins_installedMoreTitle": "Buat Lerd melakukan lebih banyak lagi",
+  "system_plugins_installedMoreLead": "Temukan lebih banyak di katalog, atau buat plugin yang kamu butuhkan."
 }
