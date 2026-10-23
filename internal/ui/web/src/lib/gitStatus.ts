@@ -1,3 +1,4 @@
+import { writable } from 'svelte/store';
 import { apiJson } from './api';
 
 export interface GitStatus {
@@ -48,4 +49,14 @@ export function gitMarker(s: GitStatus): { text: string; conflicted: boolean } {
 export async function loadGitStatus(domain: string): Promise<GitCheckout[]> {
   const res = await apiJson<{ checkouts: GitCheckout[] }>(`/api/sites/git-status?domain=${encodeURIComponent(domain)}`);
   return res.checkouts;
+}
+
+// noRepoBySite remembers, per site, whether its folder is outside any git
+// repository. The header offers Initialize git from it, so the button stays
+// up while the answer is asked again instead of blinking out on every read.
+export const noRepoBySite = writable<Record<string, boolean>>({});
+
+export async function refreshNoRepo(domain: string): Promise<void> {
+  const checkouts = await loadGitStatus(domain);
+  noRepoBySite.update((all) => ({ ...all, [domain]: checkouts.length === 0 }));
 }

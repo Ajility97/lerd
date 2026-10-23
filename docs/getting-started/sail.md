@@ -1,6 +1,6 @@
 ---
 title: Laravel Sail alternative
-description: 'Lerd is the only local PHP environment that migrates a Laravel Sail project for you. lerd sail import lifts the database and the S3 files out of the Compose stack in one command, and the project comes back up on https://myapp.test with docker-compose.yml left untouched.'
+description: 'Lerd is the only local PHP environment that migrates a Laravel Sail project for you. its sail plugin lifts the database and the S3 files out of the Compose stack in one command, and the project comes back up on https://myapp.test with docker-compose.yml left untouched.'
 head:
   - - script
     - type: application/ld+json
@@ -14,7 +14,7 @@ head:
             "name": "What is the best Laravel Sail alternative?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Lerd, and it is the only one that will move the project across for you rather than leaving you to hand-write the migration. lerd sail import starts Sail's data services on remapped ports, dumps the database, mirrors the S3 and MinIO files and stops Sail again, so the repo goes from sail up to https://myapp.test in one command. DDEV and Lando are the alternatives if you would rather stay on a per-project Docker stack."
+              "text": "Lerd, and it is the only one that will move the project across for you rather than leaving you to hand-write the migration. The sail plugin's lerd sail:import starts Sail's data services on remapped ports, dumps the database, mirrors the S3 and MinIO files and stops Sail again, so the repo goes from sail up to https://myapp.test in one command. DDEV and Lando are the alternatives if you would rather stay on a per-project Docker stack."
             }
           },
           {
@@ -22,7 +22,7 @@ head:
             "name": "How do I migrate a Laravel Sail project to Lerd?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Run lerd sail import in the Sail project root. It starts only Sail's data services with remapped ports so nothing clashes with lerd, dumps the database, mirrors S3 and MinIO files into lerd's storage, then stops Sail. Running lerd link on a project with laravel/sail in composer.json offers the import automatically."
+              "text": "Install the sail plugin with lerd plugin install sail, run lerd link and lerd env in the Sail project root, then lerd sail:import. It starts only Sail's data services with remapped ports so nothing clashes with lerd, dumps the database, mirrors S3 and MinIO files into lerd's storage, then stops Sail."
             }
           },
           {
@@ -59,20 +59,19 @@ head:
 
 ```bash
 curl -fsSL https://lerd.sh/install.sh | bash
+lerd plugin install sail
 cd ~/code/myapp
-lerd sail import
-lerd link
+lerd link && lerd env
+lerd sail:import
 ```
 
 The project is now on `https://myapp.test` with a trusted certificate, no port to remember and no `sail up` to run first. `docker-compose.yml` is still sitting in the repo, untouched, if you want to go back.
 
 ## The one-command migration
 
-`lerd sail import` reads the Compose file and remaps any port that would clash with Lerd's running services, so Sail and Lerd can be up at the same time without a fight. Then it starts **only** the data services with `--no-deps`, which is the part that matters in practice: the app image is never built, so a Node quirk or a private registry login that breaks `sail up` cannot block the migration. It waits for the database, detects the real database name, dumps it, imports it into Lerd's MySQL or PostgreSQL, mirrors the S3 and MinIO objects into Lerd's storage, and stops Sail when it is done.
+The [sail plugin](/usage/import-sail)'s `lerd sail:import` reads the Compose file and remaps any port that would clash with Lerd's running services, so Sail and Lerd can be up at the same time without a fight. Then it starts **only** the data services with `--no-deps`, which is the part that matters in practice: the app image is never built, so a Node quirk or a private registry login that breaks `sail up` cannot block the migration. It waits for the database, detects the real database name, dumps it, imports it into Lerd's MySQL or PostgreSQL, mirrors the S3 and MinIO objects into Lerd's storage, and stops Sail when it is done.
 
-You rarely have to remember the command. `lerd link` on a project with `laravel/sail` in its `composer.json` offers the import before setup.
-
-The flags, the credential overrides and the `.env.before_lerd` behaviour are all in [Importing from Laravel Sail](/usage/import-sail).
+It is also on the site's Commands menu in the dashboard, as **Import from Sail**. The options, the credential overrides and the `.env.before_lerd` behaviour are all in [Importing from Laravel Sail](/usage/import-sail).
 
 ## What Sail costs once several projects are open
 
