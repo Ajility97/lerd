@@ -880,6 +880,7 @@
   "siteWizard_titleParent": "Pick the parent folder",
   "siteWizard_titleSetup": "Set up {project}",
   "siteWizard_useThisFolder": "Use this folder",
+  "siteWizard_rememberFolder": "Start here next time",
   "siteWizard_version": "Version",
   "siteWizard_versionLatest": "Latest",
   "siteWizard_vitePitfall": "Vite blocks proxied requests by their Host header. Add the site domain to server.allowedHosts in vite.config, and --host to the command, or requests through the proxy fail.",

@@ -880,6 +880,7 @@
   "siteWizard_titleParent": "Kies de bovenliggende map",
   "siteWizard_titleSetup": "{project} klaarzetten",
   "siteWizard_useThisFolder": "Deze map gebruiken",
+  "siteWizard_rememberFolder": "Volgende keer hier beginnen",
   "siteWizard_version": "Versie",
   "siteWizard_versionLatest": "Nieuwste",
   "siteWizard_vitePitfall": "Vite blokkeert doorgestuurde verzoeken op hun Host-header. Zet het domein van de site in server.allowedHosts in vite.config en voeg --host toe aan het commando, anders mislukken verzoeken via de proxy.",

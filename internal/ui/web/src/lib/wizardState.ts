@@ -52,3 +52,24 @@ export function clearWizardState(): void {
     // As above: nothing to clear if nothing could be stored.
   }
 }
+
+const SITES_FOLDER_KEY = 'lerd.siteWizard.sitesFolder';
+
+// setSitesFolder is where the next add opens its folder browser; '' forgets it
+// so the browser falls back to home.
+export function setSitesFolder(folder: string): void {
+  try {
+    if (folder) localStorage.setItem(SITES_FOLDER_KEY, folder);
+    else localStorage.removeItem(SITES_FOLDER_KEY);
+  } catch {
+    // Without storage the browser simply opens at home again.
+  }
+}
+
+export function lastSitesFolder(): string {
+  try {
+    return localStorage.getItem(SITES_FOLDER_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}

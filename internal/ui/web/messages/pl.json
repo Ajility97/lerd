@@ -880,6 +880,7 @@
   "siteWizard_titleParent": "Wybierz katalog nadrzędny",
   "siteWizard_titleSetup": "Przygotowanie {project}",
   "siteWizard_useThisFolder": "Użyj tego folderu",
+  "siteWizard_rememberFolder": "Następnym razem zacznij tutaj",
   "siteWizard_version": "Wersja",
   "siteWizard_versionLatest": "Najnowsza",
   "siteWizard_vitePitfall": "Vite blokuje żądania z proxy na podstawie nagłówka Host. Dodaj domenę witryny do server.allowedHosts w vite.config, a do polecenia --host, inaczej żądania przez proxy będą kończyć się błędem.",

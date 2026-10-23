@@ -30,7 +30,7 @@
     type RunRequest,
     type SetupStep
   } from '$stores/wizard';
-  import { clearWizardState, loadWizardState, saveWizardState } from '$lib/wizardState';
+  import { clearWizardState, lastSitesFolder, loadWizardState, saveWizardState, setSitesFolder } from '$lib/wizardState';
   import { m } from '../paraglide/messages.js';
 
   type Step = 'start' | 'browse' | 'parent' | 'create' | 'questions' | 'setup' | 'done';
@@ -38,6 +38,8 @@
   let step = $state<Step>('start');
   let dir = $state('');
   let parent = $state('');
+  let sitesFolder = $state(lastSitesFolder());
+  let rememberFolder = $state(sitesFolder !== '');
   let name = $state('');
   let framework = $state('');
   let frameworkVersion = $state('');
@@ -352,6 +354,30 @@
     if (target) goToTab('sites', target);
   }
 
+  // A linked project is remembered by the folder holding it, so the next add
+  // opens beside it with its siblings in view.
+  function saveSitesFolder(folder: string) {
+    setSitesFolder(rememberFolder ? folder : '');
+  }
+
+  // A remembered folder that was moved or deleted would leave an empty browser
+  // with nothing to pick, so it is forgotten and the browser reopens at home.
+  function browseFailed(msg: string) {
+    const current = step === 'parent' ? parent : dir;
+    if (sitesFolder && !current) {
+      setSitesFolder('');
+      rememberFolder = false;
+      sitesFolder = '';
+      return;
+    }
+    error = msg;
+  }
+
+  function folderOf(path: string): string {
+    const cut = path.replace(/\/+$/, '').lastIndexOf('/');
+    return cut > 0 ? path.slice(0, cut) : '/';
+  }
+
   function chooseMode(next: 'link' | 'create') {
     step = next === 'create' ? 'parent' : 'browse';
     persist();
@@ -462,11 +488,17 @@
           {(step === 'parent' ? parent : dir) || '...'}
         </div>
       </div>
-      <WizardBrowse
-        dir={step === 'parent' ? parent : dir}
-        onnavigate={(d) => (step === 'parent' ? (parent = d) : (dir = d))}
-        onerror={(msg) => (error = msg)}
-      />
+      {#key sitesFolder}
+        <WizardBrowse
+          dir={(step === 'parent' ? parent : dir) || sitesFolder}
+          onnavigate={(d) => (step === 'parent' ? (parent = d) : (dir = d))}
+          onerror={browseFailed}
+        />
+      {/key}
+      <label class="flex items-center gap-2 px-5 py-2 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-100 dark:border-lerd-border">
+        <input type="checkbox" bind:checked={rememberFolder} class="rounded-sm border-gray-300 dark:border-lerd-border" />
+        {m.siteWizard_rememberFolder()}
+      </label>
     {:else if step === 'create'}
       <WizardCreate
         {parent}
@@ -524,7 +556,15 @@
           {m.siteWizard_openExisting({ domain })}
         </DetailButton>
       {:else}
-        <DetailButton tone="primary" onclick={loadQuestions} disabled={!dir || busy} loading={busy}>
+        <DetailButton
+          tone="primary"
+          onclick={() => {
+            saveSitesFolder(folderOf(dir));
+            void loadQuestions();
+          }}
+          disabled={!dir || busy}
+          loading={busy}
+        >
           {m.link_linkThisDir()}
         </DetailButton>
       {/if}
@@ -533,6 +573,7 @@
       <DetailButton
         tone="primary"
         onclick={() => {
+          saveSitesFolder(parent);
           step = 'create';
           persist();
         }}

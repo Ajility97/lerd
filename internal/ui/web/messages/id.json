@@ -880,6 +880,7 @@
   "siteWizard_titleParent": "Pilih folder induk",
   "siteWizard_titleSetup": "Siapkan {project}",
   "siteWizard_useThisFolder": "Gunakan folder ini",
+  "siteWizard_rememberFolder": "Mulai dari sini lain kali",
   "siteWizard_version": "Versi",
   "siteWizard_versionLatest": "Terbaru",
   "siteWizard_vitePitfall": "Vite memblokir permintaan proxy berdasarkan header Host. Tambahkan domain site ke server.allowedHosts di vite.config, dan --host pada perintahnya, atau permintaan lewat proxy akan gagal.",

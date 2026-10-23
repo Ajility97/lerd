@@ -880,6 +880,7 @@
   "siteWizard_titleParent": "Escolher a pasta pai",
   "siteWizard_titleSetup": "Preparar {project}",
   "siteWizard_useThisFolder": "Usar esta pasta",
+  "siteWizard_rememberFolder": "Começar aqui da próxima vez",
   "siteWizard_version": "Versão",
   "siteWizard_versionLatest": "Mais recente",
   "siteWizard_vitePitfall": "O Vite bloqueia pedidos vindos do proxy pelo cabeçalho Host. Adicione o domínio do site a server.allowedHosts no vite.config, e --host ao comando, ou os pedidos através do proxy falham.",
