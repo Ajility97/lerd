@@ -8,6 +8,7 @@ import id from '../../messages/id.json';
 import nl from '../../messages/nl.json';
 import tr from '../../messages/tr.json';
 import zh from '../../messages/zh.json';
+import zhTW from '../../messages/zh-TW.json';
 import ja from '../../messages/ja.json';
 import ro from '../../messages/ro.json';
 import itLocale from '../../messages/it.json';
@@ -15,7 +16,7 @@ import pl from '../../messages/pl.json';
 import viLocale from '../../messages/vi.json';
 import { LOCALES, LOCALE_LABELS, LOCALE_CODES } from '../stores/locale';
 
-const locales: Record<string, Record<string, unknown>> = { en, es, pt, fr, de, id, nl, tr, zh, ja, ro, it: itLocale, pl, vi: viLocale };
+const locales: Record<string, Record<string, unknown>> = { en, es, pt, fr, de, id, nl, tr, zh, 'zh-TW': zhTW, ja, ro, it: itLocale, pl, vi: viLocale };
 const baseKeys = Object.keys(en).sort();
 // The parsed catalogues above keep the last of a repeated key, so a duplicate
 // is invisible to every check that reads them; only the raw text shows it.
