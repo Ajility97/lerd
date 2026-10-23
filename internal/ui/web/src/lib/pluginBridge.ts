@@ -63,7 +63,10 @@ const THEME_VARS: Record<string, string> = {
   '--lerd-accent-hover': '--color-lerd-redhov',
   '--lerd-on-accent': '--color-lerd-onred',
   '--lerd-border': '--color-lerd-border',
-  '--lerd-dark-card': '--color-lerd-card'
+  '--lerd-dark-card': '--color-lerd-card',
+  // A theme's light card and border, which the dashboard keeps under these.
+  '--lerd-light-card': '--color-white',
+  '--lerd-light-border': '--color-gray-200'
 };
 
 // pluginTheme is what a plugin page needs to look like the dashboard around it.

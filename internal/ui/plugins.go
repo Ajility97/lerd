@@ -134,7 +134,7 @@ func handlePluginUI(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Security-Policy", pluginSandboxCSP)
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	if strings.EqualFold(filepath.Ext(file), ".html") {
+	if ext := filepath.Ext(file); strings.EqualFold(ext, ".html") || strings.EqualFold(ext, ".htm") {
 		page, err := io.ReadAll(f)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

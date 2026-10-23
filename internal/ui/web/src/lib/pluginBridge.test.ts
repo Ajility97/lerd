@@ -70,12 +70,16 @@ describe('pluginTheme', () => {
     root.classList.add('dark');
     root.style.setProperty('--color-lerd-red', '#7aa2f7');
     root.style.setProperty('--color-lerd-border', '#333');
+    root.style.setProperty('--color-white', '#fdf6e3');
+    root.style.setProperty('--color-gray-200', '#eee8d5');
     document.body.appendChild(root);
     const theme = pluginTheme(root);
     expect(theme.type).toBe('lerd:theme');
     expect(theme.dark).toBe(true);
     expect(theme.vars['--lerd-accent']).toBe('#7aa2f7');
     expect(theme.vars['--lerd-border']).toBe('#333');
+    expect(theme.vars['--lerd-light-card']).toBe('#fdf6e3');
+    expect(theme.vars['--lerd-light-border']).toBe('#eee8d5');
     expect(theme.vars['--lerd-on-accent']).toBeUndefined();
     root.remove();
   });

@@ -96,6 +96,7 @@ func TestDocs_RenderedForTheDashboard(t *testing.T) {
 		"# P",
 		"![tab](docs/tab.png) ![private](bin/secret.png)",
 		"See [the guide](docs/guide.md), [above](#p) and [lerd](https://lerd.sh).",
+		"Bare https://plugins.lerd.sh and <https://github.com/lerd-env> too, but not <ftp://files.example>.",
 		"<script>alert(1)</script>",
 	}, "\n\n"))
 	p, err := ReadPlugin(dir)
@@ -106,14 +107,14 @@ func TestDocs_RenderedForTheDashboard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{`<img src="/plugins/p/docs/tab.png" alt="tab"`, `href="https://lerd.sh" target="_blank" rel="noopener noreferrer"`, "the guide", "above"} {
+	for _, want := range []string{`<img src="/plugins/p/docs/tab.png" alt="tab"`, `href="https://lerd.sh" target="_blank" rel="noopener noreferrer"`, `href="https://plugins.lerd.sh" target="_blank" rel="noopener noreferrer"`, `href="https://github.com/lerd-env" target="_blank" rel="noopener noreferrer"`, "the guide", "above", "ftp://files.example"} {
 		if !strings.Contains(html, want) {
 			t.Errorf("docs should contain %q:\n%s", want, html)
 		}
 	}
 	// A file lerd does not serve, a link into the repository and an anchor that
 	// would move the dashboard's own route all lose their target.
-	for _, bad := range []string{"bin/secret.png", "docs/guide.md", `href="#p"`, "<script>"} {
+	for _, bad := range []string{"bin/secret.png", "docs/guide.md", `href="#p"`, `href="ftp:`, "<script>"} {
 		if strings.Contains(html, bad) {
 			t.Errorf("docs should not contain %q:\n%s", bad, html)
 		}

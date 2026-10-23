@@ -9,10 +9,10 @@
   --lerd-text: oklch(0.21 0.034 264.665);
   --lerd-text-strong: oklch(0.373 0.034 259.733);
   --lerd-text-muted: #656c7c;
-  --lerd-card: #ffffff;
-  --lerd-surface: #ffffff;
+  --lerd-card: var(--lerd-light-card, #ffffff);
+  --lerd-surface: var(--lerd-light-card, #ffffff);
   --lerd-surface-hover: #f3f4f6;
-  --lerd-line: oklch(0.928 0.006 264.531);
+  --lerd-line: var(--lerd-light-border, oklch(0.928 0.006 264.531));
   --lerd-ok: oklch(0.596 0.145 163.225);
   --lerd-warn: #d97706;
   --lerd-bad: #dc2626;

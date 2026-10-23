@@ -146,7 +146,8 @@ type docsLinks struct {
 	fileURL func(string) string
 }
 
-func (t *docsLinks) Transform(doc *ast.Document, _ text.Reader, _ parser.Context) {
+func (t *docsLinks) Transform(doc *ast.Document, reader text.Reader, _ parser.Context) {
+	source := reader.Source()
 	var drop []ast.Node
 	_ = ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -172,12 +173,22 @@ func (t *docsLinks) Transform(doc *ast.Document, _ text.Reader, _ parser.Context
 				return ast.WalkContinue, nil
 			}
 			drop = append(drop, v)
+		case *ast.AutoLink:
+			if v.AutoLinkType == ast.AutoLinkURL && isWebLink(string(v.URL(source))) {
+				v.SetAttributeString("target", []byte("_blank"))
+				v.SetAttributeString("rel", []byte("noopener noreferrer"))
+				return ast.WalkContinue, nil
+			}
+			drop = append(drop, v)
 		}
 		return ast.WalkContinue, nil
 	})
 	// A dropped link keeps its text; a dropped image goes, alt text and all.
 	for _, n := range drop {
 		parent := n.Parent()
+		if auto, ok := n.(*ast.AutoLink); ok {
+			parent.InsertBefore(parent, n, ast.NewString(auto.Label(source)))
+		}
 		if _, link := n.(*ast.Link); link {
 			for c := n.FirstChild(); c != nil; {
 				next := c.NextSibling()

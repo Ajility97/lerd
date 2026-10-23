@@ -41,6 +41,7 @@ ui:
 		"bin/say":       "#!/bin/sh\nin=$(cat)\n[ \"$LERD_QUERY\" = \"fail=1\" ] && { echo nope >&2; exit 1; }\nprintf '{\"method\":\"%s\",\"query\":\"%s\",\"body\":\"%s\",\"surface\":\"%s\"}' \"$LERD_METHOD\" \"$LERD_QUERY\" \"$in\" \"$LERD_SURFACE\"\n",
 		"ui/index.html": "<p>echo</p>",
 		"ui/site.html":  "<p>site</p>",
+		"ui/old.htm":    "<p>old</p>",
 		"ui/icon.svg":   "<svg/>",
 	}
 	for rel, body := range files {
@@ -744,6 +745,11 @@ func TestPluginUI_AddsTheKitToPagesOnly(t *testing.T) {
 	handlePluginUI(rec, localRequest(http.MethodGet, "/plugins/echo/ui/index.html", ""))
 	if body := rec.Body.String(); rec.Code != http.StatusOK || !strings.HasPrefix(body, pluginKitTags) || !strings.Contains(body, "<p>echo</p>") {
 		t.Errorf("page = %d %q", rec.Code, body)
+	}
+	rec = httptest.NewRecorder()
+	handlePluginUI(rec, localRequest(http.MethodGet, "/plugins/echo/ui/old.htm", ""))
+	if !strings.HasPrefix(rec.Body.String(), pluginKitTags) {
+		t.Errorf("an .htm page got no kit: %q", rec.Body.String())
 	}
 	rec = httptest.NewRecorder()
 	handlePluginUI(rec, localRequest(http.MethodGet, "/plugins/echo/ui/icon.svg", ""))
