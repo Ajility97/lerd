@@ -125,7 +125,7 @@ Only the plugin's `ui/` folder, its `icon` and the files listed under `screensho
 
 ### Which lerd a plugin runs on
 
-`lerd` names the oldest release the plugin needs, compared on major and minor. Give it a lower bound only, never an upper one: every later lerd keeps loading the plugin, so it never needs a new version just because lerd shipped one. A lerd older than the bound refuses to install or load it and says which release it needs, and the Browse tab shows the requirement in place of the Install button. An approved update that needs a newer lerd than yours is not offered until you update lerd.
+`lerd` names the oldest release the plugin needs, compared on major and minor. Give it a lower bound only, never an upper one: every later lerd keeps loading the plugin, so it never needs a new version just because lerd shipped one. A lerd older than the bound refuses to install or load it and says which release it needs, and the Browse tab shows the requirement in place of the Install button. An approved update that needs a newer lerd than yours is not offered until you update lerd. A beta counts as the release it leads to, so 1.38.0-beta.1 installs a plugin that needs `>=1.38`, and a lerd built from source past its last tag installs any plugin, since it already holds the next release.
 
 A change that would break existing plugins raises `api_version` instead, which is the one thing that can make a plugin stop loading on a newer lerd.
 
