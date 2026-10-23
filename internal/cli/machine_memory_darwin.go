@@ -71,14 +71,19 @@ func ResizeMachineMemory(mib int64, emit func(StartEvent), skip ...string) error
 	if emit != nil {
 		emit(StartEvent{Phase: "step", Step: "machine"})
 	}
-	_ = runMachineStreaming(machineStopTimeout, "machine", "stop", name)
-	setErr := runMachineStreaming(machineQueryTimeout, "machine", "set", "--memory", strconv.FormatInt(mib, 10), name)
+	// Two minutes of polls on top of the stop's own timeout.
+	setErr := stopMachineAndWait(name, 60)
+	if setErr == nil {
+		if err := runMachineStreaming(machineQueryTimeout, "machine", "set", "--memory", strconv.FormatInt(mib, 10), name); err != nil {
+			setErr = fmt.Errorf("podman machine set --memory: %w", err)
+		}
+	}
 	release()
 	// Start even when the set failed: the VM is already down, and leaving it
 	// there takes every site with it.
 	startErr := RunStart(emit, skip...)
 	if setErr != nil {
-		return errors.Join(fmt.Errorf("podman machine set --memory: %w", setErr), startErr)
+		return errors.Join(setErr, startErr)
 	}
 	return startErr
 }

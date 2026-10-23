@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -74,5 +75,42 @@ func TestMachineMemoryStatusReadsTheConsoleLog(t *testing.T) {
 	st, err := MachineMemoryStatus()
 	if err != nil || len(st.Kills) != 0 {
 		t.Fatalf("got %+v, %v; want no kills and no error", st, err)
+	}
+}
+
+// fakeMachineStates answers each inspect with the next state, holding the last.
+func fakeMachineStates(t *testing.T, states ...string) {
+	t.Helper()
+	prevCmd, prevPoll := machineCmdContext, machineStatePoll
+	t.Cleanup(func() { machineCmdContext, machineStatePoll = prevCmd, prevPoll })
+	machineStatePoll = 0
+	i := 0
+	machineCmdContext = func(ctx context.Context, args ...string) *exec.Cmd {
+		out := ""
+		if len(args) > 1 && args[1] == "inspect" {
+			out = states[min(i, len(states)-1)]
+			i++
+		}
+		cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestMachineListHelperProcess", "--")
+		cmd.Env = append(os.Environ(), "GO_WANT_MACHINE_LIST_HELPER=1", "GO_MACHINE_LIST_OUT="+out)
+		return cmd
+	}
+}
+
+func TestStopMachineAndWaitReturnsOnceStopped(t *testing.T) {
+	fakeMachineStates(t, "running\n", "stopping\n", "stopped\n")
+
+	if err := stopMachineAndWait("lerd", 10); err != nil {
+		t.Fatalf("got %v, want nil", err)
+	}
+}
+
+// A set on a VM that is still up fails with exit 125, so the wait must say so first.
+func TestStopMachineAndWaitNamesTheStateItGaveUpOn(t *testing.T) {
+	fakeMachineStates(t, "stopping\n")
+
+	err := stopMachineAndWait("lerd", 3)
+	if err == nil || !strings.Contains(err.Error(), "stopping") {
+		t.Fatalf("got %v, want an error naming the stopping state", err)
 	}
 }
