@@ -12,7 +12,7 @@ describe('plugins store', () => {
     globalThis.fetch = realFetch;
   });
 
-  it('reloads both plugin lists when a plugin update is announced', async () => {
+  it('reloads both plugin lists after the catalog check', async () => {
     const fetchSpy = vi.fn(
       async () =>
         new Response(JSON.stringify([{ name: 'notes', update: true }]), { status: 200, headers: { 'Content-Type': 'application/json' } })
@@ -21,13 +21,13 @@ describe('plugins store', () => {
     const { pluginUpdates, managedPlugins } = await import('./plugins');
     const { wsMessage } = await import('$lib/ws');
 
-    wsMessage.set({ type: 'notification', notification: { kind: 'update_available', data: { plugin: 'notes', version: '0.2.0' } } });
+    wsMessage.set({ type: 'plugins' });
     await vi.waitFor(() => expect(get(pluginUpdates)).toBe(1));
 
     expect(get(managedPlugins)).toHaveLength(1);
   });
 
-  it('leaves the lists alone for lerd’s own update notice', async () => {
+  it('leaves the lists alone for other messages', async () => {
     const fetchSpy = vi.fn(async () => new Response('[]', { status: 200 }));
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
     await import('./plugins');

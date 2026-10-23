@@ -39,11 +39,10 @@ export async function loadPlugins() {
   }
 }
 
-// A plugin update announced while the dashboard is open refreshes the badge
-// and the update buttons, which otherwise load only on mount.
+// The hourly catalog check refreshes the badge and the update buttons, which
+// otherwise load only on mount.
 wsMessage.subscribe((msg) => {
-  const n = msg?.notification;
-  if (n?.kind !== 'update_available' || !n.data?.plugin) return;
+  if (msg?.type !== 'plugins') return;
   void loadPlugins();
   loadManagedPlugins().catch(() => {});
 });

@@ -1,7 +1,5 @@
-/* lerd's look for plugin pages, added to every one the dashboard serves. Each
-   rule sits in :where(), which weighs nothing, so any rule the plugin writes
-   wins. Colours follow the dashboard's theme, which theme.js receives. The
-   classes below are the dashboard's own pieces; see lerd.sh/features/plugins. */
+/* lerd's look for plugin pages. Every rule sits in :where(), which weighs
+   nothing, so the plugin's own rules win; theme.js keeps the colours current. */
 /* Native controls and scrollbars follow the dashboard's choice, not the OS's. */
 :root {
   color-scheme: light;

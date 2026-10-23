@@ -23,6 +23,7 @@ func watchPluginUpdates() {
 		time.Sleep(time.Minute)
 		for {
 			_ = plugins.RefreshCatalogOlderThan(pluginUpdateEvery)
+			broker.broadcastPlugins()
 			for _, u := range newPluginUpdates() {
 				dispatchNotification(pluginUpdateNotification(u))
 			}

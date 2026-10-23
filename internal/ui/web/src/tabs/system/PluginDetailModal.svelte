@@ -10,10 +10,8 @@
   import { loadPluginDocs, loadPluginLogs, authorProfile, type PluginFailure, type PluginFeature } from '$stores/plugins';
   import { m } from '../../paraglide/messages.js';
 
-  // One plugin in full, opened from an installed card or a catalog card: its
-  // screenshots, where it comes from and what it adds. An installed plugin also
-  // gets its docs and its failure log as tabs. The caller brings the actions,
-  // since installing, updating and removing live with each list.
+  // One plugin in full, from an installed or a catalog card; an installed one
+  // also gets its docs and failure log. The caller brings the actions.
   interface Props {
     name: string;
     description?: string;
