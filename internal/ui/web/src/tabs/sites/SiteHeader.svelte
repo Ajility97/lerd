@@ -177,13 +177,23 @@
     };
   });
   // No branch can also mean a subfolder of a bigger repo, where a nested init
-  // would shadow the parent; git-status sees the parent's checkouts there.
-  // The site object is replaced on every list refresh, so the check keys on
-  // the values that matter, and the cached answer shows while it is redone.
+  // would shadow the parent. Keyed on the values that matter, not the site
+  // object every list refresh replaces, and re-asked like the tabs' state.
   const repoCheckFor = $derived(site.branch || site.paused ? '' : site.domain);
   const noRepo = $derived(repoCheckFor !== '' && $noRepoBySite[repoCheckFor] === true);
   $effect(() => {
-    if (repoCheckFor) refreshNoRepo(repoCheckFor).catch(() => {});
+    const domain = repoCheckFor;
+    if (!domain) return;
+    const refresh = () => {
+      if (!document.hidden) refreshNoRepo(domain).catch(() => {});
+    };
+    refresh();
+    const timer = setInterval(refresh, 10_000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+    };
   });
   // Pull is fast-forward only, so a failure means git refused and its own words say why.
   function refreshGit() {

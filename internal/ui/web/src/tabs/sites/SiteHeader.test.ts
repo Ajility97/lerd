@@ -188,16 +188,30 @@ describe('SiteHeader', () => {
       );
     });
 
-    // The sites list refreshes all the time and git status is asked again each
-    // time; the last answer stays up meanwhile, so the header does not flicker.
-    it('keeps the button while git status is asked again', async () => {
+    // The sites list replaces the site object all the time; an update that
+    // changes nothing about the repository neither asks again nor hides the button.
+    it('does not ask again when a list refresh changes nothing about the repository', async () => {
       stubCheckouts([]);
       const { findByText, queryByText, rerender } = render(Harness, { props: { site } });
       await findByText('Initialize git');
 
-      vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+      const pending = vi.fn(() => new Promise(() => {}));
+      vi.stubGlobal('fetch', pending);
       await rerender({ site: { ...site, php_version: '8.4' } as unknown as Site });
+      expect(pending).not.toHaveBeenCalled();
       expect(queryByText('Initialize git')).toBeInTheDocument();
+    });
+
+    // A parent repository added or removed while the header is open is noticed
+    // on the next periodic read, and the answer shown meanwhile stays up.
+    it('re-asks on window focus and shows the new answer', async () => {
+      stubCheckouts([]);
+      const { findByText, queryByText } = render(Harness, { props: { site } });
+      await findByText('Initialize git');
+
+      stubCheckouts([{ branch: 'main', path: '/home/u/Code', main: true }]);
+      window.dispatchEvent(new Event('focus'));
+      await waitFor(() => expect(queryByText('Initialize git')).not.toBeInTheDocument());
     });
 
     it('shows the last answer at once when the site is opened again', async () => {
