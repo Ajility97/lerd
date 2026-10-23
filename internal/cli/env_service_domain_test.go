@@ -17,7 +17,7 @@ func TestApplyServiceDomainEnv_RepointsBothShapesAtTheDomain(t *testing.T) {
 	}
 	applyServiceDomainEnv(updates,
 		map[string]string{"rustfs": "rustfs.test"},
-		map[string]int{"rustfs": 9000})
+		map[string]int{"rustfs": 9000}, nil)
 
 	if got := updates["AWS_ENDPOINT"]; got != "https://rustfs.test" {
 		t.Errorf("AWS_ENDPOINT = %q, want https://rustfs.test", got)
@@ -38,7 +38,7 @@ func TestApplyServiceDomainEnv_DropsThePortTheSchemeImplies(t *testing.T) {
 	updates := map[string]string{"AWS_ENDPOINT": "http://lerd-rustfs:9000/"}
 	applyServiceDomainEnv(updates,
 		map[string]string{"rustfs": "rustfs.test"},
-		map[string]int{"rustfs": 9000})
+		map[string]int{"rustfs": 9000}, nil)
 	if got := updates["AWS_ENDPOINT"]; got != "https://rustfs.test/" {
 		t.Errorf("AWS_ENDPOINT = %q, want https://rustfs.test/", got)
 	}
@@ -46,7 +46,7 @@ func TestApplyServiceDomainEnv_DropsThePortTheSchemeImplies(t *testing.T) {
 
 func TestApplyServiceDomainEnv_NoDomainsLeavesEverythingAlone(t *testing.T) {
 	updates := map[string]string{"AWS_ENDPOINT": "http://lerd-rustfs:9000"}
-	applyServiceDomainEnv(updates, nil, nil)
+	applyServiceDomainEnv(updates, nil, nil, nil)
 	if updates["AWS_ENDPOINT"] != "http://lerd-rustfs:9000" {
 		t.Errorf("value changed with no domains configured: %q", updates["AWS_ENDPOINT"])
 	}
@@ -57,7 +57,7 @@ func TestApplyServiceDomainEnv_LeavesOtherHostsPortsIntact(t *testing.T) {
 	updates := map[string]string{"OTHER_URL": "http://example.test:9000/thing"}
 	applyServiceDomainEnv(updates,
 		map[string]string{"rustfs": "rustfs.test"},
-		map[string]int{"rustfs": 9000})
+		map[string]int{"rustfs": 9000}, nil)
 	if got := updates["OTHER_URL"]; got != "http://example.test:9000/thing" {
 		t.Errorf("OTHER_URL = %q, want it untouched", got)
 	}
@@ -81,5 +81,41 @@ func TestFollowPublishedPort(t *testing.T) {
 	}
 	if got := followPublishedPort("http://localhost:3002", ports, config.ServiceConfig{}); got != "http://localhost:3002" {
 		t.Errorf("an unmoved service changed: %q", got)
+	}
+}
+
+// A domain serves one container port. A service with two, smocker's mock
+// server beside its admin API, must keep the other one on the container name,
+// or the app's outgoing calls land on the admin API.
+func TestApplyServiceDomainEnv_OnlyThePortTheDomainServes(t *testing.T) {
+	updates := map[string]string{
+		"SMOCKER_URL":       "http://lerd-smocker:8080",
+		"SMOCKER_ADMIN_URL": "http://lerd-smocker:8081",
+	}
+	applyServiceDomainEnv(updates,
+		map[string]string{"smocker": "smocker.test"},
+		nil,
+		map[string]int{"smocker": 8081})
+	if got := updates["SMOCKER_URL"]; got != "http://lerd-smocker:8080" {
+		t.Errorf("SMOCKER_URL = %q, want the mock server left on the container", got)
+	}
+	if got := updates["SMOCKER_ADMIN_URL"]; got != "https://smocker.test" {
+		t.Errorf("SMOCKER_ADMIN_URL = %q, want https://smocker.test", got)
+	}
+}
+
+// A service's name can begin another's, so the container host has to end where
+// the name does.
+func TestApplyServiceDomainEnv_MatchesTheWholeContainerName(t *testing.T) {
+	updates := map[string]string{
+		"DB_URL":  "http://lerd-postgres-pgvector:5432/app",
+		"APP_URL": "http://lerd-postgres/x",
+	}
+	applyServiceDomainEnv(updates, map[string]string{"postgres": "postgres.test"}, nil, nil)
+	if got := updates["DB_URL"]; got != "http://lerd-postgres-pgvector:5432/app" {
+		t.Errorf("DB_URL = %q, another service's container was rewritten", got)
+	}
+	if got := updates["APP_URL"]; got != "https://postgres.test/x" {
+		t.Errorf("APP_URL = %q, want https://postgres.test/x", got)
 	}
 }
