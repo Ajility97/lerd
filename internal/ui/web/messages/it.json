@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "Evita di controllare la dashboard. lerd farà comparire una notifica per la posta catturata, gli errori dei worker e le operazioni completate.",
   "notify_banner_title": "Ricevi notifiche da lerd",
   "notify_center_empty": "Ancora niente. Operazioni completate, errori e email catturate compaiono qui.",
+  "notify_center_new": "Nuovo",
   "notify_center_title": "Notifiche",
   "notify_dump_body": "{text}",
   "notify_dump_title": "Dump da {site}",

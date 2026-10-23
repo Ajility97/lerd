@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "无需反复查看仪表盘。lerd 会在捕获邮件、worker 失败和操作完成时弹出通知。",
   "notify_banner_title": "接收来自 lerd 的通知",
   "notify_center_empty": "暂无内容。已完成的操作、失败和捕获的邮件会显示在这里。",
+  "notify_center_new": "新",
   "notify_center_title": "通知",
   "notify_dump_body": "{text}",
   "notify_dump_title": "来自 {site} 的 dump",

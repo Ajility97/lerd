@@ -17,6 +17,15 @@
   }
   let { size = 'sm', align = 'left' }: Props = $props();
 
+  // Opening the panel marks everything read before the list renders, so the
+  // entries that were unread at that moment are kept to mark them as new.
+  let fresh = $state(new Set<number>());
+
+  function open() {
+    fresh = new Set($notificationHistory.filter((n) => !n.read).map((n) => n.id));
+    markNotificationsRead();
+  }
+
   function activate(n: NotificationRecord, close: () => void) {
     if (n.url) location.hash = n.url.startsWith('#') ? n.url.slice(1) : n.url;
     close();
@@ -33,7 +42,7 @@
   }
 </script>
 
-<Popover label={m.nav_notifications()} {size} {align} onopen={markNotificationsRead}>
+<Popover label={m.nav_notifications()} {size} {align} onopen={open}>
   {#snippet trigger()}
     <span class="relative flex items-center justify-center">
       <Icon name="bell" class="w-5 h-5" />
@@ -89,7 +98,12 @@
                   >
                 {/if}
               </span>
-              <span class="shrink-0 text-[10px] tabular-nums text-gray-400">{ago(n.at)}</span>
+              <span class="shrink-0 flex items-center gap-1.5 text-[10px] tabular-nums text-gray-400">
+                {#if fresh.has(n.id) || !n.read}
+                  <span role="img" aria-label={m.notify_center_new()} title={m.notify_center_new()} class="h-1.5 w-1.5 rounded-full bg-lerd-red"></span>
+                {/if}
+                {ago(n.at)}
+              </span>
             </button>
           </li>
         {/each}

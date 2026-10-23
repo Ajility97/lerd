@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "不必一直盯著儀表板。lerd 會在擷取到郵件、工作程序失敗及操作完成時跳出通知。",
   "notify_banner_title": "接收來自 lerd 的通知",
   "notify_center_empty": "尚無內容。已完成的操作、失敗和擷取的郵件會顯示在這裡。",
+  "notify_center_new": "新",
   "notify_center_title": "通知",
   "notify_dump_body": "{text}",
   "notify_dump_title": "來自 {site} 的 dump",

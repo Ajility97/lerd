@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "Olvídate de mirar el panel. lerd mostrará una notificación del correo capturado, los fallos de workers y las operaciones terminadas.",
   "notify_banner_title": "Recibe notificaciones de lerd",
   "notify_center_empty": "Nada por ahora. Las operaciones terminadas, los fallos y el correo capturado aparecen aquí.",
+  "notify_center_new": "Nuevo",
   "notify_center_title": "Notificaciones",
   "notify_dump_body": "{text}",
   "notify_dump_title": "Volcado de {site}",

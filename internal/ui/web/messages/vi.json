@@ -450,6 +450,7 @@
   "notify_banner_subtitle": "Bỏ qua việc kiểm tra bảng điều khiển. lerd sẽ bật một thông báo cho mail đã bắt giữ, worker bị lỗi và các thao tác đã hoàn tất.",
   "notify_banner_title": "Nhận thông báo từ lerd",
   "notify_center_empty": "Chưa có gì. Các thao tác đã hoàn tất, lỗi và email đã bắt sẽ xuất hiện ở đây.",
+  "notify_center_new": "Mới",
   "notify_center_title": "Thông báo",
   "notify_dump_body": "{text}",
   "notify_dump_title": "Dump từ {site}",
