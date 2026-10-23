@@ -1,6 +1,9 @@
 package serviceops
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestConnectionDatabase(t *testing.T) {
 	cases := map[string]string{
@@ -45,5 +48,23 @@ func TestEnsureDefaultDatabase_CreatesWhatTheConnectionURLNames(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Fatalf("a URL naming no database created %v", got)
+	}
+}
+
+// Two dependents starting at once race to create it; the loser must not fail
+// to start over a database that exists by the time it looks.
+func TestEnsureDefaultDatabase_LosingAConcurrentCreateIsFine(t *testing.T) {
+	origURL, origCreate, origExists := connectionURLFn, createDatabaseFn, databaseExistsFn
+	t.Cleanup(func() { connectionURLFn, createDatabaseFn, databaseExistsFn = origURL, origCreate, origExists })
+
+	connectionURLFn = func(string) string { return "postgresql://postgres:lerd@127.0.0.1:5432/lerd" }
+	createDatabaseFn = func(string, string) (bool, error) { return false, errors.New("already exists") }
+	databaseExistsFn = func(string, string) (bool, error) { return true, nil }
+	if err := ensureDefaultDatabase("postgres"); err != nil {
+		t.Fatalf("lost race returned %v, want nil", err)
+	}
+	databaseExistsFn = func(string, string) (bool, error) { return false, nil }
+	if err := ensureDefaultDatabase("postgres"); err == nil {
+		t.Fatal("a create that failed and left nothing behind must report it")
 	}
 }

@@ -10,23 +10,35 @@ import (
 var (
 	connectionURLFn  = serviceConnectionURL
 	createDatabaseFn func(svc, name string) (bool, error)
+	databaseExistsFn func(svc, name string) (bool, error)
 )
 
 // Assigned here rather than above: creating a database starts its service,
 // which reaches back into this file through EnsureDependencyRunning.
-func init() { createDatabaseFn = CreateDatabase }
+func init() {
+	createDatabaseFn = CreateDatabase
+	databaseExistsFn = func(svc, name string) (bool, error) {
+		return EntityExists(svc, EntityFor(svc, "databases"), name)
+	}
+}
 
-// ensureDefaultDatabase creates the database a service's connection URL names.
-// The image only creates it while initialising a fresh data directory, so one
-// that predates it, or had it dropped, lacks it, and a dependent pointed there
-// crash-loops on boot.
+// ensureDefaultDatabase creates the database a service's connection URL names,
+// which an image only creates on a fresh data directory; without it a dependent
+// pointed there crash-loops on boot.
 func ensureDefaultDatabase(name string) error {
 	db := connectionDatabase(connectionURLFn(name))
 	if db == "" {
 		return nil
 	}
-	_, err := createDatabaseFn(name, db)
-	return err
+	if _, err := createDatabaseFn(name, db); err != nil {
+		// Two dependents starting together both find it missing, and the
+		// second create fails on a database that is there by then.
+		if exists, _ := databaseExistsFn(name, db); exists {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 func serviceConnectionURL(name string) string {
