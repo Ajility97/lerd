@@ -79,7 +79,6 @@ func TestS3Import_Refusals(t *testing.T) {
 		want     string
 	}{
 		"no destination":      {[]string{"local"}, "local", "", "--to"},
-		"unknown bucket":      {[]string{"a", "b"}, "c", "shop", "a, b"},
 		"several, none named": {[]string{"a", "b"}, "", "shop", "--bucket"},
 		"server has none":     {nil, "", "shop", "no buckets"},
 	} {
@@ -93,5 +92,37 @@ func TestS3Import_Refusals(t *testing.T) {
 				t.Errorf("nothing should be copied on a refusal")
 			}
 		})
+	}
+}
+
+// A key may read the bucket it was given without being allowed to list the
+// server's buckets, so a named bucket is copied without asking for the list.
+func TestS3Import_NamedBucketNeedsNoListing(t *testing.T) {
+	calls := stubS3ImportSeams(t, nil, 2)
+	s3RemoteBuckets = func(serviceops.S3Remote) ([]string, error) {
+		t.Fatal("listed the server's buckets though one was named")
+		return nil, nil
+	}
+	if err := runS3Import(serviceops.S3Remote{}, "uploads", "shop"); err != nil {
+		t.Fatal(err)
+	}
+	if calls.mirrored != "uploads->shop" {
+		t.Errorf("mirrored %q", calls.mirrored)
+	}
+}
+
+func TestParseS3Endpoint_KeepsTheScheme(t *testing.T) {
+	for raw, want := range map[string]serviceops.S3Remote{
+		"https://storage.example:9000/": {Endpoint: "storage.example:9000", Secure: true},
+		"http://127.0.0.1:9000":         {Endpoint: "127.0.0.1:9000"},
+		"127.0.0.1:9000":                {Endpoint: "127.0.0.1:9000"},
+	} {
+		got, err := parseS3Endpoint(raw)
+		if err != nil || got != want {
+			t.Errorf("parseS3Endpoint(%q) = %+v, %v; want %+v", raw, got, err, want)
+		}
+	}
+	if _, err := parseS3Endpoint("ftp://x"); err == nil {
+		t.Error("a scheme that is not http or https must be refused")
 	}
 }

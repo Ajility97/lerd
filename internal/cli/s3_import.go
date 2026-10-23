@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/geodro/lerd/internal/feedback"
@@ -31,11 +30,15 @@ overwritten and nothing is deleted.
   lerd s3:import --endpoint 127.0.0.1:9000 --access-key key --secret-key secret --bucket uploads --to shop`,
 		Args: cobra.NoArgs,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			host := strings.TrimPrefix(strings.TrimPrefix(endpoint, "http://"), "https://")
-			return runS3Import(serviceops.S3Remote{Endpoint: strings.TrimSuffix(host, "/"), Access: access, Secret: secret}, from, to)
+			remote, err := parseS3Endpoint(endpoint)
+			if err != nil {
+				return err
+			}
+			remote.Access, remote.Secret = access, secret
+			return runS3Import(remote, from, to)
 		},
 	}
-	cmd.Flags().StringVar(&endpoint, "endpoint", "", "The server to copy from, host:port")
+	cmd.Flags().StringVar(&endpoint, "endpoint", "", "The server to copy from, host:port, or https://host:port for one that speaks HTTPS")
 	cmd.Flags().StringVar(&access, "access-key", "", "Its access key")
 	cmd.Flags().StringVar(&secret, "secret-key", "", "Its secret key")
 	cmd.Flags().StringVar(&from, "bucket", "", "The bucket to copy; the server's only bucket when omitted")
@@ -44,17 +47,39 @@ overwritten and nothing is deleted.
 	return cmd
 }
 
+// parseS3Endpoint reads --endpoint, keeping an https:// a user gave so the
+// copy never quietly falls back to plain HTTP.
+func parseS3Endpoint(raw string) (serviceops.S3Remote, error) {
+	r := serviceops.S3Remote{Endpoint: raw}
+	if scheme, rest, ok := strings.Cut(raw, "://"); ok {
+		switch scheme {
+		case "https":
+			r.Secure = true
+		case "http":
+		default:
+			return r, fmt.Errorf("--endpoint %s: only http:// and https:// are spoken", raw)
+		}
+		r.Endpoint = rest
+	}
+	r.Endpoint = strings.TrimSuffix(r.Endpoint, "/")
+	return r, nil
+}
+
 func runS3Import(remote serviceops.S3Remote, from, to string) error {
 	if to == "" {
 		return fmt.Errorf("name the bucket to copy into with --to")
 	}
-	buckets, err := s3RemoteBuckets(remote)
-	if err != nil {
-		return fmt.Errorf("listing the buckets on %s: %w", remote.Endpoint, err)
-	}
-	source, err := pickSourceBucket(buckets, from)
-	if err != nil {
-		return err
+	// A named bucket is read as is: the key may be allowed to read it without
+	// being allowed to list the server's buckets.
+	source := from
+	if source == "" {
+		buckets, err := s3RemoteBuckets(remote)
+		if err != nil {
+			return fmt.Errorf("listing the buckets on %s: %w", remote.Endpoint, err)
+		}
+		if source, err = pickSourceBucket(buckets); err != nil {
+			return err
+		}
 	}
 	count, err := s3RemoteObjectCount(remote, source)
 	if err != nil {
@@ -81,17 +106,11 @@ func runS3Import(remote serviceops.S3Remote, from, to string) error {
 	return nil
 }
 
-// pickSourceBucket takes the bucket the caller named, or the server's only one;
-// with several and none named it lists them rather than guess.
-func pickSourceBucket(buckets []string, want string) (string, error) {
+// pickSourceBucket takes the server's only bucket; with several it lists them
+// rather than guess.
+func pickSourceBucket(buckets []string) (string, error) {
 	if len(buckets) == 0 {
 		return "", fmt.Errorf("the server holds no buckets")
-	}
-	if want != "" {
-		if !slices.Contains(buckets, want) {
-			return "", fmt.Errorf("no bucket %q on the server, it holds %s", want, strings.Join(buckets, ", "))
-		}
-		return want, nil
 	}
 	if len(buckets) == 1 {
 		return buckets[0], nil

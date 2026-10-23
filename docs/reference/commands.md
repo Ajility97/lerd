@@ -283,7 +283,7 @@ Switch the PHP runtime for the current site between shared PHP-FPM and per-site 
 
 | Command | Description |
 |---|---|
-| `lerd s3:import --endpoint host:port --access-key k --secret-key s [--bucket b] --to bucket` | Copy a bucket from any S3 server into a bucket on lerd's S3 service, creating it when missing |
+| `lerd s3:import --endpoint [https://]host:port --access-key k --secret-key s [--bucket b] --to bucket` | Copy a bucket from any S3 server into a bucket on lerd's S3 service, creating it when missing |
 | `lerd sail <args>` | Run the project's `vendor/bin/sail` on the host |
 
 Importing a Laravel Sail project's database and MinIO files is the sail plugin's `lerd sail:import`; see [Importing from Laravel Sail](/usage/import-sail).

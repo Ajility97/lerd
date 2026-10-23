@@ -62,7 +62,7 @@ The file copy is lerd's own `lerd s3:import`, which works with any S3 server, no
 lerd s3:import --endpoint 127.0.0.1:9000 --access-key key --secret-key secret --bucket uploads --to myapp
 ```
 
-It copies every object of the bucket into the lerd bucket named by `--to`, creating it when missing. Objects with the same key are overwritten and nothing is deleted. Leave out `--bucket` when the server holds a single bucket.
+It copies every object of the bucket into the lerd bucket named by `--to`, creating it when missing. Objects with the same key are overwritten and nothing is deleted. Give the endpoint as `https://host:port` for a server that speaks HTTPS; a bare `host:port` or `http://` is plain HTTP. With `--bucket` it reads that bucket directly, so a key that may read it but not list the server's buckets still works; leave it out when the server holds a single bucket.
 
 ---
 
