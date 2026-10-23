@@ -123,7 +123,7 @@ func loopbackServiceNames(declared map[string]bool, known []string) []string {
 // processes and reach a browser, and the container name lerd otherwise writes
 // resolves nowhere out there. Only values carrying a scheme are touched, so a
 // bare connection host (REDIS_HOST=lerd-redis) is left where it belongs.
-func applyServiceDomainEnv(updates map[string]string, domains map[string]string, ports map[string]int) {
+func applyServiceDomainEnv(updates map[string]string, domains map[string]string, ports map[string][]int) {
 	if len(domains) == 0 {
 		return
 	}
@@ -142,7 +142,7 @@ func applyServiceDomainEnv(updates map[string]string, domains map[string]string,
 		for _, name := range names {
 			target := "https://" + domains[name]
 			rewritten = strings.ReplaceAll(rewritten, "http://lerd-"+name, target)
-			if port := ports[name]; port > 0 {
+			for _, port := range ports[name] {
 				host := fmt.Sprintf(":%d", port)
 				rewritten = strings.ReplaceAll(rewritten, "http://localhost"+host, target)
 				rewritten = strings.ReplaceAll(rewritten, "http://127.0.0.1"+host, target)
@@ -182,19 +182,30 @@ func stripServiceDomainPorts(value string, domains map[string]string) string {
 	return value
 }
 
-// serviceDomainPorts pairs each service that has a domain with the host port it
-// publishes, so a value written against localhost is recognised too.
-func serviceDomainPorts(domains map[string]string) map[string]int {
-	ports := map[string]int{}
+// serviceDomainPorts pairs each service that has a domain with the host ports a
+// value written against localhost can carry: the one it publishes, and the one
+// its preset declares, which its env_vars name even after a clash moved it.
+func serviceDomainPorts(domains map[string]string) map[string][]int {
+	ports := map[string][]int{}
 	for name := range domains {
 		sc := config.ServiceConfigFor(name)
+		published := sc.Port
 		if sc.PublishedPort > 0 {
-			ports[name] = sc.PublishedPort
-			continue
+			published = sc.PublishedPort
 		}
-		ports[name] = sc.Port
+		ports[name] = []int{published}
+		if declared := podman.PrimaryHostPort(declaredServicePorts(name)); declared > 0 && declared != published {
+			ports[name] = append(ports[name], declared)
+		}
 	}
 	return ports
+}
+
+func declaredServicePorts(name string) []string {
+	if svc, err := config.LoadCustomService(name); err == nil {
+		return svc.Ports
+	}
+	return config.PresetPorts(name)
 }
 
 // hostProxyConnKey reports whether an env key names a service connection target

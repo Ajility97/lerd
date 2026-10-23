@@ -13,7 +13,7 @@ func TestApplyServiceDomainEnv_RepointsBothShapesAtTheDomain(t *testing.T) {
 	}
 	applyServiceDomainEnv(updates,
 		map[string]string{"rustfs": "rustfs.test"},
-		map[string]int{"rustfs": 9000})
+		map[string][]int{"rustfs": {9000}})
 
 	if got := updates["AWS_ENDPOINT"]; got != "https://rustfs.test" {
 		t.Errorf("AWS_ENDPOINT = %q, want https://rustfs.test", got)
@@ -34,7 +34,7 @@ func TestApplyServiceDomainEnv_DropsThePortTheSchemeImplies(t *testing.T) {
 	updates := map[string]string{"AWS_ENDPOINT": "http://lerd-rustfs:9000/"}
 	applyServiceDomainEnv(updates,
 		map[string]string{"rustfs": "rustfs.test"},
-		map[string]int{"rustfs": 9000})
+		map[string][]int{"rustfs": {9000}})
 	if got := updates["AWS_ENDPOINT"]; got != "https://rustfs.test/" {
 		t.Errorf("AWS_ENDPOINT = %q, want https://rustfs.test/", got)
 	}
@@ -53,8 +53,20 @@ func TestApplyServiceDomainEnv_LeavesOtherHostsPortsIntact(t *testing.T) {
 	updates := map[string]string{"OTHER_URL": "http://example.test:9000/thing"}
 	applyServiceDomainEnv(updates,
 		map[string]string{"rustfs": "rustfs.test"},
-		map[string]int{"rustfs": 9000})
+		map[string][]int{"rustfs": {9000}})
 	if got := updates["OTHER_URL"]; got != "http://example.test:9000/thing" {
 		t.Errorf("OTHER_URL = %q, want it untouched", got)
+	}
+}
+
+// A port clash moves the service, but the env_vars its preset hands sites still
+// name the port it declares, and that value has to reach the domain too.
+func TestApplyServiceDomainEnv_MatchesTheDeclaredPortAfterAMove(t *testing.T) {
+	updates := map[string]string{"UMAMI_SCRIPT_URL": "http://localhost:3002/script.js"}
+	applyServiceDomainEnv(updates,
+		map[string]string{"umami": "umami.test"},
+		map[string][]int{"umami": {3004, 3002}})
+	if got := updates["UMAMI_SCRIPT_URL"]; got != "https://umami.test/script.js" {
+		t.Errorf("UMAMI_SCRIPT_URL = %q, want https://umami.test/script.js", got)
 	}
 }
