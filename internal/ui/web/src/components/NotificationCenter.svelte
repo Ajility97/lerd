@@ -19,6 +19,7 @@
 
   // Opening the panel marks everything read before the list renders, so the
   // entries that were unread at that moment are kept to mark them as new.
+  // Closing marks read whatever arrived while it was open, so it is new once.
   let fresh = $state(new Set<number>());
 
   function open() {
@@ -42,7 +43,7 @@
   }
 </script>
 
-<Popover label={m.nav_notifications()} {size} {align} onopen={open}>
+<Popover label={m.nav_notifications()} {size} {align} onopen={open} onclose={markNotificationsRead}>
   {#snippet trigger()}
     <span class="relative flex items-center justify-center">
       <Icon name="bell" class="w-5 h-5" />

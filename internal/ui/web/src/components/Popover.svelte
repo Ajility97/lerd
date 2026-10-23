@@ -11,6 +11,7 @@
     size?: 'sm' | 'md';
     width?: number;
     onopen?: () => void;
+    onclose?: () => void;
     trigger?: Snippet;
     // Replaces the default IconButton wholesale so the trigger can match its
     // surroundings (e.g. the Tinker toolbar's bare icon buttons). Receives
@@ -24,6 +25,7 @@
     size = 'sm',
     width = 320,
     onopen,
+    onclose,
     trigger,
     triggerButton,
     children
@@ -52,13 +54,17 @@
   }
 
   function toggle() {
-    open = !open;
-    if (!open) return;
+    if (open) return close();
+    open = true;
     place();
     onopen?.();
   }
 
-  const close = () => (open = false);
+  function close() {
+    if (!open) return;
+    open = false;
+    onclose?.();
+  }
 </script>
 
 <svelte:window onkeydown={(e) => e.key === 'Escape' && close()} onresize={() => open && place()} />

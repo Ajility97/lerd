@@ -54,6 +54,19 @@ describe('NotificationCenter', () => {
     expect(queryAllByLabelText('New')).toHaveLength(0);
   });
 
+  it('does not mark an entry new twice when it arrived while the panel was open', async () => {
+    const { getByLabelText, queryAllByLabelText, findByText } = render(NotificationCenter);
+    await fireEvent.click(getByLabelText('Notifications'));
+    notificationHistory.set([rec()]);
+    await findByText('Migrate failed: mariadb-11-4');
+    expect(queryAllByLabelText('New')).toHaveLength(1);
+
+    await fireEvent.keyDown(window, { key: 'Escape' });
+    expect(get(unreadNotifications)).toBe(0);
+    await fireEvent.click(getByLabelText('Notifications'));
+    expect(queryAllByLabelText('New')).toHaveLength(0);
+  });
+
   it('keeps a missed failure readable after the toast is gone', async () => {
     notificationHistory.set([rec()]);
     const { getByLabelText, getByText } = render(NotificationCenter);
