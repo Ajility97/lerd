@@ -1179,10 +1179,9 @@ func runSetupInit(cwd string, skipWizard bool) error {
 
 	if !hasExisting && skipWizard {
 		// CI path: link with auto-detection, then run env so the caller
-		// (lerd setup) doesn't have to do it itself. No interactive data import.
+		// (lerd setup) doesn't have to do it itself.
 		linkSkipSetupPrompt = true
-		linkSkipDataImport = true
-		defer func() { linkSkipSetupPrompt = false; linkSkipDataImport = false }()
+		defer func() { linkSkipSetupPrompt = false }()
 		if err := runLink([]string{}); err != nil {
 			return err
 		}

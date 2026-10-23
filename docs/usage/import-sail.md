@@ -1,113 +1,68 @@
 # Importing from Laravel Sail
 
-`lerd import sail` migrates a Laravel Sail project into lerd in one command, database and S3/MinIO storage included. For the wider picture, why you would move and what changes day to day, see the [Laravel Sail alternative](../getting-started/sail.md) guide.
+The **sail** plugin migrates a Laravel Sail project's data into lerd, database and S3/MinIO storage included. For the wider picture, why you would move and what changes day to day, see the [Laravel Sail alternative](../getting-started/sail.md) guide.
 
 ```bash
-cd ~/Projects/myapp   # the Sail project root
-lerd sail import
-# or equivalently:
-lerd import sail
+lerd plugin install sail   # once
+cd ~/Projects/myapp        # the Sail project root
+lerd link && lerd env      # the site and its lerd database
+lerd sail:import
 ```
 
-::: tip Automatic prompt on `lerd link`
-When you run `lerd link` on a project that has `laravel/sail` in `composer.json`, lerd automatically asks whether to run the import before setup, so you don't have to remember the command.
-:::
+The import is also on the site's Commands menu in the dashboard as **Import from Sail**, and AI assistants get it as `sail_import`. The plugin's Documentation tab in the dashboard has its full instructions.
+
+`lerd sail ...` itself still runs the project's own `vendor/bin/sail` on the host, so `lerd sail up` and `lerd sail artisan migrate` keep working.
 
 ---
 
 ## Prerequisites
 
 - **Docker** (Docker Desktop, Docker Engine) **or Podman** with the `compose` plugin, whichever you used to run Sail
-- The Sail project must have a `docker-compose.yml` in the current directory
-- lerd must be running (`lerd start`)
+- The Sail project must have a `docker-compose.yml` in its root
+- The project linked with `lerd link` and set up with `lerd env`, so the site has a lerd database to import into
 
 ---
 
 ## What it does
 
-1. **Reads the compose file** and remaps any ports that conflict with lerd's running services (MySQL, Redis, MinIO/RustFS, etc.) so Sail can start alongside lerd without clashes
-2. **Strips non-essential ports** from app / proxy services (nginx, traefik, Vite dev server, etc.) so only data services are exposed on the host
-3. **Starts only the data services** (DB, and MinIO when S3 is needed) with `compose up -d --no-deps`, so Sail's app container is never built. A broken or slow app image build (Node/npm quirks, missing build args, private registry auth, etc.) doesn't block the import because lerd only needs the database and storage volumes.
-4. **Waits for the database** to be ready, then auto-detects the correct database name (handles the case where `lerd env` has already overwritten `DB_DATABASE`)
-5. **Dumps the database** from the Sail container and imports it into lerd's MySQL or PostgreSQL
-6. **Mirrors S3/MinIO files** from the Sail MinIO container into lerd's RustFS (skipped automatically when S3 is not configured)
-7. **Stops Sail** when the import is complete (unless `--no-stop` is passed)
+1. **Reads the compose file** with Sail's original `.env.before_lerd` and moves any port lerd already uses 20000 up (3306 becomes 23306), so Sail can start alongside lerd without clashes
+2. **Leaves out the ports** of app and proxy services, which the import never starts
+3. **Starts only the data services** (the database, and MinIO when the project stores files on S3) with `compose up -d --no-deps`, so Sail's app container is never built and a broken app image cannot block the import
+4. **Waits for the database**, then finds the database to import: the only one Sail holds, or the one the project's env names
+5. **Dumps it** inside the Sail container and imports it with `lerd db:import --fresh`, after a `before-sail-import` snapshot that `lerd db:restore` brings back
+6. **Copies MinIO's files** into the site's lerd bucket with `lerd s3:import`
+7. **Stops Sail** again, unless `--no-stop` is passed
 
 ---
 
-## Example output
+## Options
 
-```
-Stripping ports from app services: app, traefik, mailhog
-Remapping conflicting ports for Sail:
-  3306  to 23306
-  6379  to 26379
-  9000  to 29000
-Starting Sail services: mysql, minio
-Waiting for Sail mysql to be ready...
-Dumping database "laravel" from Sail...
-Importing into lerd (mysql / myapp)...
-Database imported.
-Importing S3/MinIO files into lerd RustFS...
-`sail/local/avatars/abc.jpg` becomes `lerd/myapp/avatars/abc.jpg`
-...
-S3 import complete.
-
-Import complete.
-Stopping Sail...
-```
-
----
-
-## Flags
-
-| Flag | Description |
+| Option | Description |
 |---|---|
-| `--no-stop` | Leave Sail running after the import completes |
-| `--skip-s3` | Skip S3/MinIO file mirroring |
-| `--sail-db-name <name>` | Database name in the Sail environment (default: auto-detected) |
-| `--sail-db-user <user>` | Database username in the Sail environment (default: `sail`) |
-| `--sail-db-password <pass>` | Database password in the Sail environment (default: `password`) |
+| `--db-name <name>` | The Sail database, when Sail holds several |
+| `--db-user <user>`, `--db-password <pass>` | Sail's database login, when it is not the one in the compose file |
+| `--bucket <name>` | The MinIO bucket to copy, when it is not `AWS_BUCKET` |
+| `--skip-s3` | Leave MinIO's files alone |
+| `--no-stop` | Leave Sail running after the import |
+| `--yes` | Don't ask before replacing the lerd database |
 
 ---
 
-## Credential handling
+## Credentials
 
-### After `lerd env` has already run
-
-`lerd env` overwrites `DB_*` and `AWS_*` keys with lerd's connection values. The import handles this transparently:
-
-- **Database credentials**: The command tries Sail's default credentials (`sail` / `password`) and queries the MySQL container directly to auto-detect the database name, so `DB_DATABASE=recruitireland` in a lerd-overwritten `.env` is no obstacle when the actual Sail volume contains a database called `laravel`
-- **MinIO credentials**: Read from the `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` environment keys in the `docker-compose.yml` service definition, not from `.env`, so lerd's `AWS_ACCESS_KEY_ID=lerd` never interferes
-
-Use `--sail-db-*` flags only when your project uses non-default Sail credentials.
-
-### `.env.before_lerd`
-
-When `lerd env` first modifies a project's `.env` (before lerd has written any values to it), it saves the original file as `.env.before_lerd`. The import command reads S3 detection keys (`FILESYSTEM_DISK`, `AWS_ENDPOINT`, `AWS_BUCKET`) from this backup when it exists, so the original Sail S3 configuration is used even after lerd has overwritten `.env`.
+`lerd env` keeps the project's original `.env` as `.env.before_lerd` before it writes lerd's values. The import reads Sail's settings from that copy, so the compose file resolves to the database login, bucket and S3 settings the Sail containers were created with, even after `.env` points at lerd. MinIO's login comes from `MINIO_ROOT_USER` and `MINIO_ROOT_PASSWORD` in the compose file.
 
 ---
 
-## Restoring after import
+## Copying S3 files from anywhere
 
-If you want to switch back to Sail after importing:
+The file copy is lerd's own `lerd s3:import`, which works with any S3 server, not only Sail's MinIO:
 
 ```bash
-lerd env:restore   # restores .env from .env.before_lerd
+lerd s3:import --endpoint 127.0.0.1:9000 --access-key key --secret-key secret --bucket uploads --to myapp
 ```
 
-Then run `lerd env` again to re-apply lerd settings if you change your mind.
-
----
-
-## Docker vs Podman
-
-The command auto-detects which runtime is available:
-
-1. Tries `docker compose version`, uses Docker if it works
-2. Falls back to `podman compose version`, works for users running Sail with Podman Compose
-
-No configuration needed.
+It copies every object of the bucket into the lerd bucket named by `--to`, creating it when missing. Objects with the same key are overwritten and nothing is deleted. Leave out `--bucket` when the server holds a single bucket.
 
 ---
 
@@ -117,26 +72,20 @@ No configuration needed.
 
 Install Docker Desktop, Podman Desktop, or the relevant compose plugin and ensure it is on your `PATH`.
 
-**Database dump fails with access denied**
+**The database never answers**
 
-The Sail MySQL volume was created with different credentials. Pass the correct credentials:
-
-```bash
-lerd sail import --sail-db-user root --sail-db-password secret
-```
-
-**S3 import fails**
-
-Run the import with `--skip-s3` and mirror the files manually:
+The Sail volume was created with a login the compose file no longer says. Pass it:
 
 ```bash
-lerd sail import --skip-s3
+lerd sail:import --db-user root --db-password secret
 ```
 
-**`lerd env` has already set `DB_DATABASE` to something else**
-
-The command auto-detects the correct database from the container. If it picks the wrong one (multiple user databases in the same container), specify it explicitly:
+**Sail holds several databases**
 
 ```bash
-lerd sail import --sail-db-name myapp
+lerd sail:import --db-name myapp
 ```
+
+**The S3 copy fails**
+
+Import the database alone with `--skip-s3`, then copy the files with `lerd s3:import`.

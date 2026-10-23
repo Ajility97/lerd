@@ -283,13 +283,10 @@ Switch the PHP runtime for the current site between shared PHP-FPM and per-site 
 
 | Command | Description |
 |---|---|
-| `lerd import sail` | Import database and S3/MinIO files from a Laravel Sail project into lerd |
-| `lerd sail import` | Alias, natural order when already in a Sail project (`lerd sail <anything-else>` proxies to `vendor/bin/sail`) |
-| `lerd import sail --skip-s3` | Import database only, skip S3/MinIO file mirroring |
-| `lerd import sail --no-stop` | Leave Sail running after import completes |
-| `lerd import sail --sail-db-name <name>` | Override the Sail-side database name (auto-detected by default) |
+| `lerd s3:import --endpoint host:port --access-key k --secret-key s [--bucket b] --to bucket` | Copy a bucket from any S3 server into a bucket on lerd's S3 service, creating it when missing |
+| `lerd sail <args>` | Run the project's `vendor/bin/sail` on the host |
 
-See [Importing from Laravel Sail](/usage/import-sail) for full documentation.
+Importing a Laravel Sail project's database and MinIO files is the sail plugin's `lerd sail:import`; see [Importing from Laravel Sail](/usage/import-sail).
 
 ## Framework workers
 

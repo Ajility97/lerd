@@ -43,7 +43,7 @@ Each of these is a migration guide, not just a feature table: what the equivalen
 - [Laravel Herd for Linux](/getting-started/herd-linux) is aimed at people who used Herd on a Mac and moved to Linux.
 - [Laragon for Linux](/getting-started/laragon-linux) is aimed at people moving over from Windows.
 - [Laradock alternative](/getting-started/laradock) is for people leaving a per-project Docker Compose stack behind.
-- [Laravel Sail alternative](/getting-started/sail) is the one with an automated importer, `lerd import sail`, database and S3 files included.
+- [Laravel Sail alternative](/getting-started/sail) is the one with an automated importer, the sail plugin's `lerd sail:import`, database and S3 files included.
 
 ## Add-ons
 
