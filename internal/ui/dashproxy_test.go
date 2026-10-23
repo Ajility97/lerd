@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -642,5 +644,39 @@ func TestMailpitProxyPassesSameOriginCheck(t *testing.T) {
 	p.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Errorf("mailpit saw a cross-origin request, status %d", rec.Code)
+	}
+}
+
+// A page whose policy carries no nonce, mosparo's script-src 'self' being one,
+// would block the injected scripts outright, so their hashes are allowed instead.
+func TestWithScriptHashesAllowsTheInjectedScripts(t *testing.T) {
+	scripts := "<script>a()</script><script>b()</script>"
+	hash := func(s string) string {
+		sum := sha256.Sum256([]byte(s))
+		return "'sha256-" + base64.StdEncoding.EncodeToString(sum[:]) + "'"
+	}
+	got := withScriptHashes("default-src 'none'; script-src 'self'; style-src 'self'", scripts)
+	if want := "default-src 'none'; script-src 'self' " + hash("a()") + " " + hash("b()") + "; style-src 'self'"; got != want {
+		t.Errorf("script-src: got %q, want %q", got, want)
+	}
+	// With no script-src the default-src governs scripts, so it is carried over.
+	got = withScriptHashes("default-src 'self'; img-src *", scripts)
+	if want := "default-src 'self'; img-src *; script-src 'self' " + hash("a()") + " " + hash("b()"); got != want {
+		t.Errorf("default-src: got %q, want %q", got, want)
+	}
+	// A hash would switch 'unsafe-inline' off for the page's own scripts, a nonce
+	// is stamped on the tags instead, and no policy needs nothing.
+	// A nonce on style-src lets no script run, so it is no reason to skip.
+	got = withScriptHashes("script-src 'self' 'sha256-own'; style-src 'self' 'nonce-st'", scripts)
+	if want := "script-src 'self' 'sha256-own' " + hash("a()") + " " + hash("b()") + "; style-src 'self' 'nonce-st'"; got != want {
+		t.Errorf("style nonce: got %q, want %q", got, want)
+	}
+	if got := withScriptNonce("<script>a()</script>", "script-src 'self'; style-src 'nonce-st'"); got != "<script>a()</script>" {
+		t.Errorf("a style nonce was stamped on a script: %q", got)
+	}
+	for _, csp := range []string{"script-src 'self' 'unsafe-inline'", "script-src 'nonce-x'", "img-src *", ""} {
+		if got := withScriptHashes(csp, scripts); got != csp {
+			t.Errorf("withScriptHashes(%q) = %q, want it unchanged", csp, got)
+		}
 	}
 }

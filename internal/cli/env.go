@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,8 +15,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	neturl "net/url"
 
 	"charm.land/huh/v2"
 	"github.com/geodro/lerd/internal/config"
@@ -180,6 +179,17 @@ func stripServiceDomainPorts(value string, domains map[string]string) string {
 		}
 	}
 	return value
+}
+
+// followPublishedPort points a localhost URL a preset declares at the port the
+// service is published on, which a clash can move off the declared one. Only
+// loopback hosts follow: a container URL carries the container's own port.
+func followPublishedPort(value string, ports []string, sc config.ServiceConfig) string {
+	u, err := neturl.Parse(value)
+	if err != nil || (u.Hostname() != "localhost" && u.Hostname() != "127.0.0.1") {
+		return value
+	}
+	return serviceops.WithDashboardPort(value, ports, sc)
 }
 
 // serviceDomainPorts pairs each service that has a domain with the host port it
@@ -1093,9 +1103,10 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			}
 
 			envApplyLine(svc, detectedFromEnv)
+			ports, sc := config.PresetPorts(svc), config.ServiceConfigFor(svc)
 			for _, kv := range envs {
 				k, v, _ := strings.Cut(kv, "=")
-				updates[k] = v
+				updates[k] = followPublishedPort(v, ports, sc)
 			}
 
 			isDB := svc == "mysql" || svc == "postgres"
@@ -1177,12 +1188,25 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				frameworkLabelOf(fw), svc.Name, envRelPath)
 		}
 
+		// Run again once the service is up, since starting it can move it off a
+		// busy port. Only values that change are written, so a pinned key stays.
+		followPorts := func() {
+			sc := config.ServiceConfigFor(svc.Name)
+			for _, kv := range vars {
+				k, v, _ := strings.Cut(kv, "=")
+				raw := applySiteHandle(v, tplCtx)
+				if moved := followPublishedPort(raw, svc.Ports, sc); moved != raw {
+					updates[k] = moved
+				}
+			}
+		}
 		if len(vars) > 0 {
 			envApplyLine(svc.Name, !pickedFromYAML)
 			for _, kv := range vars {
 				k, v, _ := strings.Cut(kv, "=")
 				updates[k] = applySiteHandle(v, tplCtx)
 			}
+			followPorts()
 			// DB_DATABASE is one of the preset's own Laravel-shaped keys. A framework's
 			// mapping names the database itself, via {{site}}, so it only needs pinning
 			// where the preset's keys are what got written.
@@ -1202,6 +1226,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			}
 			continue
 		}
+		followPorts()
 		if isDB {
 			for _, name := range []string{dbName, dbName + "_testing"} {
 				created, err := createDatabase(svc.Name, name)

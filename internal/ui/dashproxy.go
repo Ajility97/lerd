@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -243,6 +245,9 @@ func newDashProxy(name string, target *url.URL, tw dashProxyTweaks) *httputil.Re
 			}
 		}
 		if tw.bootstrap != "" {
+			if policy := resp.Header.Get("Content-Security-Policy"); policy != "" {
+				resp.Header.Set("Content-Security-Policy", withScriptHashes(policy, tw.bootstrap))
+			}
 			return injectDashboardBootstrap(resp, withScriptNonce(tw.bootstrap, csp))
 		}
 		return nil
@@ -277,11 +282,48 @@ var nonceIn = regexp.MustCompile(`'nonce-([A-Za-z0-9+/=_-]+)'`)
 // withScriptNonce stamps the page's own nonce onto the scripts lerd injects,
 // leaving the policy itself as the upstream wrote it.
 func withScriptNonce(script, csp string) string {
-	m := nonceIn.FindStringSubmatch(csp)
+	m := nonceIn.FindStringSubmatch(scriptPolicy(csp))
 	if m == nil || script == "" {
 		return script
 	}
 	return strings.ReplaceAll(script, "<script>", `<script nonce="`+m[1]+`">`)
+}
+
+var inlineScript = regexp.MustCompile(`(?s)<script>(.*?)</script>`)
+
+// scriptPolicy is the directive that governs scripts: script-src, or default-src
+// without one. A nonce elsewhere, on style-src say, does not let a script run.
+func scriptPolicy(csp string) string {
+	fallback := ""
+	for _, d := range strings.Split(csp, ";") {
+		switch name, _, _ := strings.Cut(strings.TrimSpace(d), " "); name {
+		case "script-src":
+			return d
+		case "default-src":
+			fallback = d
+		}
+	}
+	return fallback
+}
+
+// withScriptHashes allows the scripts lerd injects by hash, for a page whose
+// policy has no nonce to stamp on them. One that allows 'unsafe-inline' is left
+// alone, since naming a hash would switch that off for the page's own scripts.
+func withScriptHashes(csp, script string) string {
+	policy := scriptPolicy(csp)
+	if policy == "" || script == "" || nonceIn.MatchString(policy) || strings.Contains(policy, "'unsafe-inline'") {
+		return csp
+	}
+	var hashes []string
+	for _, m := range inlineScript.FindAllStringSubmatch(script, -1) {
+		sum := sha256.Sum256([]byte(m[1]))
+		hashes = append(hashes, "'sha256-"+base64.StdEncoding.EncodeToString(sum[:])+"'")
+	}
+	extra := " " + strings.Join(hashes, " ")
+	if name, _, _ := strings.Cut(strings.TrimSpace(policy), " "); name == "default-src" {
+		return csp + "; script-src" + strings.TrimPrefix(strings.TrimSpace(policy), "default-src") + extra
+	}
+	return strings.Replace(csp, policy, strings.TrimRight(policy, " ")+extra, 1)
 }
 
 func stripFrameAncestors(csp string) string {
@@ -523,7 +565,15 @@ func handleDashProxy(w http.ResponseWriter, r *http.Request) {
 		// A default-stack service has no service file to load; it is the preset.
 		svc = config.DefaultPresetService(name)
 	}
-	if svc == nil || !dashProxyEligible(svc) {
+	if svc == nil {
+		http.NotFound(w, r)
+		return
+	}
+	if login, body := dashTokenLoginFor(svc); login != nil {
+		serveDashTokenLogin(w, r, svc, login, body)
+		return
+	}
+	if !dashProxyEligible(svc) {
 		http.NotFound(w, r)
 		return
 	}

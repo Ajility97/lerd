@@ -1655,6 +1655,11 @@ func buildServiceResponseWithPortList(services map[string]config.ServiceConfig, 
 		if dashProxyEligible(custom) {
 			dashboardRaw, dashExternal = config.DashboardMountPath(custom), false
 		}
+		// One that logs in through its API is opened through /_svc/<name>/ too,
+		// which signs it in and hands the frame on to the dashboard itself.
+		if login, _ := dashTokenLoginFor(custom); login != nil {
+			dashboardRaw, dashExternal = config.DashboardProxyPath(name), false
+		}
 	}
 
 	handle := "lerd-" + name
