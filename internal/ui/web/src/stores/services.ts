@@ -8,6 +8,7 @@ import { sites } from './sites';
 import { groupByCategory, type CategoryGroup } from '$lib/presetCategories';
 import { announce, serviceStatusChanges } from '$lib/announce';
 import { readNDJSON } from '$lib/ndjson';
+import { definitionLabels } from '$lib/serviceLabels.svelte';
 import { fetchBackupList, fetchBackupText } from '$lib/backups';
 
 // One published port of a service: its container-internal port, its preset
@@ -129,6 +130,9 @@ export interface UpdateProgress {
 export const updateProgress = writable<Record<string, UpdateProgress>>({});
 
 export const services = writable<Service[]>([]);
+services.subscribe((list) => {
+  definitionLabels.services = Object.fromEntries(list.filter((s) => s.label).map((s) => [s.name, s.label as string]));
+});
 export const servicesLoaded = writable<boolean>(false);
 
 export async function loadServices() {
@@ -729,10 +733,6 @@ export function serviceOpenable(svc: Service): boolean {
   return svc.status === 'active' || !!svc.idle_suspended;
 }
 
-// The names presets carry, for a service that is not installed yet; presets.ts
-// fills it when the preset list loads.
-export const presetLabels = writable<Record<string, string>>({});
-
 // Names for presets whose definition may not carry a label yet: a store cache
 // fetched before labels existed, or a lerd ahead of the store it reads.
 const labelFallbacks: Record<string, string> = {
@@ -761,7 +761,7 @@ const labelFallbacks: Record<string, string> = {
 // carries, else a known name, else its name capitalized, with a versioned
 // instance (mysql-5-7) named after its family.
 export function serviceLabel(name: string): string {
-  const label = get(services).find((s) => s.name === name)?.label || get(presetLabels)[name];
+  const label = definitionLabels.services[name] || definitionLabels.presets[name];
   if (label) return label;
   const m = name.match(/^([a-z][a-z0-9]*?)-(\d[\w-]*)$/);
   const family = m ? m[1] : name;

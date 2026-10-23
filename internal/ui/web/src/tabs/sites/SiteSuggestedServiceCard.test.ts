@@ -113,5 +113,14 @@ describe('SiteSuggestedServiceCard', () => {
     expect(identity).toContain('group-hover:grayscale-0');
     expect(getByLabelText('Add Solr to this site').className).not.toContain('opacity-60');
   });
-});
 
+  // A card drawn before the presets load takes a definition's label once they do.
+  it('renames itself when a definition label arrives', async () => {
+    const { definitionLabels } = await import('$lib/serviceLabels.svelte');
+    const { getByText, findByText } = render(SiteSuggestedServiceCard, { suggestion: { name: 'clickhouse', reason: 'Analytics' }, domain: 'shop.test' });
+    expect(getByText('Clickhouse')).toBeTruthy();
+    definitionLabels.presets = { clickhouse: 'ClickHouse' };
+    expect(await findByText('ClickHouse')).toBeTruthy();
+    definitionLabels.presets = {};
+  });
+});

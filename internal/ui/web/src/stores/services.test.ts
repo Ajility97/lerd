@@ -380,21 +380,21 @@ describe('services store', () => {
   });
 
   it('serviceLabel takes the label a definition carries, else capitalizes', async () => {
-    const { serviceLabel, services, presetLabels } = await import('./services');
+    const { serviceLabel, services } = await import('./services');
+    const { definitionLabels } = await import('$lib/serviceLabels.svelte');
     services.set([{ name: 'mysql-5-7', label: 'MySQL', status: 'active', site_count: 0 }]);
-    presetLabels.set({ rabbitmq: 'RabbitMQ' });
+    definitionLabels.presets = { rabbitmq: 'RabbitMQ' };
     expect(serviceLabel('mysql-5-7')).toBe('MySQL');
     expect(serviceLabel('rabbitmq')).toBe('RabbitMQ');
     expect(serviceLabel('mariadb-11-8')).toBe('Mariadb');
     expect(serviceLabel('custom-thing')).toBe('Custom Thing');
     services.set([]);
-    presetLabels.set({});
+    definitionLabels.presets = {};
   });
 
   it('serviceLabel falls back to the known names when a definition carries no label', async () => {
-    const { serviceLabel, services, presetLabels } = await import('./services');
+    const { serviceLabel, services } = await import('./services');
     services.set([{ name: 'mysql', status: 'active', site_count: 0 }]);
-    presetLabels.set({});
     expect(serviceLabel('mysql')).toBe('MySQL');
     expect(serviceLabel('postgres-16')).toBe('PostgreSQL');
     expect(serviceLabel('rustfs')).toBe('RustFS');
