@@ -14,11 +14,13 @@ var runningVersion = version.Version
 var (
 	releaseRe    = regexp.MustCompile(`^v?(\d+)\.(\d+)`)
 	lowerBoundRe = regexp.MustCompile(`^>=\s*(\d+)\.(\d+)(\.\d+)?$`)
+	// git describe past a tag, or with local changes: a dev build.
+	devBuildRe = regexp.MustCompile(`-\d+-g[0-9a-f]+(-dirty)?$|-dirty$`)
 )
 
 // Compatible reports whether this lerd meets a plugin's `>=X.Y` lower bound, on
-// major and minor; other forms are refused and an untagged build loads all.
-// Parsed here, not in internal/php, so emitting an event links no service code.
+// major and minor; other forms are refused. An untagged or dev build loads all,
+// since it already holds the next release. Parsed here to link no service code.
 func Compatible(constraint string) bool {
 	if constraint == "" {
 		return true
@@ -28,7 +30,7 @@ func Compatible(constraint string) bool {
 		return false
 	}
 	have := releaseRe.FindStringSubmatch(runningVersion)
-	if have == nil {
+	if have == nil || devBuildRe.MatchString(runningVersion) {
 		return true
 	}
 	if a, b := atoi(have[1]), atoi(need[1]); a != b {

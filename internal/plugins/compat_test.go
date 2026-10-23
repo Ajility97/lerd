@@ -24,7 +24,8 @@ func TestCompatible(t *testing.T) {
 		{"1.38.2", ">=1.37", true},
 		{"2.0.0", ">=1.37", true},
 		{"1.36.4", ">=1.37", false},
-		{"1.37.0-beta.3-5-gabc1234", ">=1.37", true},
+		{"1.38.0-beta.1", ">=1.38", true},
+		{"1.37.0-beta.3", ">=1.38", false},
 		{"1.37.0", ">= 1.37.2", true},
 		{"1.10.0", ">=1.9", true},
 		// Only a lower bound is a promise lerd can keep, anything else is refused.
@@ -32,6 +33,10 @@ func TestCompatible(t *testing.T) {
 		{"1.37.0", "<2.0", false},
 		// A build from a commit with no tag behind it has no version to judge.
 		{"d26efaf9", ">=9.0", true},
+		// Nor does a dev build past a tag, which already holds the next release.
+		{"1.37.0-292-g1d45ba60", ">=1.38", true},
+		{"1.38.0-beta.1-3-gabc1234", ">=1.39", true},
+		{"1.37.0-dirty", ">=1.38", true},
 	}
 	for _, c := range cases {
 		runningAs(t, c.running)
