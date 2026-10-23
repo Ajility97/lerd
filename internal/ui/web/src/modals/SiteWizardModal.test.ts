@@ -146,6 +146,19 @@ describe('SiteWizardModal', () => {
     expect(screen.getByLabelText('Start here next time')).toHaveProperty('checked', true);
   });
 
+  it('falls back to home when the remembered folder is gone', async () => {
+    localStorage.setItem('lerd.siteWizard.sitesFolder', '/home/u/gone');
+    browseDir.mockImplementation(async (dir: string) =>
+      dir === '/home/u/gone'
+        ? { error: 'no such directory' }
+        : { current: dir || '/home/u', dirs: [{ name: 'acme', path: (dir || '/home/u') + '/acme' }] }
+    );
+    render(SiteWizardModal);
+    await fireEvent.click(await screen.findByText('Link an existing project'));
+    expect(await screen.findByText('acme')).toBeTruthy();
+    expect(localStorage.getItem('lerd.siteWizard.sitesFolder')).toBeNull();
+  });
+
   it('starts at home when nothing is remembered', async () => {
     render(SiteWizardModal);
     await fireEvent.click(await screen.findByText('Link an existing project'));

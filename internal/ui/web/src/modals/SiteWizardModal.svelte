@@ -38,7 +38,8 @@
   let step = $state<Step>('start');
   let dir = $state('');
   let parent = $state('');
-  let rememberFolder = $state(lastSitesFolder() !== '');
+  let sitesFolder = $state(lastSitesFolder());
+  let rememberFolder = $state(sitesFolder !== '');
   let name = $state('');
   let framework = $state('');
   let frameworkVersion = $state('');
@@ -359,6 +360,19 @@
     setSitesFolder(rememberFolder ? folder : '');
   }
 
+  // A remembered folder that was moved or deleted would leave an empty browser
+  // with nothing to pick, so it is forgotten and the browser reopens at home.
+  function browseFailed(msg: string) {
+    const current = step === 'parent' ? parent : dir;
+    if (sitesFolder && !current) {
+      setSitesFolder('');
+      rememberFolder = false;
+      sitesFolder = '';
+      return;
+    }
+    error = msg;
+  }
+
   function folderOf(path: string): string {
     const cut = path.replace(/\/+$/, '').lastIndexOf('/');
     return cut > 0 ? path.slice(0, cut) : '/';
@@ -474,11 +488,13 @@
           {(step === 'parent' ? parent : dir) || '...'}
         </div>
       </div>
-      <WizardBrowse
-        dir={(step === 'parent' ? parent : dir) || lastSitesFolder()}
-        onnavigate={(d) => (step === 'parent' ? (parent = d) : (dir = d))}
-        onerror={(msg) => (error = msg)}
-      />
+      {#key sitesFolder}
+        <WizardBrowse
+          dir={(step === 'parent' ? parent : dir) || sitesFolder}
+          onnavigate={(d) => (step === 'parent' ? (parent = d) : (dir = d))}
+          onerror={browseFailed}
+        />
+      {/key}
       <label class="flex items-center gap-2 px-5 py-2 text-xs text-gray-600 dark:text-gray-400 border-t border-gray-100 dark:border-lerd-border">
         <input type="checkbox" bind:checked={rememberFolder} class="rounded-sm border-gray-300 dark:border-lerd-border" />
         {m.siteWizard_rememberFolder()}
