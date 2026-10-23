@@ -206,6 +206,7 @@ phases once the next release makes it ordinary.
 | Change | Phase |
 |---|---|
 | Plugins: every surface, the catalog, plugin services and the `plugin` MCP tool | 15 |
+| NetworkManager hook keeps a stopped lerd-dns off the uplink | 3 |
 
 ## Phase 0 — baseline snapshots
 
@@ -439,6 +440,16 @@ Back the other way:
 
 On a guest with a custom TLD configured, confirm the toggle preserves it rather
 than flipping it to the canonical default.
+
+On a NetworkManager plus systemd-resolved guest, the dispatcher hook routes the
+uplink at `127.0.0.1:5300` only while lerd-dns is serving (#2278). A dead server
+left there is where resolved fails over after one dropped upstream query:
+
+- [ ] With lerd-dns up, reconnecting the uplink puts `127.0.0.1:5300` on it
+- [ ] With lerd-dns stopped, reconnecting the uplink leaves its DHCP DNS alone
+- [ ] Internet lookups still resolve while lerd-dns is stopped
+- [ ] `lerd start` puts `127.0.0.1:5300` back on the uplink
+- [ ] **`curl -k ... https://demo.test` → 200** after that `lerd start`
 
 ---
 
