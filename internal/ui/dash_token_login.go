@@ -32,6 +32,10 @@ func serveDashTokenLogin(w http.ResponseWriter, r *http.Request, svc *config.Cus
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	origin := target.Scheme + "://" + target.Host
+	if body == nil {
+		http.Redirect(w, r, target.String(), http.StatusFound)
+		return
+	}
 	token, err := fetchDashToken(origin+login.Request, body, login.Token)
 	if err != nil {
 		http.Redirect(w, r, target.String(), http.StatusFound)

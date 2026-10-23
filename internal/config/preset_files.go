@@ -260,8 +260,8 @@ func presetEnvDefault(p *Preset, key string) string {
 }
 
 // DashboardTokenLoginFor returns the token login a service's preset declares
-// and the body it posts, or nil when it declares none or lerd does not hold
-// every credential, in which case the dashboard opens on its own login page.
+// and the body it posts. The body is nil when lerd does not hold every
+// credential, and the dashboard then opens on its own login page.
 func DashboardTokenLoginFor(svc *CustomService) (*DashboardTokenLogin, map[string]string) {
 	if svc == nil || svc.Preset == "" {
 		return nil, nil
@@ -272,7 +272,7 @@ func DashboardTokenLoginFor(svc *CustomService) (*DashboardTokenLogin, map[strin
 	}
 	body, ok := tokenLoginBody(p.DashboardTokenLogin, svc, p)
 	if !ok {
-		return nil, nil
+		return p.DashboardTokenLogin, nil
 	}
 	return p.DashboardTokenLogin, body
 }

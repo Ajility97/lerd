@@ -268,6 +268,8 @@ dashboard_login:
 
 The values are written through the input's native setter and announced as a keystroke would be, so a form that tracks its fields in JavaScript sees them. `done` is read before anything is typed, so a dashboard already logged in is left alone. A dashboard whose session runs out leaves that key behind when it goes stale, which would read as still being logged in, so `expires` names the field inside the stored value holding the moment it stops counting.
 
+A dashboard whose content security policy keeps inline scripts out still runs the ones lerd injects: they carry the page's own script nonce, or, on a page with none, the policy is extended with their hashes.
+
 A dashboard that cannot be proxied has no form lerd can reach, since its page is on another origin. If it hands out a session token through its own API and has a page that takes one, `dashboard_token_login` describes that instead:
 
 ```yaml

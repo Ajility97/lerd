@@ -25,13 +25,17 @@ func tokenLoginUpstream(t *testing.T, token string) (*httptest.Server, *map[stri
 }
 
 func serveTokenLogin(t *testing.T, dashboard, path string) *httptest.ResponseRecorder {
+	return serveTokenLoginWith(t, dashboard, path, map[string]string{"username": "admin", "password": "pw"})
+}
+
+func serveTokenLoginWith(t *testing.T, dashboard, path string, body map[string]string) *httptest.ResponseRecorder {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	svc := &config.CustomService{Name: "tokenapp", Dashboard: dashboard}
 	login := &config.DashboardTokenLogin{Request: "/api/auth/login", Token: "token", Open: "/sso?token={token}&url={path}"}
 	req := httptest.NewRequest("GET", "http://localhost:7073"+path, nil)
 	rec := httptest.NewRecorder()
-	serveDashTokenLogin(rec, req, svc, login, map[string]string{"username": "admin", "password": "pw"})
+	serveDashTokenLogin(rec, req, svc, login, body)
 	return rec
 }
 
@@ -63,5 +67,17 @@ func TestServeDashTokenLogin_RefusesNonLoopback(t *testing.T) {
 	rec := serveTokenLogin(t, "http://203.0.113.7:3000", "/_svc/tokenapp/")
 	if rec.Code != http.StatusBadGateway {
 		t.Errorf("status = %d, want 502 for a non-loopback dashboard", rec.Code)
+	}
+}
+
+// A credential lerd does not hold still opens the dashboard, on its own login.
+func TestServeDashTokenLogin_MissingCredentialOpensTheDashboard(t *testing.T) {
+	srv, got := tokenLoginUpstream(t, "t")
+	rec := serveTokenLoginWith(t, srv.URL, "/_svc/tokenapp/", nil)
+	if loc := rec.Header().Get("Location"); rec.Code != http.StatusFound || loc != srv.URL {
+		t.Errorf("got %d %q, want 302 to %s", rec.Code, loc, srv.URL)
+	}
+	if len(*got) != 0 {
+		t.Errorf("logged in without credentials: %v", *got)
 	}
 }
