@@ -1188,13 +1188,25 @@ func runEnv(_ *cobra.Command, _ []string) error {
 				frameworkLabelOf(fw), svc.Name, envRelPath)
 		}
 
-		if len(vars) > 0 {
-			envApplyLine(svc.Name, !pickedFromYAML)
+		// Run again once the service is up, since starting it can move it off a
+		// busy port. Only values that change are written, so a pinned key stays.
+		followPorts := func() {
 			sc := config.ServiceConfigFor(svc.Name)
 			for _, kv := range vars {
 				k, v, _ := strings.Cut(kv, "=")
-				updates[k] = followPublishedPort(applySiteHandle(v, tplCtx), svc.Ports, sc)
+				raw := applySiteHandle(v, tplCtx)
+				if moved := followPublishedPort(raw, svc.Ports, sc); moved != raw {
+					updates[k] = moved
+				}
 			}
+		}
+		if len(vars) > 0 {
+			envApplyLine(svc.Name, !pickedFromYAML)
+			for _, kv := range vars {
+				k, v, _ := strings.Cut(kv, "=")
+				updates[k] = applySiteHandle(v, tplCtx)
+			}
+			followPorts()
 			// DB_DATABASE is one of the preset's own Laravel-shaped keys. A framework's
 			// mapping names the database itself, via {{site}}, so it only needs pinning
 			// where the preset's keys are what got written.
@@ -1214,6 +1226,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			}
 			continue
 		}
+		followPorts()
 		if isDB {
 			for _, name := range []string{dbName, dbName + "_testing"} {
 				created, err := createDatabase(svc.Name, name)
