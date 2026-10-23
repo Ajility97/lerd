@@ -13,12 +13,15 @@
   import { m } from '../paraglide/messages.js';
   import BottomBanner from './BottomBanner.svelte';
   import ConfirmModal from './ConfirmModal.svelte';
+  import { portal } from '$lib/portal';
 
   // Dismissed for this many kills; a further kill brings the banner back.
   let dismissedAt = $state(0);
   let confirming = $state(false);
   let resizing = $state(false);
   let failure = $state('');
+  // Held from the click, since the reboot clears the kills and with them the suggestion.
+  let targetGB = $state(0);
 
   const kills = $derived($machineMemory.kills ?? []);
   const suggestedGB = $derived(($machineMemory.suggested_mib ?? 0) / 1024);
@@ -27,11 +30,14 @@
   const canResize = $derived(suggestedGB > 0 && $accessMode.localControl && !busy);
   // No current size means it could not be read, not that the Mac is full.
   const full = $derived(($machineMemory.current_mib ?? 0) > 0 && suggestedGB === 0);
-  const subtitle = $derived.by(() => {
-    if (resizing && $lerdStarting) return $lerdStartUnit || startStepLabel($lerdStartStep);
+  const subtitle = $derived(
+    full ? m.machine_memory_banner_noRoom() : m.machine_memory_banner_killed({ processes: [...new Set(kills)].join(', ') })
+  );
+  // The modal stays open through the restart, so progress and failure land in it.
+  const confirmBody = $derived.by(() => {
+    if (resizing) return ($lerdStarting && ($lerdStartUnit || startStepLabel($lerdStartStep))) || m.machine_memory_confirm_body({ gb: targetGB });
     if (failure) return m.machine_memory_banner_failed({ error: failure });
-    if (full) return m.machine_memory_banner_noRoom();
-    return m.machine_memory_banner_killed({ processes: [...new Set(kills)].join(', ') });
+    return m.machine_memory_confirm_body({ gb: targetGB });
   });
 
   // The count starts over on every boot, so a lower one is a new boot.
@@ -47,27 +53,27 @@
   });
 
   async function resize() {
-    confirming = false;
     if (busy) return;
     resizing = true;
     failure = '';
-    if (!(await lerdResizeMachine(suggestedGB * 1024))) failure = $lerdStartError || '?';
+    if (!(await lerdResizeMachine(targetGB * 1024))) failure = $lerdStartError || '?';
     resizing = false;
+    if (!failure) confirming = false;
     await loadMachineMemory();
   }
 </script>
 
-{#if kills.length > dismissedAt || resizing || failure}
+{#if kills.length > dismissedAt && !confirming}
   <BottomBanner
     title={m.machine_memory_banner_title({ count: kills.length })}
     {subtitle}
     actionLabel={canResize ? m.machine_memory_banner_restart({ gb: suggestedGB }) : undefined}
     dismissLabel={m.machine_memory_banner_dismiss()}
-    onAction={() => (confirming = true)}
-    onDismiss={() => {
-      dismissedAt = kills.length;
-      failure = '';
+    onAction={() => {
+      targetGB = suggestedGB;
+      confirming = true;
     }}
+    onDismiss={() => (dismissedAt = kills.length)}
   >
     {#snippet icon()}
       <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -77,11 +83,19 @@
   </BottomBanner>
 {/if}
 
-<ConfirmModal
-  open={confirming}
-  title={m.machine_memory_confirm_title()}
-  body={m.machine_memory_confirm_body({ gb: suggestedGB })}
-  confirmLabel={m.machine_memory_banner_restart({ gb: suggestedGB })}
-  onconfirm={resize}
-  onclose={() => (confirming = false)}
-/>
+<!-- The banner stack is centred with a transform, which would pin a fixed modal to it.
+     z-70 keeps the modal above that stack (z-60) once it moves to <body>. -->
+<div use:portal class="relative z-70">
+  <ConfirmModal
+    open={confirming}
+    title={m.machine_memory_confirm_title()}
+    body={confirmBody}
+    confirmLabel={m.machine_memory_banner_restart({ gb: targetGB })}
+    loading={resizing}
+    onconfirm={resize}
+    onclose={() => {
+      confirming = false;
+      failure = '';
+    }}
+  />
+</div>

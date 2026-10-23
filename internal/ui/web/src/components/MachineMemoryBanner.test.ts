@@ -57,6 +57,52 @@ describe('MachineMemoryBanner', () => {
     expect(screen.queryByText(/no more memory to give/)).not.toBeInTheDocument();
   });
 
+  it('opens the confirm outside the banner stack, whose transform would pin it there', async () => {
+    status = { kills: ['mysqld'], current_mib: 4096, suggested_mib: 6144 };
+    const { container } = render(MachineMemoryBanner);
+    (await screen.findByRole('button', { name: 'Restart with 6 GB' })).click();
+    const dialog = await screen.findByRole('dialog');
+    expect(container.contains(dialog)).toBe(false);
+  });
+
+  it('keeps the confirm open with the banner gone while the restart runs', async () => {
+    status = { kills: ['mysqld'], current_mib: 4096, suggested_mib: 6144 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: RequestInit) =>
+        init?.method === 'POST'
+          ? new Promise<Response>(() => {})
+          : Promise.resolve(new Response(JSON.stringify(status), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+      )
+    );
+    render(MachineMemoryBanner);
+    (await screen.findByRole('button', { name: 'Restart with 6 GB' })).click();
+    await screen.findByRole('dialog');
+    screen.getAllByRole('button', { name: 'Restart with 6 GB' }).at(-1)!.click();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.queryByText('Killed: mysqld')).not.toBeInTheDocument();
+  });
+
+  it('retries with the confirmed size once the reboot has cleared the kills', async () => {
+    status = { kills: ['mysqld'], current_mib: 4096, suggested_mib: 6144 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        if (init?.method !== 'POST') return new Response(JSON.stringify(status), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        status = { kills: null, current_mib: 6144 };
+        return new Response('{"phase":"failed","error":"nginx did not start"}\n', { status: 200 });
+      })
+    );
+    render(MachineMemoryBanner);
+    (await screen.findByRole('button', { name: 'Restart with 6 GB' })).click();
+    await screen.findByRole('dialog');
+    screen.getAllByRole('button', { name: 'Restart with 6 GB' }).at(-1)!.click();
+    await screen.findByText(/did not finish: nginx did not start/);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.getByRole('button', { name: 'Restart with 6 GB' })).toBeInTheDocument();
+  });
+
   it('says why a restart failed', async () => {
     status = { kills: ['mysqld'], current_mib: 4096, suggested_mib: 6144 };
     vi.stubGlobal(

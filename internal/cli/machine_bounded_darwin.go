@@ -4,10 +4,13 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
+	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/podman"
 )
 
@@ -45,4 +48,33 @@ func runMachineStreaming(timeout time.Duration, args ...string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+// machineStatePoll is the gap between state checks; a var so tests skip it.
+var machineStatePoll = 2 * time.Second
+
+// stopMachineAndWait stops the VM and waits, at most wait in all, until podman
+// reports it stopped. A stop can return, or time out, while the VM is still
+// shutting down, and podman refuses `machine set` until it is fully down.
+func stopMachineAndWait(name string, wait time.Duration) error {
+	if err := runMachineStreaming(machineStopTimeout, "machine", "stop", name); err != nil {
+		feedback.Warn("podman machine stop: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+	state := "unknown"
+	for ctx.Err() == nil {
+		out, err := machineCmdContext(ctx, "machine", "inspect", "--format", "{{.State}}", name).Output()
+		if err == nil {
+			state = strings.TrimSpace(string(out))
+		}
+		if state == "stopped" {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+		case <-time.After(machineStatePoll):
+		}
+	}
+	return fmt.Errorf("the Podman Machine is still %s after being stopped, so its settings were not changed", state)
 }
