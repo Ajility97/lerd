@@ -438,7 +438,7 @@
         </p>
       {/if}
       <div class="h-full min-h-64">
-        <EnvEditor bind:value={text} {highlightLines} />
+        <EnvEditor bind:value={text} {highlightLines} onSave={() => dirty && !loading && save()} />
       </div>
     {/if}
   </div>

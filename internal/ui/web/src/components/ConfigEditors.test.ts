@@ -7,7 +7,7 @@ import EnvEditor from './EnvEditor.svelte';
 // Monaco can't run in jsdom; mock the loader and capture the language each
 // config wrapper asks the editor to open with.
 const { state } = vi.hoisted(() => ({
-  state: { createOpts: null as any, readOnly: false as boolean }
+  state: { createOpts: null as any, readOnly: false as boolean, commands: [] as { key: number; run: () => void }[] }
 }));
 
 vi.mock('$lib/monaco', () => {
@@ -16,7 +16,9 @@ vi.mock('$lib/monaco', () => {
       create: (_el: HTMLElement, opts: any) => {
         state.createOpts = opts;
         state.readOnly = !!opts.readOnly;
+        state.commands = [];
         return {
+          addCommand: (key: number, run: () => void) => { state.commands.push({ key, run }); },
           getValue: () => opts.value ?? '',
           setValue: () => {},
           onDidChangeModelContent: () => ({ dispose() {} }),
@@ -26,7 +28,9 @@ vi.mock('$lib/monaco', () => {
       },
       setTheme: () => {},
       defineTheme: () => {}
-    }
+    },
+    KeyMod: { CtrlCmd: 2048 },
+    KeyCode: { KeyS: 49 }
   };
   return {
     loadMonaco: () => Promise.resolve(monaco),
@@ -61,5 +65,21 @@ describe('config editors', () => {
     render(EnvEditor, { props: { value: 'X=1', readOnly: true } });
     await flush();
     expect(state.readOnly).toBe(true);
+  });
+
+  it('EnvEditor saves on Ctrl/Cmd+S when given onSave', async () => {
+    const onSave = vi.fn();
+    render(EnvEditor, { props: { value: 'X=1', onSave } });
+    await flush();
+    const save = state.commands.find((c) => c.key === (2048 | 49));
+    expect(save).toBeDefined();
+    save!.run();
+    expect(onSave).toHaveBeenCalledOnce();
+  });
+
+  it('leaves Ctrl/Cmd+S alone without onSave', async () => {
+    render(EnvEditor, { props: { value: 'X=1' } });
+    await flush();
+    expect(state.commands).toHaveLength(0);
   });
 });

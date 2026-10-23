@@ -21,6 +21,8 @@
     /** Fires once the editor and the monaco module are ready, for callers
         that need to add commands, attach a language client, etc. */
     onReady?: (ctx: { editor: Monaco.editor.IStandaloneCodeEditor; monaco: MonacoModule }) => void;
+    /** Ctrl/Cmd+S inside the editor; without it the browser's own save runs. */
+    onSave?: () => void;
   }
   let {
     value = $bindable(''),
@@ -30,7 +32,8 @@
     class: extraClass = '',
     options = {},
     highlightLines = [],
-    onReady
+    onReady,
+    onSave
   }: Props = $props();
 
   let monacoRef: MonacoModule | undefined;
@@ -109,6 +112,8 @@
           host.style.maxHeight = '';
         };
       }
+
+      if (onSave) ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => onSave?.());
 
       ed.onDidChangeModelContent(() => {
         if (internalUpdate) return;
