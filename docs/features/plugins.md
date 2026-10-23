@@ -252,6 +252,25 @@ curl -fsS -H "X-Lerd-Plugin-Token: $LERD_API_TOKEN" "$LERD_API_URL/api/sites"
 
 The token is the plugin's own: lerd derives it from the plugin's name and a secret only your user can read, so a call can be traced to the plugin that made it. For anything else, `$LERD_BIN` runs lerd's CLI.
 
+### Telling the user something
+
+A hook runs where nobody watches, so a plugin that needs the user to act sends a notification instead, with the same token:
+
+```bash
+curl -fsS -X POST -H "X-Lerd-Plugin-Token: $LERD_API_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"title":"Hosts file out of date","body":"myapp.test is missing from the hosts file.","tag":"hosts"}' \
+  "$LERD_API_URL/api/notifications/plugin"
+```
+
+| Field | | |
+| --- | --- | --- |
+| `title` | required | At most 100 characters. Shown as `<plugin>: <title>`, so a message never passes for lerd's own |
+| `body` | optional | At most 300 characters |
+| `url` | optional | A dashboard link starting with `#`, such as `#sites/myapp`, opened when the notification is clicked |
+| `tag` | optional | `a-z`, `0-9` and `-`. A newer message with the same tag replaces the older one |
+
+It is delivered like every other notification, to the dashboard, Web Push or the desktop, under its own **Plugin messages** category the user can switch off. The plugin is the one the token belongs to. lerd answers `204` once it is sent, or when notifications are off; `400` for a field it does not know or a value out of bounds; `401` without a valid token; `429` past ten messages a minute from the same plugin. Older lerd answers `404`, so a plugin that relies on it declares the release that added it in `lerd:`.
+
 ---
 
 ## Dashboard pages and tabs

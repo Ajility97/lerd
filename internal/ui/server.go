@@ -236,6 +236,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/push/test", withCORS(handlePushTest))
 	mux.HandleFunc("/api/notifications/target", withCORS(handleNotifyTarget))
 	mux.HandleFunc("/api/notifications/kinds", withCORS(handleNotifyKinds))
+	mux.HandleFunc("/api/notifications/plugin", handlePluginMessage)
 	mux.HandleFunc("/api/lan-qr/", withCORS(handleLANQR))
 	mux.HandleFunc("/api/public-qr/", withCORS(handlePublicQR))
 	mux.HandleFunc("/api/share-tools", withCORS(handleShareTools))
