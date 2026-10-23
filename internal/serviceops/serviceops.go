@@ -655,6 +655,9 @@ func EnsureDependencyRunning(dep string) (string, error) {
 	if err := EnsureServiceRunning(name); err != nil {
 		return name, err
 	}
+	if err := ensureDefaultDatabase(name); err != nil {
+		return name, err
+	}
 	return name, nil
 }
 
