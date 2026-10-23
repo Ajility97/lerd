@@ -1019,6 +1019,7 @@
   "sites_overview_runtimeWorkers": "執行環境與工作程序",
   "sites_suggestedService_status": "建議",
   "sites_suggestedService_add": "將 {name} 新增到此網站",
+  "sites_suggestedService_pick": "請選擇此網站要使用的項目。",
   "sites_suggestedService_dismiss": "不再為此網站建議 {name}",
   "sites_suggestedService_failed": "無法為此網站更新 {name}",
   "sites_suggestedService_why": "建議使用，因為此專案需要 {package}。{reason}",
