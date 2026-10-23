@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,8 +15,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-
-	neturl "net/url"
 
 	"charm.land/huh/v2"
 	"github.com/geodro/lerd/internal/config"
@@ -123,7 +122,7 @@ func loopbackServiceNames(declared map[string]bool, known []string) []string {
 // processes and reach a browser, and the container name lerd otherwise writes
 // resolves nowhere out there. Only values carrying a scheme are touched, so a
 // bare connection host (REDIS_HOST=lerd-redis) is left where it belongs.
-func applyServiceDomainEnv(updates map[string]string, domains map[string]string, ports map[string][]int) {
+func applyServiceDomainEnv(updates map[string]string, domains map[string]string, ports map[string]int) {
 	if len(domains) == 0 {
 		return
 	}
@@ -142,7 +141,7 @@ func applyServiceDomainEnv(updates map[string]string, domains map[string]string,
 		for _, name := range names {
 			target := "https://" + domains[name]
 			rewritten = strings.ReplaceAll(rewritten, "http://lerd-"+name, target)
-			for _, port := range ports[name] {
+			if port := ports[name]; port > 0 {
 				host := fmt.Sprintf(":%d", port)
 				rewritten = strings.ReplaceAll(rewritten, "http://localhost"+host, target)
 				rewritten = strings.ReplaceAll(rewritten, "http://127.0.0.1"+host, target)
@@ -182,30 +181,30 @@ func stripServiceDomainPorts(value string, domains map[string]string) string {
 	return value
 }
 
-// serviceDomainPorts pairs each service that has a domain with the host ports a
-// value written against localhost can carry: the one it publishes, and the one
-// its preset declares, which its env_vars name even after a clash moved it.
-func serviceDomainPorts(domains map[string]string) map[string][]int {
-	ports := map[string][]int{}
-	for name := range domains {
-		sc := config.ServiceConfigFor(name)
-		published := sc.Port
-		if sc.PublishedPort > 0 {
-			published = sc.PublishedPort
-		}
-		ports[name] = []int{published}
-		if declared := podman.PrimaryHostPort(declaredServicePorts(name)); declared > 0 && declared != published {
-			ports[name] = append(ports[name], declared)
-		}
+// followPublishedPort points a localhost URL a preset declares at the port the
+// service is published on, which a clash can move off the declared one. Only
+// loopback hosts follow: a container URL carries the container's own port.
+func followPublishedPort(value string, ports []string, sc config.ServiceConfig) string {
+	u, err := neturl.Parse(value)
+	if err != nil || (u.Hostname() != "localhost" && u.Hostname() != "127.0.0.1") {
+		return value
 	}
-	return ports
+	return serviceops.WithDashboardPort(value, ports, sc)
 }
 
-func declaredServicePorts(name string) []string {
-	if svc, err := config.LoadCustomService(name); err == nil {
-		return svc.Ports
+// serviceDomainPorts pairs each service that has a domain with the host port it
+// publishes, so a value written against localhost is recognised too.
+func serviceDomainPorts(domains map[string]string) map[string]int {
+	ports := map[string]int{}
+	for name := range domains {
+		sc := config.ServiceConfigFor(name)
+		if sc.PublishedPort > 0 {
+			ports[name] = sc.PublishedPort
+			continue
+		}
+		ports[name] = sc.Port
 	}
-	return config.PresetPorts(name)
+	return ports
 }
 
 // hostProxyConnKey reports whether an env key names a service connection target
@@ -1104,9 +1103,10 @@ func runEnv(_ *cobra.Command, _ []string) error {
 			}
 
 			envApplyLine(svc, detectedFromEnv)
+			ports, sc := config.PresetPorts(svc), config.ServiceConfigFor(svc)
 			for _, kv := range envs {
 				k, v, _ := strings.Cut(kv, "=")
-				updates[k] = v
+				updates[k] = followPublishedPort(v, ports, sc)
 			}
 
 			isDB := svc == "mysql" || svc == "postgres"
@@ -1190,9 +1190,10 @@ func runEnv(_ *cobra.Command, _ []string) error {
 
 		if len(vars) > 0 {
 			envApplyLine(svc.Name, !pickedFromYAML)
+			sc := config.ServiceConfigFor(svc.Name)
 			for _, kv := range vars {
 				k, v, _ := strings.Cut(kv, "=")
-				updates[k] = applySiteHandle(v, tplCtx)
+				updates[k] = followPublishedPort(applySiteHandle(v, tplCtx), svc.Ports, sc)
 			}
 			// DB_DATABASE is one of the preset's own Laravel-shaped keys. A framework's
 			// mapping names the database itself, via {{site}}, so it only needs pinning
