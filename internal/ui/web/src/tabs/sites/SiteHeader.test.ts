@@ -8,6 +8,7 @@ import { editors } from '$stores/editors';
 import { status } from '$stores/status';
 import { status as dumpsStatus } from '$stores/dumps';
 import { sidePanelHidden } from '$stores/sidePanel';
+import { noRepoBySite } from '$lib/gitStatus';
 
 const site = {
   domain: 'app.test',
@@ -165,7 +166,10 @@ describe('SiteHeader', () => {
   });
 
   describe('without git', () => {
-    afterEach(() => vi.unstubAllGlobals());
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      noRepoBySite.set({});
+    });
     const stubCheckouts = (checkouts: unknown[]) => {
       const fetchMock = vi.fn(async (url: string) =>
         new Response(JSON.stringify(url.includes('git-status') ? { checkouts } : { ok: true }))
@@ -182,6 +186,29 @@ describe('SiteHeader', () => {
       await waitFor(() =>
         expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith('/api/sites/app.test/git:init'))).toBe(true)
       );
+    });
+
+    // The sites list refreshes all the time and git status is asked again each
+    // time; the last answer stays up meanwhile, so the header does not flicker.
+    it('keeps the button while git status is asked again', async () => {
+      stubCheckouts([]);
+      const { findByText, queryByText, rerender } = render(Harness, { props: { site } });
+      await findByText('Initialize git');
+
+      vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+      await rerender({ site: { ...site, php_version: '8.4' } as unknown as Site });
+      expect(queryByText('Initialize git')).toBeInTheDocument();
+    });
+
+    it('shows the last answer at once when the site is opened again', async () => {
+      stubCheckouts([]);
+      const first = render(Harness, { props: { site } });
+      await first.findByText('Initialize git');
+      first.unmount();
+
+      vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+      const { queryByText } = render(Harness, { props: { site } });
+      expect(queryByText('Initialize git')).toBeInTheDocument();
     });
 
     // A subfolder of a larger repo has no branch of its own but is already under git.

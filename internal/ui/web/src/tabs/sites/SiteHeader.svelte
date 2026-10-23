@@ -57,7 +57,7 @@
   import ProfilerToggle from '$components/ProfilerToggle.svelte';
   import PagePluginsMenu from '$components/PagePluginsMenu.svelte';
   import { debugCaptureEnabled } from '$stores/queries';
-  import { loadGitStatus, checkoutFor, gitDirty, type GitCheckout } from '$lib/gitStatus';
+  import { loadGitStatus, checkoutFor, gitDirty, noRepoBySite, refreshNoRepo, type GitCheckout } from '$lib/gitStatus';
   import { marquee } from '$lib/marquee';
   import { m } from '../../paraglide/messages.js';
 
@@ -178,16 +178,12 @@
   });
   // No branch can also mean a subfolder of a bigger repo, where a nested init
   // would shadow the parent; git-status sees the parent's checkouts there.
-  let noRepo = $state(false);
+  // The site object is replaced on every list refresh, so the check keys on
+  // the values that matter, and the cached answer shows while it is redone.
+  const repoCheckFor = $derived(site.branch || site.paused ? '' : site.domain);
+  const noRepo = $derived(repoCheckFor !== '' && $noRepoBySite[repoCheckFor] === true);
   $effect(() => {
-    noRepo = false;
-    if (site.branch || site.paused) return;
-    const domain = site.domain;
-    loadGitStatus(domain)
-      .then((c) => {
-        if (domain === site.domain) noRepo = c.length === 0;
-      })
-      .catch(() => {});
+    if (repoCheckFor) refreshNoRepo(repoCheckFor).catch(() => {});
   });
   // Pull is fast-forward only, so a failure means git refused and its own words say why.
   function refreshGit() {
