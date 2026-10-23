@@ -394,7 +394,9 @@ func startPodmanMachineIfNeeded() error {
 					}
 					reason := strings.Join(parts, " and ")
 					feedback.Line(fmt.Sprintf("Stopping Podman Machine to %s…", reason))
-					_ = runMachineStreaming(machineStopTimeout, "machine", "stop", m.name)
+					if err := stopMachineAndWait(m.name, 2*time.Minute); err != nil {
+						feedback.Warn("%v", err)
+					}
 				}
 				if needsRootful {
 					feedback.Line("Enabling rootful mode for Podman Machine (required for ports 80/443)…")
