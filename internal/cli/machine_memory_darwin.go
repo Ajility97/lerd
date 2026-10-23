@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/geodro/lerd/internal/podman"
 )
@@ -71,14 +72,18 @@ func ResizeMachineMemory(mib int64, emit func(StartEvent), skip ...string) error
 	if emit != nil {
 		emit(StartEvent{Phase: "step", Step: "machine"})
 	}
-	_ = runMachineStreaming(machineStopTimeout, "machine", "stop", name)
-	setErr := runMachineStreaming(machineQueryTimeout, "machine", "set", "--memory", strconv.FormatInt(mib, 10), name)
+	setErr := stopMachineAndWait(name, 2*time.Minute)
+	if setErr == nil {
+		if err := runMachineStreaming(machineQueryTimeout, "machine", "set", "--memory", strconv.FormatInt(mib, 10), name); err != nil {
+			setErr = fmt.Errorf("podman machine set --memory: %w", err)
+		}
+	}
 	release()
 	// Start even when the set failed: the VM is already down, and leaving it
 	// there takes every site with it.
 	startErr := RunStart(emit, skip...)
 	if setErr != nil {
-		return errors.Join(fmt.Errorf("podman machine set --memory: %w", setErr), startErr)
+		return errors.Join(setErr, startErr)
 	}
 	return startErr
 }
