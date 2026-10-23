@@ -82,13 +82,13 @@ func s3ClientFor(service string, env []string) (*minio.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return newS3Client(s3Endpoint(service, s), s.access, s.secret)
+	return newS3Client(s3Endpoint(service, s), s.access, s.secret, false)
 }
 
-func newS3Client(endpoint, access, secret string) (*minio.Client, error) {
+func newS3Client(endpoint, access, secret string, secure bool) (*minio.Client, error) {
 	return minio.New(endpoint, &minio.Options{
 		Creds:        credentials.NewStaticV4(access, secret, ""),
-		Secure:       false,
+		Secure:       secure,
 		Region:       "us-east-1",
 		BucketLookup: minio.BucketLookupPath,
 	})
@@ -205,10 +205,12 @@ type S3Remote struct {
 	Endpoint string
 	Access   string
 	Secret   string
+	// Secure speaks HTTPS to the endpoint.
+	Secure bool
 }
 
 func (r S3Remote) client() (*minio.Client, error) {
-	return newS3Client(r.Endpoint, r.Access, r.Secret)
+	return newS3Client(r.Endpoint, r.Access, r.Secret, r.Secure)
 }
 
 // S3RemoteBuckets lists the buckets a remote holds.

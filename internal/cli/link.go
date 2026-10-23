@@ -27,12 +27,6 @@ var linkSkipSetupPrompt bool
 // "linked" summary rather than after it.
 var linkSkipSummary bool
 
-// linkSkipDataImport suppresses the Sail data-import offer. It is kept separate
-// from linkSkipSetupPrompt so routing `lerd link` through the init wizard
-// (which suppresses the setup prompt) still offers to import an existing Sail
-// database. Only the unattended (--all/CI) path sets it.
-var linkSkipDataImport bool
-
 // linkApplied and envApplied track whether the current process has already
 // linked the site and applied its .env. When a link flows straight into setup
 // (the "Run lerd setup?" prompt), this lets the setup pass skip re-printing the
@@ -105,14 +99,6 @@ func runLinkOrInit(args []string) error {
 // parent's registration). Any false input keeps the fast, scriptable link.
 func linkShouldRunWizard(hasConfig, interactive, hasDomainArg, isWorktree bool) bool {
 	return !hasConfig && interactive && !hasDomainArg && !isWorktree
-}
-
-// linkShouldImportSail reports whether runLink should offer to import an
-// existing Sail project's data. Gated on a live terminal and a dedicated
-// suppression flag (NOT linkSkipSetupPrompt), so a fresh `lerd link` that
-// routes through the init wizard still offers the import.
-func linkShouldImportSail(interactive, skipImport, hasSail bool) bool {
-	return interactive && !skipImport && hasSail
 }
 
 func runLink(args []string) error {
@@ -218,19 +204,6 @@ func runLink(args []string) error {
 	// satisfy fails composer install, which is the first thing setup runs.
 	warnMissingExtensions(cwd, site.Name, site.PHPVersion, cfg)
 
-	// Sail detection — offer to import data before setup so lerd's DB is
-	// populated from the existing Sail environment. Gate on Sail actually being
-	// initialized (a compose file), not just the laravel/sail dev dependency
-	// that every fresh Laravel app ships, which would prompt on a new project.
-	if linkShouldImportSail(isInteractive(), linkSkipDataImport, sailInitialized(cwd)) {
-		sailDBName := sailLinkDetectDBName(cwd)
-		if feedback.Confirm("This project uses Laravel Sail. Import database (and S3 files) from Sail into lerd?", false) {
-			if err := runImportSail(false, false, "sail", "password", sailDBName, sailDBName != "", false, false); err != nil {
-				feedback.Warn("sail import: %v", err)
-			}
-		}
-	}
-
 	if hint, suggest := linkNextStep(linkSkipSetupPrompt); suggest {
 		if isInteractive() {
 			if feedback.Confirm("Run lerd setup?", true) {
@@ -307,9 +280,9 @@ func printLinkSummary(site config.Site, start time.Time, wroteDataSource bool) {
 
 // summaryEnvReader reads the site's live env file, resolved through the
 // framework's env config so a project in a non-dotenv format is parsed in its
-// own. Deliberately not sailReadRawEnv, which prefers the .env.before_lerd
-// backup the first link has just written, so the summary reported the database
-// lerd had replaced rather than the one it configured (#1144).
+// own. Deliberately not the .env.before_lerd backup the first link has just
+// written, which made the summary report the database lerd had replaced rather
+// than the one it configured (#1144).
 func summaryEnvReader(site config.Site) func(key string) string {
 	envPath := filepath.Join(site.Path, ".env")
 	format := "dotenv"
@@ -535,14 +508,6 @@ func linkApplyServices(cwd string, site config.Site, proj *config.ProjectConfig)
 		}
 	}
 	return nil
-}
-
-// sailLinkDetectDBName reads DB_DATABASE from the project's .env so the link
-// prompt can pass the correct Sail database name directly to runImportSail.
-// Returns "" when .env is absent or DB_DATABASE is not set.
-func sailLinkDetectDBName(cwd string) string {
-	env := sailReadRawEnv(cwd)
-	return env["DB_DATABASE"]
 }
 
 // startWorkersForSite starts the named workers for a site.
