@@ -55,3 +55,12 @@ it('ends the plugin group with a Plugins button under the rule', async () => {
   await fireEvent.click(again.getByLabelText('Plugins'));
   expect(location.hash).toBe('#plugins');
 });
+
+// The rail tells about plugin updates without the Plugins page being open.
+it('counts plugin updates on the Plugins button', async () => {
+  const listed = [{ name: 'a', update: true }, { name: 'b', update: true }, { name: 'c' }];
+  globalThis.fetch = (async (url: string) =>
+    new Response(JSON.stringify(String(url).endsWith('/api/plugins') ? listed : {}), { status: 200 })) as unknown as typeof fetch;
+  const { findByLabelText } = render(NavRail);
+  expect((await findByLabelText('2 plugin updates')).textContent?.trim()).toBe('2');
+});

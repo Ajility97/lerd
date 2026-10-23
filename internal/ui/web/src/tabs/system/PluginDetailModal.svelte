@@ -32,12 +32,16 @@
     error?: string;
     // Set for an installed plugin: what it adds by name, and whether it has docs.
     installed?: boolean;
+    // A newer approved commit, its version and GitHub's comparison with this one.
+    update?: string;
+    updateVersion?: string;
+    changes?: string;
     features?: PluginFeature[];
     hasDocs?: boolean;
     onclose: () => void;
     actions?: Snippet;
   }
-  let { name, description, version, author, icon, images = [], repo, commit, adds = [], requires = [], missing = [], platforms = [], lerd, tags = [], error, installed = false, features = [], hasDocs = false, onclose, actions }: Props = $props();
+  let { name, description, version, author, icon, images = [], repo, commit, adds = [], requires = [], missing = [], platforms = [], lerd, tags = [], error, installed = false, update, updateVersion, changes, features = [], hasDocs = false, onclose, actions }: Props = $props();
 
   type Tab = 'overview' | 'features' | 'docs' | 'logs';
   let tab = $state<Tab>('overview');
@@ -126,6 +130,13 @@
   <DetailTabs {tabs} active={tab} onchange={selectTab} />
   <div class="p-5 space-y-5">
     {#if tab === 'overview'}
+    {#if update}
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-emerald-200 dark:border-emerald-500/20 bg-emerald-50 dark:bg-emerald-500/5 px-3 py-2 text-xs">
+        <span class="font-medium text-emerald-700 dark:text-emerald-300">{m.system_plugins_updateAvailable()}</span>
+        <span class="font-mono tabular-nums text-gray-600 dark:text-gray-300">{version ?? ''} → {updateVersion || update.slice(0, 7)}</span>
+        {#if changes}<a href={changes} target="_blank" rel="noopener noreferrer" class="ml-auto font-medium text-lerd-red hover:underline">{m.system_plugins_whatChanged()}</a>{/if}
+      </div>
+    {/if}
     {#if images.length}
       <figure class="space-y-2" onmouseenter={() => (hovered = true)} onmouseleave={() => (hovered = false)}>
         <!-- A fixed frame, so stepping between screenshots of other shapes never resizes the dialog. -->

@@ -16,7 +16,7 @@
     openProfiler,
     openPlugin
   } from '$stores/dashboard';
-  import { railPlugins, loadPlugins } from '$stores/plugins';
+  import { railPlugins, loadPlugins, pluginUpdates } from '$stores/plugins';
   import PluginIcon from './PluginIcon.svelte';
   import { dashboardIconSvg } from '$lib/dashboardIcons';
   import { profilerEnabled, loadProfilerStatus } from '$stores/profiler';
@@ -118,7 +118,15 @@
         </IconButton>
       {/each}
       <IconButton title={m.system_plugins_title()} active={!$dashboardOpen && $tab === 'plugins'} onclick={() => goToTab('plugins')}>
-        <Icon name="puzzle" />
+        <span class="relative flex items-center justify-center">
+          <Icon name="puzzle" />
+          {#if $pluginUpdates > 0}
+            <span
+              aria-label={m.system_plugins_updatesBadge({ count: $pluginUpdates })}
+              class="absolute -top-1 -right-1.5 min-w-3.5 h-3.5 px-0.5 rounded-full bg-lerd-red text-lerd-onred text-[9px] font-semibold flex items-center justify-center"
+            >{$pluginUpdates > 9 ? '9+' : $pluginUpdates}</span>
+          {/if}
+        </span>
       </IconButton>
     </div>
   {/if}

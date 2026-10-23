@@ -13,6 +13,8 @@ export interface PluginInfo {
   page?: PluginPage;
   site_tab?: PluginPage;
   overview_card?: PluginPage;
+  // The catalog approved a newer commit than the one installed.
+  update?: boolean;
 }
 
 // Where an author learns how to get a plugin listed.
@@ -23,6 +25,8 @@ export const plugins = writable<PluginInfo[]>([]);
 // Plugins that draw a page on the rail, and those that add a tab to every site.
 export const railPlugins = derived(plugins, ($p) => $p.filter((p) => p.page));
 export const siteTabPlugins = derived(plugins, ($p) => $p.filter((p) => p.site_tab));
+// How many installed plugins have a newer approved commit, for the rail's badge.
+export const pluginUpdates = derived(plugins, ($p) => $p.filter((p) => p.update).length);
 
 export async function loadPlugins() {
   // A lerd-ui from before plugins answers this path with something else.
@@ -92,8 +96,11 @@ export interface ManagedPlugin {
   // Where the catalog installed it from; absent when not listed.
   repo?: string;
   commit?: string;
-  // A newer approved commit, when there is one.
+  // A newer approved commit, when there is one, its version and GitHub's
+  // comparison of the two commits.
   update?: string;
+  update_version?: string;
+  changes?: string;
   // Its latest failure, with a filled-in issue on its repository when known.
   failure?: PluginFailure;
   // What it adds, named the way the user meets each; its screenshots' URLs;

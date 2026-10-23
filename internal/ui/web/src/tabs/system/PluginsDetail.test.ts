@@ -162,3 +162,26 @@ it("links an installed catalog plugin's author to their GitHub profile", async (
   const link = within(getByRole('dialog')).getByRole('link', { name: 'Acme Inc' });
   expect(link.getAttribute('href')).toBe('https://github.com/acme');
 });
+
+// A newer approved commit shows on the tile and in the card with what changed,
+// and Update all updates every plugin that has one.
+it('shows an update with its version and changes, and updates all', async () => {
+  const A = 'a'.repeat(40), B = 'b'.repeat(40);
+  installed = [
+    { name: 'hello', version: '0.1.0', repo: 'https://github.com/acme/hello', commit: A, update: B, update_version: '0.2.0', changes: `https://github.com/acme/hello/compare/${A}...${B}` },
+    { name: 'other', version: '1.0.0', repo: 'https://github.com/acme/other', commit: A, update: B }
+  ];
+  const { findByText, getByRole, getByText } = render(PluginsDetail);
+  await waitFor(() => expect(calls.some((c) => c.url.endsWith('/api/plugin-manager'))).toBe(true));
+  expect(await findByText('↑ 0.2.0')).toBeTruthy();
+  await fireEvent.click(getByText('hello'));
+  const dialog = within(getByRole('dialog'));
+  expect(dialog.getByText(/0\.1\.0 → 0\.2\.0/)).toBeTruthy();
+  expect(dialog.getByRole('link', { name: 'What changed' }).getAttribute('href')).toBe(`https://github.com/acme/hello/compare/${A}...${B}`);
+  await fireEvent.click(dialog.getByRole('button', { name: 'Close' }));
+  await fireEvent.click(getByRole('button', { name: 'Update all (2)' }));
+  await waitFor(() => {
+    const updates = calls.filter((c) => c.method === 'POST' && c.url.endsWith('/update')).map((c) => c.url.split('/').at(-2));
+    expect(updates).toEqual(['hello', 'other']);
+  });
+});

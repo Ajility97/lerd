@@ -27,6 +27,8 @@ type pluginInfo struct {
 	SiteTab     *pluginPage `json:"site_tab,omitempty"`
 	// OverviewCard is listed for every site; a site's switches say where it shows.
 	OverviewCard *pluginPage `json:"overview_card,omitempty"`
+	// Update says the catalog approved a newer commit, for the rail's badge.
+	Update bool `json:"update,omitempty"`
 }
 
 type pluginPage struct {
@@ -41,6 +43,7 @@ func handlePluginsList(w http.ResponseWriter, _ *http.Request) {
 	out := make([]pluginInfo, 0, len(list))
 	for _, p := range list {
 		info := pluginInfo{Name: p.Name, Description: p.Description}
+		_, info.Update = plugins.CachedUpdate(p.Name)
 		if p.UI != nil {
 			info.Page = pluginPageInfo(p.Name, p.UI.Page)
 			info.SiteTab = pluginPageInfo(p.Name, p.UI.SiteTab)
@@ -397,8 +400,11 @@ type managedPlugin struct {
 	// Repo and Commit are where the catalog installed it from; empty when not listed.
 	Repo   string `json:"repo,omitempty"`
 	Commit string `json:"commit,omitempty"`
-	// Update is the newer approved commit, when there is one.
-	Update string `json:"update,omitempty"`
+	// Update is the newer approved commit, when there is one, with its version
+	// and GitHub's comparison of the two commits.
+	Update        string `json:"update,omitempty"`
+	UpdateVersion string `json:"update_version,omitempty"`
+	Changes       string `json:"changes,omitempty"`
 	// Failure is the plugin's latest failure, with where to report it.
 	Failure *pluginFailure `json:"failure,omitempty"`
 	// Features names each thing it adds; Screenshots are their URLs; HasDocs
@@ -531,8 +537,8 @@ func managedPlugins() []managedPlugin {
 			if l, ok := plugins.CachedListing(p.Name); ok && l.Repo == src.Repo {
 				row.Author = l.Author
 			}
-			if l, newer := plugins.PendingUpdate(p.Name); newer {
-				row.Update = l.Commit
+			if l, newer := plugins.CachedUpdate(p.Name); newer {
+				row.Update, row.UpdateVersion, row.Changes = l.Commit, l.Version, l.ChangesURL(src.Commit)
 			}
 		}
 		out = append(out, row)

@@ -48,6 +48,8 @@ type Listing struct {
 	Author      string   `json:"author,omitempty"`
 	Category    string   `json:"category,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
+	// Version is the approved commit's own version, as its plugin.yaml says.
+	Version string `json:"version,omitempty"`
 	// Lerd is the approved commit's own `lerd` constraint.
 	Lerd string `json:"lerd,omitempty"`
 	// Requires is what the approved commit needs on the machine, as
@@ -305,6 +307,39 @@ func PendingUpdate(name string) (*Listing, bool) {
 		return nil, false
 	}
 	return l, true
+}
+
+// CachedUpdate is PendingUpdate read from the catalog lerd already holds,
+// never fetching: the dashboard draws updates without waiting on the network,
+// and the hourly refresh brings new ones in.
+func CachedUpdate(name string) (*Listing, bool) {
+	src, ok := InstalledSource(name)
+	if !ok {
+		return nil, false
+	}
+	l, ok := CachedListing(name)
+	if !ok || l.Commit == src.Commit || !Compatible(l.Lerd) || !RunsHere(l.Platforms) {
+		return nil, false
+	}
+	return &l, true
+}
+
+// RefreshCatalogOlderThan fetches the catalog when the copy lerd holds is
+// older than age.
+func RefreshCatalogOlderThan(age time.Duration) error {
+	if info, err := os.Stat(catalogCachePath()); err == nil && time.Since(info.ModTime()) < age {
+		return nil
+	}
+	return refreshCatalog()
+}
+
+// ChangesURL is GitHub's comparison of the installed commit with the approved
+// one, "" for a repository GitHub does not host.
+func (l Listing) ChangesURL(installed string) string {
+	if !strings.HasPrefix(l.Repo, "https://github.com/") {
+		return ""
+	}
+	return strings.TrimSuffix(l.Repo, ".git") + "/compare/" + installed + "..." + l.Commit
 }
 
 // InstalledSource reports the listing commit an installed plugin came from;

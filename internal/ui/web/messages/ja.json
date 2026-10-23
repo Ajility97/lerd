@@ -1891,5 +1891,10 @@
   "system_plugins_catalogMoreTitle": "次のひとつを作ろう",
   "system_plugins_catalogMoreLead": "足りないものがありますか?プラグインを作って提出すれば、Lerd を使うすべての人のためにここに表示されます。",
   "system_plugins_installedMoreTitle": "Lerd にもっと多くのことを",
-  "system_plugins_installedMoreLead": "カタログでさらに探すか、必要なプラグインを作りましょう。"
+  "system_plugins_installedMoreLead": "カタログでさらに探すか、必要なプラグインを作りましょう。",
+  "system_plugins_updateAvailable": "アップデートがあります",
+  "system_plugins_whatChanged": "変更点",
+  "system_plugins_updateAll": "すべて更新 ({count})",
+  "system_plugins_updatesBadge": "プラグインのアップデート {count} 件",
+  "notify_plugin_update_body": "バージョン {version} が承認されました。プラグインページから更新してください。"
 }
