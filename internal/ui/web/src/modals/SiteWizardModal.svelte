@@ -39,7 +39,7 @@
   let dir = $state('');
   let parent = $state('');
   let sitesFolder = $state(lastSitesFolder());
-  let rememberFolder = $state(sitesFolder !== '');
+  let rememberFolder = $state(lastSitesFolder() !== '');
   let name = $state('');
   let framework = $state('');
   let frameworkVersion = $state('');
