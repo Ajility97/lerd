@@ -1,4 +1,5 @@
 name: meilisearch
+label: "Meilisearch"
 default: true
 # Meilisearch minor bumps break data-dir compatibility (need dump/restore).
 # patch keeps existing users on their minor; track_latest lands fresh installs

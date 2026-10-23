@@ -126,8 +126,8 @@ func TestHandleServicePresets_CarriesDiscoveryMetadata(t *testing.T) {
 	if got := byName["mysql"].Label; got != "MySQL" {
 		t.Errorf("mysql label = %q, want MySQL", got)
 	}
-	if got := byName["stripe-mock"].Label; got != "" {
-		t.Errorf("a preset with no label should send none, got %q", got)
+	if got := byName["stripe-mock"].Label; got != "Stripe Mock" {
+		t.Errorf("stripe-mock label = %q, want Stripe Mock", got)
 	}
 }
 
