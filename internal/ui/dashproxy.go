@@ -523,7 +523,15 @@ func handleDashProxy(w http.ResponseWriter, r *http.Request) {
 		// A default-stack service has no service file to load; it is the preset.
 		svc = config.DefaultPresetService(name)
 	}
-	if svc == nil || !dashProxyEligible(svc) {
+	if svc == nil {
+		http.NotFound(w, r)
+		return
+	}
+	if login, body := dashTokenLoginFor(svc); login != nil {
+		serveDashTokenLogin(w, r, svc, login, body)
+		return
+	}
+	if !dashProxyEligible(svc) {
 		http.NotFound(w, r)
 		return
 	}

@@ -259,6 +259,54 @@ func presetEnvDefault(p *Preset, key string) string {
 	return p.Environment[key]
 }
 
+// DashboardTokenLoginFor returns the token login a service's preset declares
+// and the body it posts, or nil when it declares none or lerd does not hold
+// every credential, in which case the dashboard opens on its own login page.
+func DashboardTokenLoginFor(svc *CustomService) (*DashboardTokenLogin, map[string]string) {
+	if svc == nil || svc.Preset == "" {
+		return nil, nil
+	}
+	p, err := LoadPreset(svc.Preset)
+	if err != nil || p.DashboardTokenLogin == nil {
+		return nil, nil
+	}
+	body, ok := tokenLoginBody(p.DashboardTokenLogin, svc, p)
+	if !ok {
+		return nil, nil
+	}
+	return p.DashboardTokenLogin, body
+}
+
+// tokenLoginBody resolves each body field's env var. A login the app ships with
+// rather than one lerd sets on the container lives only in the site env_vars,
+// so those are read after the container's environment.
+func tokenLoginBody(login *DashboardTokenLogin, svc *CustomService, p *Preset) (map[string]string, bool) {
+	body := make(map[string]string, len(login.Body))
+	for field, key := range login.Body {
+		value := svc.Environment[key]
+		if value == "" {
+			value = presetEnvDefault(p, key)
+		}
+		if value == "" {
+			value = envVarValue(svc.EnvVars, key)
+		}
+		if value == "" {
+			return nil, false
+		}
+		body[field] = value
+	}
+	return body, true
+}
+
+func envVarValue(kvs []string, key string) string {
+	for _, kv := range kvs {
+		if k, v, ok := strings.Cut(kv, "="); ok && k == key {
+			return v
+		}
+	}
+	return ""
+}
+
 // DashboardColorSchemeScript returns an inline <script> that answers the page's
 // own question about the colour scheme with the one lerd is wearing. An app that
 // reads the preference from JavaScript is out of reach of the media queries the

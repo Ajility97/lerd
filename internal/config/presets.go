@@ -74,6 +74,17 @@ type DashboardLogin struct {
 	Expires string `yaml:"expires" json:"expires"`
 }
 
+// DashboardTokenLogin describes a dashboard's own login API: the path a JSON body
+// of provisioned credentials is POSTed to, the response field carrying the
+// session token, and the page that takes it. Open substitutes {token} and
+// {path}, the page asked for under the mount, both query-escaped.
+type DashboardTokenLogin struct {
+	Request string            `yaml:"request" json:"request"`
+	Body    map[string]string `yaml:"body" json:"body"`
+	Token   string            `yaml:"token" json:"token"`
+	Open    string            `yaml:"open" json:"open"`
+}
+
 type Preset struct {
 	CustomService `yaml:",inline"`
 	// DashboardProxy asks lerd-ui to serve this dashboard same-origin under
@@ -136,12 +147,16 @@ type Preset struct {
 	// DashboardLogin describes a login form lerd fills in with the credentials
 	// it provisioned the service with, so the dashboard opens where the user
 	// wanted to be rather than on a form asking for what lerd already knows.
-	DashboardLogin    *DashboardLogin       `yaml:"dashboard_login,omitempty" json:"dashboard_login,omitempty"`
-	Versions          []PresetVersion       `yaml:"versions,omitempty"`
-	DefaultVersion    string                `yaml:"default_version,omitempty"`
-	Default           bool                  `yaml:"default,omitempty"`
-	UpdateStrategy    string                `yaml:"update_strategy,omitempty"`
-	PlatformOverrides []PresetPlatformImage `yaml:"platform_overrides,omitempty"`
+	DashboardLogin *DashboardLogin `yaml:"dashboard_login,omitempty" json:"dashboard_login,omitempty"`
+	// DashboardTokenLogin is for a dashboard that cannot be proxied, so no form
+	// can be filled: lerd-ui logs in through its API and opens it on a URL that
+	// takes the session token instead.
+	DashboardTokenLogin *DashboardTokenLogin  `yaml:"dashboard_token_login,omitempty" json:"dashboard_token_login,omitempty"`
+	Versions            []PresetVersion       `yaml:"versions,omitempty"`
+	DefaultVersion      string                `yaml:"default_version,omitempty"`
+	Default             bool                  `yaml:"default,omitempty"`
+	UpdateStrategy      string                `yaml:"update_strategy,omitempty"`
+	PlatformOverrides   []PresetPlatformImage `yaml:"platform_overrides,omitempty"`
 	// AllowMajorUpgrade lets the cross-strategy "Upgrade" button cross numeric
 	// major boundaries. Default false: major upgrades typically require manual
 	// data migration and should be installed as a separate alternate instead.
