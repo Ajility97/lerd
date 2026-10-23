@@ -152,3 +152,13 @@ it('points at the catalog under the installed plugins', async () => {
   await fireEvent.click(getByRole('button', { name: /Browse plugins/ }));
   expect(location.hash).toBe('#plugins/browse');
 });
+
+// The author links to the GitHub account that owns the plugin's repository.
+it("links an installed catalog plugin's author to their GitHub profile", async () => {
+  installed = [{ name: 'hello', author: 'Acme Inc', repo: 'https://github.com/acme/hello', commit: 'a'.repeat(40) }];
+  const { findByText, getByRole } = render(PluginsDetail);
+  await waitFor(() => expect(calls.some((c) => c.url.endsWith('/api/plugin-manager'))).toBe(true));
+  await fireEvent.click(await findByText('hello'));
+  const link = within(getByRole('dialog')).getByRole('link', { name: 'Acme Inc' });
+  expect(link.getAttribute('href')).toBe('https://github.com/acme');
+});

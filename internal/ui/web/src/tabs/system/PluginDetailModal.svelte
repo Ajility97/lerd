@@ -7,7 +7,7 @@
   import DetailTabs from '$components/DetailTabs.svelte';
   import DOMPurify from 'dompurify';
   import { apiUrl } from '$lib/api';
-  import { loadPluginDocs, loadPluginLogs, type PluginFailure, type PluginFeature } from '$stores/plugins';
+  import { loadPluginDocs, loadPluginLogs, authorProfile, type PluginFailure, type PluginFeature } from '$stores/plugins';
   import { m } from '../../paraglide/messages.js';
 
   // One plugin in full, opened from an installed card or a catalog card: its
@@ -109,7 +109,13 @@
       <div class="flex items-baseline gap-2 min-w-0">
         <span class="truncate font-semibold text-gray-900 dark:text-white">{name}</span>
         {#if version}<span class="shrink-0 text-[11px] font-mono tabular-nums text-gray-400">v{version}</span>{/if}
-        {#if author}<span class="shrink-0 truncate text-[11px] text-gray-400">{m.system_plugins_by({ author })}</span>{/if}
+        {#if author}
+          {@const profile = authorProfile(repo)}
+          {@const [before, after] = m.system_plugins_by({ author: '\u0000' }).split('\u0000')}
+          <span class="shrink-0 truncate text-[11px] text-gray-400">
+            {before}{#if profile}<a href={profile} target="_blank" rel="noopener noreferrer" class="hover:text-lerd-red underline-offset-2 hover:underline">{author}</a>{:else}{author}{/if}{after}
+          </span>
+        {/if}
       </div>
       {#if description}<p class="mt-0.5 text-xs leading-snug text-gray-500 dark:text-gray-400">{description}</p>{/if}
     </div>

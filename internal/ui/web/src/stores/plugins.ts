@@ -87,6 +87,8 @@ export interface ManagedPlugin {
   error?: string;
   // Its rail icon, when it has a page.
   icon?: string;
+  // Who the catalog lists it by, for one installed from the catalog.
+  author?: string;
   // Where the catalog installed it from; absent when not listed.
   repo?: string;
   commit?: string;
@@ -195,4 +197,11 @@ async function mutate(path: string, init: RequestInit): Promise<string> {
   const error = res.ok ? '' : (await res.text()).trim() || res.statusText;
   await Promise.all([loadManagedPlugins(), loadPlugins()]);
   return error;
+}
+
+// The GitHub account that owns a plugin's repository, which the author's name
+// links to: the author field is free text, the owner is always a real account.
+export function authorProfile(repo?: string): string | null {
+  const m = /^https:\/\/github\.com\/([^/]+)\//.exec((repo ?? '') + '/');
+  return m ? `https://github.com/${m[1]}` : null;
 }

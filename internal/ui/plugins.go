@@ -392,6 +392,8 @@ type managedPlugin struct {
 	Error       string   `json:"error,omitempty"`
 	// Icon is drawn on its card: its own icon, or its rail page's.
 	Icon string `json:"icon,omitempty"`
+	// Author is who the catalog lists it by, for one installed from the catalog.
+	Author string `json:"author,omitempty"`
 	// Repo and Commit are where the catalog installed it from; empty when not listed.
 	Repo   string `json:"repo,omitempty"`
 	Commit string `json:"commit,omitempty"`
@@ -525,6 +527,9 @@ func managedPlugins() []managedPlugin {
 		}
 		if src, ok := plugins.InstalledSource(p.Name); ok {
 			row.Repo, row.Commit = src.Repo, src.Commit
+			if l, ok := plugins.CachedListing(p.Name); ok && l.Repo == src.Repo {
+				row.Author = l.Author
+			}
 			if l, newer := plugins.PendingUpdate(p.Name); newer {
 				row.Update = l.Commit
 			}

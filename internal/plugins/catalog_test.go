@@ -279,3 +279,23 @@ func TestCatalog_EnvPointsAtAnotherIndexWithItsOwnCache(t *testing.T) {
 		t.Errorf("InstallListed from the other index: %v", err)
 	}
 }
+
+// The installed list names a catalog plugin's author from the catalog lerd
+// already has, and never fetches it just for that.
+func TestCachedListing_ReadsOnlyTheCache(t *testing.T) {
+	isolate(t)
+	if _, ok := CachedListing("hello"); ok {
+		t.Fatal("no cache, no listing")
+	}
+	hits := serveIndex(t, Listing{Name: "hello", Repo: "https://github.com/acme/hello", Commit: strings.Repeat("a", 40), Author: "acme"})
+	if _, ok := CachedListing("hello"); ok || *hits != 0 {
+		t.Fatalf("a missing cache must not be fetched, %d fetches", *hits)
+	}
+	if _, err := LoadCatalog(); err != nil {
+		t.Fatal(err)
+	}
+	l, ok := CachedListing("hello")
+	if !ok || l.Author != "acme" || *hits != 1 {
+		t.Errorf("listing = %+v %v, fetches %d", l, ok, *hits)
+	}
+}

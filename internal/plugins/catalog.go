@@ -136,6 +136,22 @@ func refreshCatalog() error {
 	return os.Rename(tmp, path)
 }
 
+// CachedListing is the catalog's listing for name from the copy lerd already
+// holds, never fetching: for showing what the catalog says about a plugin that
+// is installed, where a slow network must not hold the list up.
+func CachedListing(name string) (Listing, bool) {
+	c, err := readCatalogCache()
+	if err != nil {
+		return Listing{}, false
+	}
+	for _, l := range c.Plugins {
+		if l.Name == name {
+			return l, true
+		}
+	}
+	return Listing{}, false
+}
+
 func readCatalogCache() (*Catalog, error) {
 	data, err := os.ReadFile(catalogCachePath())
 	if err != nil {

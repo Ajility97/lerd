@@ -133,6 +133,7 @@
     adds={p.adds}
     requires={p.requires}
     error={p.error}
+    author={p.author}
     images={p.screenshots?.map(apiUrl)}
     installed
     features={p.features}
