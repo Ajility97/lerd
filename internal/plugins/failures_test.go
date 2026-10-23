@@ -1,8 +1,10 @@
 package plugins
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -111,5 +113,23 @@ func TestFailures_FallsBackToTheLatestKeptBeforeTheLog(t *testing.T) {
 	writeFailure(Failure{Plugin: "hello", Surface: SurfaceHook, What: "site.linked", Error: "old"})
 	if got := Failures("hello"); len(got) != 1 || got[0].Error != "old" {
 		t.Errorf("Failures = %+v, want the latest failure alone", got)
+	}
+}
+
+// Failures recorded at the same moment, by the dashboard and a CLI command
+// say, must all reach the log rather than overwrite each other.
+func TestFailures_KeepsEveryOneRecordedAtOnce(t *testing.T) {
+	isolate(t)
+	var wg sync.WaitGroup
+	for i := 0; i < 30; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			Record(Failure{Plugin: "hello", Surface: SurfaceAPI, What: "greet", Error: fmt.Sprintf("boom %d", i)})
+		}(i)
+	}
+	wg.Wait()
+	if got := len(Failures("hello")); got != 30 {
+		t.Errorf("kept %d of 30 failures", got)
 	}
 }

@@ -32,7 +32,7 @@ The dashboard does the same on its **Plugins** page, which the puzzle-piece butt
 
 A plugin that fails to load is skipped and listed with its error; it never stops lerd or the other plugins.
 
-An installed plugin's card has three tabs. **Overview** shows its screenshots and everything it adds by name: each command with its usage, each site command, AI tool, page, tab and hook. **Documentation** shows the plugin's own instructions. **Logs** lists its recent failures in full, newest first, each with a **Report to the author** link when it came from the catalog. lerd keeps the last 50 in a log file per plugin, `plugin-failures/<name>.log` in its data folder.
+An installed plugin's card opens with its icon, name, version and author over four tabs. **Overview** shows its screenshots, where it came from and what it requires. **Features** names everything it adds: each command with its usage, each site command, AI tool, page, tab and hook. **Documentation**, when the plugin has docs, shows its own instructions. **Logs** lists its recent failures in full, newest first, each with a **Report to the author** link when it came from the catalog. lerd keeps the last 50 in a log file per plugin, `plugin-failures/<name>.log` in its data folder.
 
 ### Building one with an AI assistant
 

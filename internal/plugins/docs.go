@@ -161,7 +161,8 @@ func (t *docsLinks) Transform(doc *ast.Document, _ text.Reader, _ parser.Context
 			if isWebLink(dest) {
 				return ast.WalkContinue, nil
 			}
-			rel := path.Clean(strings.TrimPrefix(dest, "./"))
+			// Relative to the docs file, the way the markdown reads where it sits.
+			rel := path.Clean(path.Join(path.Dir(t.p.Docs), strings.TrimPrefix(dest, "/")))
 			if !t.p.Serves(rel) {
 				drop = append(drop, v)
 				return ast.WalkSkipChildren, nil

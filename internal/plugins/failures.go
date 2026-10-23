@@ -3,12 +3,15 @@ package plugins
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/geodro/lerd/internal/config"
@@ -104,6 +107,10 @@ func Failures(name string) []Failure {
 	return out
 }
 
+// historyMu and the file lock below keep each read, trim and write of a
+// history whole: the mutex between goroutines, flock between lerd processes.
+var historyMu sync.Mutex
+
 // appendHistory adds f to the plugin's history, one JSON object per line,
 // dropping the oldest past failureHistory.
 func appendHistory(f Failure) {
@@ -114,18 +121,35 @@ func appendHistory(f Failure) {
 	if err != nil {
 		return
 	}
+	path := historyPath(f.Plugin)
+	config.GuardRealWrite(path)
+	if os.MkdirAll(failuresDir(), 0o755) != nil {
+		return
+	}
+	historyMu.Lock()
+	defer historyMu.Unlock()
+	fh, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		return
+	}
+	defer fh.Close()
+	if syscall.Flock(int(fh.Fd()), syscall.LOCK_EX) != nil {
+		return
+	}
+	defer func() { _ = syscall.Flock(int(fh.Fd()), syscall.LOCK_UN) }()
+	data, _ := io.ReadAll(fh)
 	lines := []string{}
-	if data, err := os.ReadFile(historyPath(f.Plugin)); err == nil {
-		lines = strings.Split(strings.TrimSpace(string(data)), "\n")
+	if text := strings.TrimSpace(string(data)); text != "" {
+		lines = strings.Split(text, "\n")
 	}
 	lines = append(lines, string(line))
 	if len(lines) > failureHistory {
 		lines = lines[len(lines)-failureHistory:]
 	}
-	path := historyPath(f.Plugin)
-	config.GuardRealWrite(path)
-	if os.MkdirAll(failuresDir(), 0o755) == nil {
-		_ = os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
+	if fh.Truncate(0) == nil {
+		if _, err := fh.Seek(0, io.SeekStart); err == nil {
+			_, _ = fh.WriteString(strings.Join(lines, "\n") + "\n")
+		}
 	}
 }
 

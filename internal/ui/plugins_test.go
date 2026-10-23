@@ -770,3 +770,22 @@ func TestPluginKit_KeepsHiddenElementsHidden(t *testing.T) {
 		t.Error("base.css must restore [hidden] over its own display rules")
 	}
 }
+
+// A plugin that stops loading keeps its failure log, the one place that says why.
+func TestPluginManager_LogsOfABrokenPlugin(t *testing.T) {
+	installAPIPlugin(t)
+	plugins.Record(plugins.Failure{Plugin: "echo", Surface: plugins.SurfaceAPI, What: "say", Error: "boom"})
+	if err := os.WriteFile(filepath.Join(plugins.Dir(), "echo", plugins.ManifestFile), []byte("api_version: 9\nname: echo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	handlePluginManager(rec, localRequest(http.MethodGet, "/api/plugin-manager/echo/logs", ""))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "boom") {
+		t.Errorf("logs = %d %s", rec.Code, rec.Body)
+	}
+	rec = httptest.NewRecorder()
+	handlePluginManager(rec, localRequest(http.MethodGet, "/api/plugin-manager/..%2Fx/logs", ""))
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("a name that is not a plugin's = %d, want 404", rec.Code)
+	}
+}

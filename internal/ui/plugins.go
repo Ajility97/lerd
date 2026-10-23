@@ -449,13 +449,14 @@ func handlePluginManager(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, entries)
 	case r.Method == http.MethodGet && strings.HasSuffix(name, "/logs"):
-		p, err := plugins.Find(strings.TrimSuffix(name, "/logs"))
-		if err != nil {
+		// A plugin that no longer loads keeps its log, the one place saying why.
+		plugin := strings.TrimSuffix(name, "/logs")
+		if !plugins.ValidName(plugin) {
 			http.NotFound(w, r)
 			return
 		}
 		out := []pluginFailure{}
-		for _, f := range plugins.Failures(p.Name) {
+		for _, f := range plugins.Failures(plugin) {
 			out = append(out, pluginFailure{Failure: f, ReportURL: f.ReportURL()})
 		}
 		writeJSON(w, out)

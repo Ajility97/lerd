@@ -145,3 +145,19 @@ func TestCardIcon_OwnIconBeforeTheRailPages(t *testing.T) {
 		}
 	}
 }
+
+// An image is resolved from the docs file's own folder, the way the markdown
+// reads where it sits.
+func TestDocs_ResolvesImagesFromTheDocsFolder(t *testing.T) {
+	dir := writePlugin(t, t.TempDir(), "p", "api_version: 1\nname: p\ndocs: docs/README.md\nscreenshots: [docs/tab.png]\n")
+	writeFile(t, filepath.Join(dir, "docs", "tab.png"), "png")
+	writeFile(t, filepath.Join(dir, "docs", "README.md"), "![tab](tab.png)")
+	p, err := ReadPlugin(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html, err := p.DocsHTML(func(rel string) string { return "/plugins/p/" + rel })
+	if err != nil || !strings.Contains(html, `src="/plugins/p/docs/tab.png"`) {
+		t.Errorf("html = %s, %v", html, err)
+	}
+}

@@ -2,8 +2,9 @@
    rule sits in :where(), which weighs nothing, so any rule the plugin writes
    wins. Colours follow the dashboard's theme, which theme.js receives. The
    classes below are the dashboard's own pieces; see lerd.sh/features/plugins. */
+/* Native controls and scrollbars follow the dashboard's choice, not the OS's. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --lerd-accent: #ff2d20;
   --lerd-accent-hover: #e02419;
   --lerd-on-accent: #ffffff;
@@ -19,6 +20,7 @@
   --lerd-bad: #dc2626;
 }
 :root.dark {
+  color-scheme: dark;
   --lerd-text: oklch(0.967 0.003 264.542);
   --lerd-text-strong: oklch(0.928 0.006 264.531);
   --lerd-text-muted: #99a1af;
