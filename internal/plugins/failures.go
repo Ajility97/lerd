@@ -3,7 +3,6 @@ package plugins
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -79,6 +78,7 @@ func LastFailure(name string) (Failure, bool) {
 func ClearFailure(name string) {
 	_ = os.Remove(filepath.Join(failuresDir(), name+".json"))
 	_ = os.Remove(historyPath(name))
+	_ = os.Remove(historyPath(name) + ".lock")
 }
 
 // failureHistory is how many failures the dashboard's Logs tab can go back.
@@ -107,8 +107,8 @@ func Failures(name string) []Failure {
 	return out
 }
 
-// historyMu and the file lock below keep each read, trim and write of a
-// history whole: the mutex between goroutines, flock between lerd processes.
+// historyMu and a lock file keep each read, trim and write of a history
+// whole: the mutex between goroutines, flock between lerd processes.
 var historyMu sync.Mutex
 
 // appendHistory adds f to the plugin's history, one JSON object per line,
@@ -128,28 +128,32 @@ func appendHistory(f Failure) {
 	}
 	historyMu.Lock()
 	defer historyMu.Unlock()
-	fh, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o644)
+	// The lock sits on a file of its own, since the history is replaced by a
+	// rename and a lock on the old file would not cover the new one.
+	lock, err := os.OpenFile(path+".lock", os.O_RDWR|os.O_CREATE, 0o644)
 	if err != nil {
 		return
 	}
-	defer fh.Close()
-	if syscall.Flock(int(fh.Fd()), syscall.LOCK_EX) != nil {
+	defer lock.Close()
+	if syscall.Flock(int(lock.Fd()), syscall.LOCK_EX) != nil {
 		return
 	}
-	defer func() { _ = syscall.Flock(int(fh.Fd()), syscall.LOCK_UN) }()
-	data, _ := io.ReadAll(fh)
+	defer func() { _ = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN) }()
 	lines := []string{}
-	if text := strings.TrimSpace(string(data)); text != "" {
-		lines = strings.Split(text, "\n")
+	if data, err := os.ReadFile(path); err == nil {
+		if text := strings.TrimSpace(string(data)); text != "" {
+			lines = strings.Split(text, "\n")
+		}
 	}
 	lines = append(lines, string(line))
 	if len(lines) > failureHistory {
 		lines = lines[len(lines)-failureHistory:]
 	}
-	if fh.Truncate(0) == nil {
-		if _, err := fh.Seek(0, io.SeekStart); err == nil {
-			_, _ = fh.WriteString(strings.Join(lines, "\n") + "\n")
-		}
+	// Written beside the log and renamed over it, so a reader sees the old
+	// history or the new one, never half of it.
+	tmp := path + ".tmp"
+	if os.WriteFile(tmp, []byte(strings.Join(lines, "\n")+"\n"), 0o644) == nil {
+		_ = os.Rename(tmp, path)
 	}
 }
 
