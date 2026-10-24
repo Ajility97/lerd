@@ -48,6 +48,32 @@ func TestBuildServiceResponse_publishedPortAndURL(t *testing.T) {
 	}
 }
 
+// A consumer of the API gets the name and address the dashboard shows without
+// copying the UI's rules or reading lerd's config.
+func TestBuildServiceResponse_labelAndDomain(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	if got := buildServiceResponse("mysql"); got.Label != "MySQL" || got.Domain != "" {
+		t.Errorf("mysql label/domain = %q/%q, want MySQL and no domain", got.Label, got.Domain)
+	}
+
+	cfg, err := config.LoadGlobal()
+	if err != nil {
+		t.Fatalf("LoadGlobal: %v", err)
+	}
+	if cfg.Services == nil {
+		cfg.Services = map[string]config.ServiceConfig{}
+	}
+	cfg.Services["rustfs"] = config.ServiceConfig{Enabled: true, Domain: "rustfs.test"}
+	if err := config.SaveGlobal(cfg); err != nil {
+		t.Fatalf("SaveGlobal: %v", err)
+	}
+	if got := buildServiceResponse("rustfs"); got.Label != "RustFS" || got.Domain != "rustfs.test" {
+		t.Errorf("rustfs label/domain = %q/%q, want RustFS and rustfs.test", got.Label, got.Domain)
+	}
+}
+
 // TestBuildServiceResponse_dashboardFollowsPublishedPort proves the dashboard
 // tracks a moved published port. A service opened at its own origin carries the
 // port in the URL the launcher and the overlay open verbatim; one embedded

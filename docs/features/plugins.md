@@ -252,6 +252,8 @@ curl -fsS -H "X-Lerd-Plugin-Token: $LERD_API_TOKEN" "$LERD_API_URL/api/sites"
 
 The token is the plugin's own: lerd derives it from the plugin's name and a secret only your user can read, so a call can be traced to the plugin that made it. For anything else, `$LERD_BIN` runs lerd's CLI.
 
+`/api/services` gives each service's `label`, the name the dashboard shows when its definition sets one (capitalize the `name` when it is absent), and its `domain` when lerd serves it on one, so a plugin listing services needs neither the dashboard's naming rules nor lerd's config files.
+
 ### Telling the user something
 
 A hook runs where nobody watches, so a plugin that needs the user to act sends a notification instead, with the same token:

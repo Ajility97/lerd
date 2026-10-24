@@ -1,4 +1,5 @@
 name: mariadb
+label: "MariaDB"
 description: MariaDB (MySQL-compatible) versions
 family: mariadb
 env_role: mysql

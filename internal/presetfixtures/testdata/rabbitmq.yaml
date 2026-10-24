@@ -1,4 +1,5 @@
 name: rabbitmq
+label: "RabbitMQ"
 image: docker.io/library/rabbitmq:3-management-alpine
 description: RabbitMQ message broker with management UI
 ports:

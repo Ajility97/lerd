@@ -1,4 +1,5 @@
 name: postgres-timescaledb
+label: "PostgreSQL + TimescaleDB"
 description: PostgreSQL with TimescaleDB (time-series extension)
 family: postgres
 stop_timeout: 60

@@ -1,4 +1,5 @@
 name: pgadmin
+label: "pgAdmin"
 image: docker.io/dpage/pgadmin4:latest
 description: pgAdmin web UI for the lerd Postgres service
 ports:

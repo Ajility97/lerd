@@ -1,4 +1,5 @@
 name: mailpit
+label: "Mailpit"
 default: true
 update_strategy: rolling
 description: Mailpit SMTP catcher

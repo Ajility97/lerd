@@ -199,6 +199,7 @@ type Preset struct {
 // listing in CLI tables and the web UI without parsing every field.
 type PresetMeta struct {
 	Name           string          `json:"name"`
+	Label          string          `json:"label,omitempty"`
 	Description    string          `json:"description"`
 	Dashboard      string          `json:"dashboard,omitempty"`
 	DependsOn      []string        `json:"depends_on,omitempty"`
@@ -234,6 +235,7 @@ func ListPresets() ([]PresetMeta, error) {
 		// carries a "(default)" hint and DefaultVersion preselects it.
 		out = append(out, PresetMeta{
 			Name:           p.Name,
+			Label:          p.Label,
 			Description:    p.Description,
 			Dashboard:      p.Dashboard,
 			DependsOn:      p.DependsOn,

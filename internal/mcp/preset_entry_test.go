@@ -14,6 +14,7 @@ import (
 func TestPresetEntry_carriesDiscoveryMetadata(t *testing.T) {
 	got := newPresetEntry(config.PresetMeta{
 		Name:        "phpmyadmin",
+		Label:       "phpMyAdmin",
 		Description: "MySQL/MariaDB web admin",
 		Category:    "admin",
 		Icon:        "database",
@@ -25,6 +26,9 @@ func TestPresetEntry_carriesDiscoveryMetadata(t *testing.T) {
 		t.Errorf("suggest_for = %v, want [mailpit]", got.SuggestFor)
 	}
 
+	if got.Label != "phpMyAdmin" {
+		t.Errorf("label = %q, want phpMyAdmin", got.Label)
+	}
 	if got.Category != "admin" {
 		t.Errorf("category = %q, want admin", got.Category)
 	}

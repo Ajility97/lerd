@@ -26,6 +26,7 @@ type ServiceIndex struct {
 // every preset file. The full definition is fetched on install.
 type ServiceIndexEntry struct {
 	Name           string                 `json:"name"`
+	Label          string                 `json:"label,omitempty"`
 	Description    string                 `json:"description"`
 	Family         string                 `json:"family,omitempty"`
 	EnvRole        string                 `json:"env_role,omitempty"`

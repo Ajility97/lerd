@@ -156,6 +156,8 @@ connection_url: mongodb://root:secret@127.0.0.1:27017/?authSource=admin
                                        # registered DB client (DBeaver, TablePlus, Compass, etc.).
 
 description: "MongoDB document store"  # shown in `lerd service list`
+label: "MongoDB"                       # the name the dashboard shows; omit it and the name is
+                                       # capitalized (mongo-express -> Mongo Express)
 
 # Service dependencies (see "Service dependencies" section below)
 depends_on:
