@@ -3,6 +3,7 @@ package dns
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -37,7 +38,6 @@ func TestWSLHandoverNameservers_NothingToDo(t *testing.T) {
 	}{
 		{"not WSL", false, true, wslResolvConf},
 		{"resolved not running", true, false, wslResolvConf},
-		{"already handed over", true, true, "nameserver 127.0.0.53\n"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -46,5 +46,142 @@ func TestWSLHandoverNameservers_NothingToDo(t *testing.T) {
 				t.Errorf("got %v, want nil", got)
 			}
 		})
+	}
+}
+
+// withResolverSeams fakes the rest of the resolver: the unit, its drop-in, the
+// copy of WSL's file in /mnt/wsl, and the commands that install or start it.
+func withResolverSeams(t *testing.T, unit, dropin bool, mntConf string) *[]string {
+	t.Helper()
+	origUnit, origDropin, origMnt, origRun, origWrite, origStub, origUp, origBoot := resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub, resolvedHasUpstream, systemdBooted
+	t.Cleanup(func() {
+		resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub, resolvedHasUpstream, systemdBooted = origUnit, origDropin, origMnt, origRun, origWrite, origStub, origUp, origBoot
+	})
+	systemdBooted = func() bool { return true }
+	resolvedHasUpstream = func() bool { return dropin }
+	resolvConfIsStub = func() bool { return true }
+	p := filepath.Join(t.TempDir(), "mnt-resolv.conf")
+	if err := os.WriteFile(p, []byte(mntConf), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	wslGeneratedResolvConf = p
+	resolvedUnitPresent = func() bool { return unit }
+	upstreamDropinPresent = func() bool { return dropin }
+	var ran []string
+	writeRootFile = func(path string, _ []byte, _ os.FileMode) error {
+		ran = append(ran, "write "+path)
+		return nil
+	}
+	runSudo = func(args ...string) error {
+		ran = append(ran, strings.Join(args, " "))
+		return nil
+	}
+	return &ran
+}
+
+// A resolved package relinks resolv.conf to its stub and leaves resolved with no
+// upstream, so the nameservers come from the copy WSL keeps in /mnt/wsl.
+func TestWSLHandoverNameservers_relinkedByPackageReadsMntWSL(t *testing.T) {
+	withWSLSeams(t, true, true, "nameserver 127.0.0.53\n")
+	withResolverSeams(t, true, false, wslResolvConf)
+	got, _ := wslHandoverNameservers()
+	if len(got) != 1 || got[0] != "10.255.255.254" {
+		t.Errorf("got %v, want WSL's proxy from /mnt/wsl", got)
+	}
+}
+
+func TestEnsureWSLResolver_startsAnInstalledButStoppedResolved(t *testing.T) {
+	withWSLSeams(t, true, false, wslResolvConf)
+	ran := withResolverSeams(t, true, true, wslResolvConf)
+	resolvedIsRunning = func() bool { return len(*ran) > 0 }
+	if err := EnsureWSLResolver(); err != nil {
+		t.Fatal(err)
+	}
+	if len(*ran) == 0 || (*ran)[0] != "systemctl enable --now systemd-resolved" {
+		t.Errorf("ran %q, want resolved started first", *ran)
+	}
+}
+
+func TestEnsureWSLResolver_missingWithoutAptNamesThePackage(t *testing.T) {
+	withWSLSeams(t, true, false, wslResolvConf)
+	withResolverSeams(t, false, false, wslResolvConf)
+	origApt := haveAptGet
+	t.Cleanup(func() { haveAptGet = origApt })
+	haveAptGet = func() bool { return false }
+	err := EnsureWSLResolver()
+	if err == nil || !strings.Contains(err.Error(), "systemd-resolved") {
+		t.Errorf("got %v, want an error naming systemd-resolved", err)
+	}
+}
+
+func TestEnsureWSLResolver_installsWithApt(t *testing.T) {
+	withWSLSeams(t, true, false, wslResolvConf)
+	ran := withResolverSeams(t, false, false, wslResolvConf)
+	origApt := haveAptGet
+	t.Cleanup(func() { haveAptGet = origApt })
+	haveAptGet = func() bool { return true }
+	resolvedIsRunning = func() bool { return len(*ran) > 0 }
+	if err := EnsureWSLResolver(); err != nil {
+		t.Fatal(err)
+	}
+	if len(*ran) < 2 || (*ran)[1] != "apt-get install -y systemd-resolved" {
+		t.Errorf("ran %q, want apt-get update then install", *ran)
+	}
+}
+
+func TestEnsureWSLResolver_offWSLDoesNothing(t *testing.T) {
+	withWSLSeams(t, false, false, "")
+	ran := withResolverSeams(t, false, false, "")
+	if err := EnsureWSLResolver(); err != nil || len(*ran) > 0 {
+		t.Errorf("err %v, ran %q, want nothing", err, *ran)
+	}
+}
+
+func TestWSLHandoverNameservers_alreadyHandedOver(t *testing.T) {
+	withWSLSeams(t, true, true, "nameserver 127.0.0.53\n")
+	withResolverSeams(t, true, true, wslResolvConf)
+	if got, _ := wslHandoverNameservers(); got != nil {
+		t.Errorf("got %v, want nil once resolv.conf is resolved's and the upstream is set", got)
+	}
+}
+
+func TestWSLHandoverNameservers_leavesAUserWrittenResolvConf(t *testing.T) {
+	withWSLSeams(t, true, true, "nameserver 10.1.2.3\n")
+	withResolverSeams(t, true, false, wslResolvConf)
+	resolvConfIsStub = func() bool { return false }
+	if got, _ := wslHandoverNameservers(); got != nil {
+		t.Errorf("got %v, want nil: the user's own resolv.conf stays", got)
+	}
+}
+
+// A handover cut off after writing the drop-in left resolved without it loaded.
+func TestWSLHandoverNameservers_dropinWrittenButNotLoadedIsRedone(t *testing.T) {
+	withWSLSeams(t, true, true, "nameserver 127.0.0.53\n")
+	withResolverSeams(t, true, true, wslResolvConf)
+	resolvedHasUpstream = func() bool { return false }
+	if got, _ := wslHandoverNameservers(); len(got) != 1 {
+		t.Errorf("got %v, want the handover redone", got)
+	}
+}
+
+func TestGlobalDNSSet(t *testing.T) {
+	for out, want := range map[string]bool{
+		"Global: 10.255.255.254\nLink 2 (eth0):\n": true,
+		"Global:\nLink 2 (eth0): 10.0.0.1\n":       false,
+		"":                                         false,
+	} {
+		if got := globalDNSSet(out); got != want {
+			t.Errorf("globalDNSSet(%q) = %v, want %v", out, got, want)
+		}
+	}
+}
+
+// With systemd off nothing can run resolved, so nothing is installed for it.
+func TestEnsureWSLResolver_systemdOffInstallsNothing(t *testing.T) {
+	withWSLSeams(t, true, false, wslResolvConf)
+	ran := withResolverSeams(t, false, false, wslResolvConf)
+	systemdBooted = func() bool { return false }
+	if err := EnsureWSLResolver(); err != nil || len(*ran) > 0 {
+		t.Errorf("err %v, ran %q, want nothing with systemd off", err, *ran)
 	}
 }

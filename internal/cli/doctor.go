@@ -305,6 +305,15 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 			rep.fixLast(manualFixWith("run `lerd wsl:setup` (it needs sudo to write the podman config)"))
 		}
 
+		if dns.ConfiguredTLD() != "localhost" && dns.WSLResolverMissing() {
+			warn("systemd-resolved running", "lerd routes ."+dns.ConfiguredTLD()+" inside the distro through it, so sites do not resolve from WSL shells or PHP")
+			if dns.HostOwnsResolver() {
+				rep.fixLast(manualFixWith("enable systemd-resolved in your configuration.nix (services.resolved.enable = true), then rebuild"))
+			} else {
+				rep.fixLast(manualFixWith("run `lerd install`, which installs or starts systemd-resolved"))
+			}
+		}
+
 		wslConf, _ := os.ReadFile("/etc/wsl.conf")
 		resolvTarget, _ := os.Readlink("/etc/resolv.conf")
 		if wsl.ResolvConfAwaitsRestart(string(wslConf), resolvTarget) {
