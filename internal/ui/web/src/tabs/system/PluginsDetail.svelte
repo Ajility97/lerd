@@ -59,6 +59,11 @@
     }
   }
 
+  async function keep(name: string) {
+    const err = await keepRevokedPlugin(name);
+    if (err) notifyLocalFailure('plugin_revoked', m.plugins_revoked_title({ plugin: name }), err);
+  }
+
   // Every plugin with a newer approved commit, updated one after another.
   const updatable = $derived($managedPlugins.filter((p) => p.update));
   async function updateAll() {
@@ -181,7 +186,7 @@
         </DetailButton>
       {/if}
       {#if p.revoked}
-        <DetailButton onclick={() => keepRevokedPlugin(p.name)}>{m.plugins_revoked_keep()}</DetailButton>
+        <DetailButton onclick={() => keep(p.name)}>{m.plugins_revoked_keep()}</DetailButton>
       {/if}
       <DetailButton tone="danger" onclick={() => (confirmName = p.name)} loading={removing === p.name} disabled={removing !== ''}>
         {m.common_remove()}
