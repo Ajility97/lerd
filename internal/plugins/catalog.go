@@ -134,11 +134,24 @@ func refreshCatalog() error {
 		return err
 	}
 	// Always rewritten, even unchanged: the file's age is what says it is fresh.
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	// Each refresh writes its own temporary file, so two at once cannot truncate
+	// the copy the other is about to rename into place.
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmp.Name(), 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
 }
 
 // CachedListing is the catalog's listing for name from the copy lerd already

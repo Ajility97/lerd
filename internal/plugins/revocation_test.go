@@ -3,8 +3,11 @@ package plugins
 import (
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -138,5 +141,45 @@ func TestRevocation_ConcurrentKeepsAllHold(t *testing.T) {
 	wg.Wait()
 	if kept := readKept(); len(kept) != len(names) {
 		t.Fatalf("kept = %v, want all %d", kept, len(names))
+	}
+}
+
+// Two tabs opening Browse refresh the catalog together; a load in between must
+// still read the whole catalog, or a revoked plugin runs for that moment.
+func TestRevocation_ConcurrentRefreshesNeverHideARevocation(t *testing.T) {
+	installRevokable(t)
+	c := Catalog{Revoked: []Revocation{{Name: "bad", Reason: strings.Repeat("x", 8<<20), At: "2026-10-24"}}}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(c)
+	}))
+	t.Cleanup(srv.Close)
+	orig := CatalogURL
+	CatalogURL = srv.URL
+	t.Cleanup(func() { CatalogURL = orig })
+	if err := RefreshCatalogOlderThan(0); err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range 20 {
+				_ = RefreshCatalogOlderThan(0)
+			}
+		}()
+	}
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	for {
+		select {
+		case <-done:
+			return
+		default:
+		}
+		if len(revocations()) != 1 {
+			t.Fatal("a load during a refresh saw no revocation")
+		}
 	}
 }
