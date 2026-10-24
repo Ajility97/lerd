@@ -270,6 +270,24 @@ dashboard_login:
 
 The values are written through the input's native setter and announced as a keystroke would be, so a form that tracks its fields in JavaScript sees them. `done` is read before anything is typed, so a dashboard already logged in is left alone. A dashboard whose session runs out leaves that key behind when it goes stale, which would read as still being logged in, so `expires` names the field inside the stored value holding the moment it stops counting.
 
+A dashboard whose content security policy keeps inline scripts out still runs the ones lerd injects: they carry the page's own script nonce, or, on a page with none, the policy is extended with their hashes.
+
+A dashboard that cannot be proxied has no form lerd can reach, since its page is on another origin. If it hands out a session token through its own API and has a page that takes one, `dashboard_token_login` describes that instead:
+
+```yaml
+dashboard_token_login:
+  request: /api/auth/login            # POSTed as JSON on the dashboard's origin
+  body:
+    username: UMAMI_USERNAME          # body field: the env var holding the value
+    password: UMAMI_PASSWORD
+  token: token                        # the response field carrying the token
+  open: /sso?token={token}&url={path}
+```
+
+The dashboard is then opened through `/_svc/<service>/`, where lerd-ui logs in and redirects to `open`, with `{token}` and `{path}` (the page asked for under the mount) query-escaped. Each credential is read from the container's environment first and the `env_vars` second, so a login the app ships with, rather than one lerd sets, still counts. If a credential is missing or the login fails, the dashboard opens on its own login page.
+
+Every database engine also gets the database its `connection_url` names when a service that depends on it starts. The image only creates it while initialising a fresh data directory, so a directory that predates it would otherwise leave the dependent crash-looping.
+
 ## Site handle placeholders
 
 `env_vars` values and `site_init.exec` support two placeholders that are substituted per-project when `lerd env` runs:

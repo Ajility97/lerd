@@ -1,6 +1,10 @@
 package cli
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/geodro/lerd/internal/config"
+)
 
 // The endpoint an app signs against and the URL the browser opens have to be
 // the same host, so both shapes lerd writes have to land on the domain.
@@ -56,5 +60,26 @@ func TestApplyServiceDomainEnv_LeavesOtherHostsPortsIntact(t *testing.T) {
 		map[string]int{"rustfs": 9000})
 	if got := updates["OTHER_URL"]; got != "http://example.test:9000/thing" {
 		t.Errorf("OTHER_URL = %q, want it untouched", got)
+	}
+}
+
+// A port clash moves the service, but the env_vars its preset hands sites still
+// name the port it declares, which nothing listens on any more.
+func TestFollowPublishedPort(t *testing.T) {
+	ports := []string{"3002:3000"}
+	moved := config.ServiceConfig{PublishedPort: 3004}
+	cases := map[string]string{
+		"http://localhost:3002/script.js": "http://localhost:3004/script.js",
+		"http://127.0.0.1:3002":           "http://127.0.0.1:3004",
+		"http://lerd-umami:3000":          "http://lerd-umami:3000",
+		"http://localhost:9999/x":         "http://localhost:9999/x",
+	}
+	for in, want := range cases {
+		if got := followPublishedPort(in, ports, moved); got != want {
+			t.Errorf("followPublishedPort(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := followPublishedPort("http://localhost:3002", ports, config.ServiceConfig{}); got != "http://localhost:3002" {
+		t.Errorf("an unmoved service changed: %q", got)
 	}
 }

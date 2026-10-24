@@ -454,3 +454,21 @@ func TestDashboardRerouteScriptShape(t *testing.T) {
 		t.Errorf("reroute script braces unbalanced: %d open, %d close", opens, closes)
 	}
 }
+
+// Umami's admin login is the app's own default, never set on the container, so
+// it is only found among the env_vars handed to sites.
+func TestTokenLoginBody(t *testing.T) {
+	login := &DashboardTokenLogin{Body: map[string]string{"username": "APP_USER", "password": "APP_PASS"}}
+	svc := &CustomService{
+		Environment: map[string]string{"APP_USER": "admin"},
+		EnvVars:     []string{"APP_URL=http://x", "APP_PASS=secret"},
+	}
+	body, ok := tokenLoginBody(login, svc, &Preset{})
+	if !ok || body["username"] != "admin" || body["password"] != "secret" {
+		t.Fatalf("body = %v, %v", body, ok)
+	}
+	svc.EnvVars = nil
+	if _, ok := tokenLoginBody(login, svc, &Preset{}); ok {
+		t.Error("a credential lerd does not hold should leave the dashboard on its own login")
+	}
+}
