@@ -122,7 +122,7 @@ func loopbackServiceNames(declared map[string]bool, known []string) []string {
 // processes and reach a browser, and the container name lerd otherwise writes
 // resolves nowhere out there. Only values carrying a scheme are touched, so a
 // bare connection host (REDIS_HOST=lerd-redis) is left where it belongs.
-func applyServiceDomainEnv(updates map[string]string, domains map[string]string, ports map[string]int) {
+func applyServiceDomainEnv(updates map[string]string, domains map[string]string, ports, served map[string]int) {
 	if len(domains) == 0 {
 		return
 	}
@@ -140,7 +140,7 @@ func applyServiceDomainEnv(updates map[string]string, domains map[string]string,
 		rewritten := value
 		for _, name := range names {
 			target := "https://" + domains[name]
-			rewritten = strings.ReplaceAll(rewritten, "http://lerd-"+name, target)
+			rewritten = rewriteContainerURL(rewritten, name, target, served[name])
 			if port := ports[name]; port > 0 {
 				host := fmt.Sprintf(":%d", port)
 				rewritten = strings.ReplaceAll(rewritten, "http://localhost"+host, target)
@@ -154,6 +154,20 @@ func applyServiceDomainEnv(updates map[string]string, domains map[string]string,
 			updates[key] = rewritten
 		}
 	}
+}
+
+// rewriteContainerURL points http://lerd-<name> at the domain, but only where the
+// URL names the port the domain serves, or no port. A service with a second port
+// keeps it on the container name; served of 0 means lerd cannot tell, so any.
+func rewriteContainerURL(value, name, target string, served int) string {
+	re := regexp.MustCompile(`http://lerd-` + regexp.QuoteMeta(name) + `(:(\d+))?([/?#"'\s]|$)`)
+	return re.ReplaceAllStringFunc(value, func(m string) string {
+		sub := re.FindStringSubmatch(m)
+		if sub[2] != "" && served > 0 && sub[2] != strconv.Itoa(served) {
+			return m
+		}
+		return target + sub[1] + sub[3]
+	})
 }
 
 // stripServiceDomainPorts removes an explicit port left on a service domain by
@@ -190,6 +204,16 @@ func followPublishedPort(value string, ports []string, sc config.ServiceConfig) 
 		return value
 	}
 	return serviceops.WithDashboardPort(value, ports, sc)
+}
+
+// servedDomainPorts pairs each service that has a domain with the container port
+// the domain proxies to.
+func servedDomainPorts(domains map[string]string) map[string]int {
+	served := map[string]int{}
+	for name := range domains {
+		served[name] = serviceops.ServiceDomainPort(name)
+	}
+	return served
 }
 
 // serviceDomainPorts pairs each service that has a domain with the host port it
@@ -1299,7 +1323,7 @@ func runEnv(_ *cobra.Command, _ []string) error {
 	// the app container and the browser alike, which is the only shape that
 	// works for a URL whose host is inside its signature.
 	if domains := config.ServiceDomains(); len(domains) > 0 {
-		applyServiceDomainEnv(updates, domains, serviceDomainPorts(domains))
+		applyServiceDomainEnv(updates, domains, serviceDomainPorts(domains), servedDomainPorts(domains))
 	}
 
 	// 4e. Apply personal .env.lerd_override values last so they win over lerd's

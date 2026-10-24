@@ -279,7 +279,7 @@ The domain is taken during `lerd install` as well as at start, so an update reac
 
 Setting or removing a domain sweeps the sites that use the service and rewrites their env files right away, so the change reaches the projects instead of waiting for each to run `lerd env` itself. That matters most on removal: without the sweep every project would be left pointing at a name that no longer resolves.
 
-Once a service has a domain, `lerd env` writes it into the sites that use the service: the container URL and the `localhost` published-port URL both become the domain, and the port the scheme now implies is dropped. Values that are not URLs are left alone, so a bare `REDIS_HOST=lerd-redis` keeps pointing at the container.
+Once a service has a domain, `lerd env` writes it into the sites that use the service: the container URL and the `localhost` published-port URL both become the domain, and the port the scheme now implies is dropped. Values that are not URLs are left alone, so a bare `REDIS_HOST=lerd-redis` keeps pointing at the container. A container URL only moves when it names the port the domain serves, or no port, so a service listening on a second port, like a mock server beside its admin API, keeps that one on the container.
 
 ```ini
 AWS_ENDPOINT=https://rustfs.test
