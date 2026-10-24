@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -36,6 +37,8 @@ const catalogMaxAge = 24 * time.Hour
 // Catalog is the registry's published index.
 type Catalog struct {
 	Plugins []Listing `json:"plugins"`
+	// Revoked are plugins pulled for a security problem; see Revocation.
+	Revoked []Revocation `json:"revoked,omitempty"`
 }
 
 // Listing is one approved plugin: its repository and the exact commit a
@@ -164,6 +167,7 @@ func readCatalogCache() (*Catalog, error) {
 		return nil, err
 	}
 	c.Plugins = validListings(c.Plugins)
+	c.Revoked = slices.DeleteFunc(c.Revoked, func(r Revocation) bool { return !nameRe.MatchString(r.Name) })
 	return &c, nil
 }
 
@@ -218,6 +222,11 @@ func FindListing(name string) (*Listing, error) {
 	for i := range c.Plugins {
 		if c.Plugins[i].Name == name {
 			return &c.Plugins[i], nil
+		}
+	}
+	for _, r := range c.Revoked {
+		if r.Name == name {
+			return nil, fmt.Errorf("plugin %s was %v", name, RevokedError{r})
 		}
 	}
 	return nil, fmt.Errorf("plugin %s is not in the plugin catalog", name)

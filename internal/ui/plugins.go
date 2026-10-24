@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -35,6 +36,16 @@ type pluginPage struct {
 	Title string `json:"title"`
 	URL   string `json:"url"`
 	Icon  string `json:"icon,omitempty"`
+}
+
+// handlePluginRevocations serves GET /api/plugin-revocations: the installed
+// plugins the catalog revoked and that stay stopped until the user answers.
+func handlePluginRevocations(w http.ResponseWriter, _ *http.Request) {
+	list := plugins.Revoked()
+	if list == nil {
+		list = []plugins.Revocation{}
+	}
+	writeJSON(w, list)
 }
 
 // handlePluginsList serves GET /api/plugins.
@@ -412,6 +423,8 @@ type managedPlugin struct {
 	Features    []plugins.Feature `json:"features,omitempty"`
 	Screenshots []string          `json:"screenshots,omitempty"`
 	HasDocs     bool              `json:"has_docs,omitempty"`
+	// Revoked is the catalog's revocation stopping it, for its card to explain.
+	Revoked *plugins.Revocation `json:"revoked,omitempty"`
 	// Notifications is none, pending, allowed or denied; pending is the
 	// dashboard's cue to ask.
 	Notifications string `json:"notifications,omitempty"`
@@ -481,6 +494,17 @@ func handlePluginManager(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, map[string]string{"html": html})
+	case r.Method == http.MethodPost && strings.HasSuffix(name, "/keep"):
+		// Running a revoked plugin again is the user's call, never the plugin's.
+		if r.Header.Get(plugins.TokenHeader) != "" {
+			http.Error(w, "a plugin cannot answer for the user", http.StatusForbidden)
+			return
+		}
+		if err := plugins.KeepRevoked(strings.TrimSuffix(name, "/keep")); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
 	case r.Method == http.MethodPost && strings.HasSuffix(name, "/notifications"):
 		// The answer is the user's: a plugin's own token never gives it.
 		if r.Header.Get(plugins.TokenHeader) != "" {
@@ -565,7 +589,11 @@ func managedPlugins() []managedPlugin {
 		out = append(out, row)
 	}
 	for _, e := range errs {
-		out = append(out, managedPlugin{Name: filepath.Base(e.Dir), Error: e.Error()})
+		row := managedPlugin{Name: filepath.Base(e.Dir), Error: e.Error()}
+		if rev := (plugins.RevokedError{}); errors.As(e.Err, &rev) {
+			row.Revoked = &rev.Revocation
+		}
+		out = append(out, row)
 	}
 	slices.SortFunc(out, func(a, b managedPlugin) int { return strings.Compare(a.Name, b.Name) })
 	return out

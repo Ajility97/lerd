@@ -244,6 +244,7 @@ func Start(currentVersion string) error {
 	mux.HandleFunc("/api/tunnel-qr/", withCORS(handleTunnelQR))
 	mux.HandleFunc("/api/dashboard-qr", withCORS(handleDashboardQR))
 	mux.HandleFunc("/api/plugins", withCORS(handlePluginsList))
+	mux.HandleFunc("/api/plugin-revocations", withCORS(handlePluginRevocations))
 	mux.HandleFunc("/api/plugins/", withCORS(handlePluginAPI))
 	mux.HandleFunc("/plugins/", withCORS(handlePluginUI))
 	mux.HandleFunc("/api/plugin-manager", withCORS(handlePluginManager))

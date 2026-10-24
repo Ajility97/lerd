@@ -27,6 +27,9 @@ func watchPluginUpdates() {
 			for _, u := range newPluginUpdates() {
 				dispatchNotification(pluginUpdateNotification(u))
 			}
+			for _, r := range newRevocations() {
+				dispatchNotification(revocationNotification(r))
+			}
 			time.Sleep(pluginUpdateEvery)
 		}
 	}()
@@ -84,5 +87,51 @@ func pluginUpdateNotification(u pluginUpdate) push.Notification {
 		Data:     map[string]string{"plugin": u.name, "version": version},
 		Urgency:  "low",
 		TTL:      3600,
+	}
+}
+
+func announcedRevocationsPath() string {
+	return filepath.Join(config.DataDir(), "plugin-revocations-announced.json")
+}
+
+// newRevocations returns the revocations stopping an installed plugin that
+// were not announced before, so each one is announced once. The dashboard's
+// banner is what holds the user to it; this only makes sure they hear.
+func newRevocations() []plugins.Revocation {
+	announced := map[string]string{}
+	if data, err := os.ReadFile(announcedRevocationsPath()); err == nil {
+		_ = json.Unmarshal(data, &announced)
+	}
+	var out []plugins.Revocation
+	for _, r := range plugins.Revoked() {
+		if announced[r.Name] == r.At {
+			continue
+		}
+		announced[r.Name] = r.At
+		out = append(out, r)
+	}
+	if len(out) > 0 {
+		if data, err := json.Marshal(announced); err == nil {
+			path := announcedRevocationsPath()
+			config.GuardRealWrite(path)
+			_ = os.WriteFile(path, data, 0o644)
+		}
+	}
+	return out
+}
+
+func revocationNotification(r plugins.Revocation) push.Notification {
+	return push.Notification{
+		Kind:     "plugin_failed",
+		TitleKey: "notify_plugin_revoked_title",
+		Title:    "Plugin stopped: " + r.Name,
+		BodyKey:  "notify_plugin_revoked_body",
+		Body:     r.Reason,
+		Params:   map[string]string{"plugin": r.Name, "reason": r.Reason},
+		Tag:      "lerd-plugin-revoked-" + r.Name,
+		URL:      "#plugins",
+		Data:     map[string]string{"plugin": r.Name},
+		Urgency:  "high",
+		TTL:      86400,
 	}
 }
