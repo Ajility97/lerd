@@ -307,7 +307,11 @@ func runDoctorInto(w io.Writer, useColor bool) (DoctorReport, error) {
 
 		if dns.ConfiguredTLD() != "localhost" && dns.WSLResolverMissing() {
 			warn("systemd-resolved running", "lerd routes ."+dns.ConfiguredTLD()+" inside the distro through it, so sites do not resolve from WSL shells or PHP")
-			rep.fixLast(manualFixWith("run `lerd install`, which installs or starts systemd-resolved"))
+			if dns.HostOwnsResolver() {
+				rep.fixLast(manualFixWith("enable systemd-resolved in your configuration.nix (services.resolved.enable = true), then rebuild"))
+			} else {
+				rep.fixLast(manualFixWith("run `lerd install`, which installs or starts systemd-resolved"))
+			}
 		}
 
 		wslConf, _ := os.ReadFile("/etc/wsl.conf")

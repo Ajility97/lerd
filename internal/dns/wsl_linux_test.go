@@ -53,10 +53,11 @@ func TestWSLHandoverNameservers_NothingToDo(t *testing.T) {
 // copy of WSL's file in /mnt/wsl, and the commands that install or start it.
 func withResolverSeams(t *testing.T, unit, dropin bool, mntConf string) *[]string {
 	t.Helper()
-	origUnit, origDropin, origMnt, origRun, origWrite, origStub := resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub
+	origUnit, origDropin, origMnt, origRun, origWrite, origStub, origUp := resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub, resolvedHasUpstream
 	t.Cleanup(func() {
-		resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub = origUnit, origDropin, origMnt, origRun, origWrite, origStub
+		resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub, resolvedHasUpstream = origUnit, origDropin, origMnt, origRun, origWrite, origStub, origUp
 	})
+	resolvedHasUpstream = func() bool { return dropin }
 	resolvConfIsStub = func() bool { return true }
 	p := filepath.Join(t.TempDir(), "mnt-resolv.conf")
 	if err := os.WriteFile(p, []byte(mntConf), 0o644); err != nil {
@@ -149,5 +150,27 @@ func TestWSLHandoverNameservers_leavesAUserWrittenResolvConf(t *testing.T) {
 	resolvConfIsStub = func() bool { return false }
 	if got, _ := wslHandoverNameservers(); got != nil {
 		t.Errorf("got %v, want nil: the user's own resolv.conf stays", got)
+	}
+}
+
+// A handover cut off after writing the drop-in left resolved without it loaded.
+func TestWSLHandoverNameservers_dropinWrittenButNotLoadedIsRedone(t *testing.T) {
+	withWSLSeams(t, true, true, "nameserver 127.0.0.53\n")
+	withResolverSeams(t, true, true, wslResolvConf)
+	resolvedHasUpstream = func() bool { return false }
+	if got, _ := wslHandoverNameservers(); len(got) != 1 {
+		t.Errorf("got %v, want the handover redone", got)
+	}
+}
+
+func TestGlobalDNSSet(t *testing.T) {
+	for out, want := range map[string]bool{
+		"Global: 10.255.255.254\nLink 2 (eth0):\n": true,
+		"Global:\nLink 2 (eth0): 10.0.0.1\n":       false,
+		"":                                         false,
+	} {
+		if got := globalDNSSet(out); got != want {
+			t.Errorf("globalDNSSet(%q) = %v, want %v", out, got, want)
+		}
 	}
 }

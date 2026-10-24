@@ -43,6 +43,12 @@ var (
 		return nil
 	}
 	writeRootFile = sudoWriteFile
+	// resolvedHasUpstream reports resolved using a global DNS server, which on
+	// WSL only the upstream drop-in gives it.
+	resolvedHasUpstream = func() bool {
+		out, err := exec.Command("resolvectl", "dns").Output()
+		return err == nil && globalDNSSet(string(out))
+	}
 	// resolvConfIsStub reports resolv.conf linked to systemd-resolved's stub.
 	resolvConfIsStub = func() bool {
 		target, err := os.Readlink(resolvConfPath)
@@ -95,12 +101,13 @@ func wslHandoverNameservers() (nameservers, search []string) {
 	if ns, s := wsl.GeneratedNameservers(string(cur)); ns != nil {
 		return ns, s
 	}
-	// Installing resolved relinks resolv.conf to its stub and leaves it with no
-	// upstream at all, but WSL still writes its own copy under /mnt/wsl. A file
-	// the user wrote is theirs, whatever /mnt/wsl holds.
-	if upstreamDropinPresent() || !resolvConfIsStub() {
+	// A file the user wrote is theirs. A drop-in resolved has not loaded is a
+	// handover cut off before its restart, so that one is redone.
+	if (upstreamDropinPresent() && resolvedHasUpstream()) || !resolvConfIsStub() {
 		return nil, nil
 	}
+	// Installing resolved relinks resolv.conf to its stub with no upstream at
+	// all, but WSL still writes its own copy under /mnt/wsl.
 	mnt, _ := os.ReadFile(wslGeneratedResolvConf)
 	return wsl.GeneratedNameservers(string(mnt))
 }
@@ -114,14 +121,14 @@ func handResolvConfToResolved() error {
 		return nil
 	}
 	feedback.Sudo("Handing WSL's resolv.conf to systemd-resolved so ." + ConfiguredTLD() + " can resolve")
-	if err := writeRootFile(wslUpstreamDropin, []byte(wsl.ResolvedUpstreamDropin(ns, search)), 0644); err != nil {
-		return err
-	}
 	cur, _ := os.ReadFile("/etc/wsl.conf")
 	if next, changed := wsl.EnsureSectionLine(string(cur), "network", "generateResolvConf", "generateResolvConf=false"); changed {
 		if err := writeRootFile("/etc/wsl.conf", []byte(next), 0644); err != nil {
 			return err
 		}
+	}
+	if err := writeRootFile(wslUpstreamDropin, []byte(wsl.ResolvedUpstreamDropin(ns, search)), 0644); err != nil {
+		return err
 	}
 	for _, args := range [][]string{
 		{"ln", "-sf", "/run/systemd/resolve/stub-resolv.conf", resolvConfPath},
@@ -132,4 +139,14 @@ func handResolvConfToResolved() error {
 		}
 	}
 	return nil
+}
+
+// globalDNSSet reads `resolvectl dns` output for a server on its Global line.
+func globalDNSSet(out string) bool {
+	for _, l := range strings.Split(out, "\n") {
+		if rest, ok := strings.CutPrefix(strings.TrimSpace(l), "Global:"); ok {
+			return strings.TrimSpace(rest) != ""
+		}
+	}
+	return false
 }
