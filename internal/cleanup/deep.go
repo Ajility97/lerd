@@ -113,7 +113,7 @@ func deepTargets(imgs []image, repos, protected, pulled map[string]bool, scope S
 			if i == len(refs)-1 {
 				bytes = reclaimable(img)
 			}
-			out = append(out, Target{Kind: "image", ID: ref, Desc: describeUnused(img, repos), Owner: ownerOf(img, repos, protected), Bytes: bytes})
+			out = append(out, Target{Kind: "image", ID: ref, Desc: describeUnused(img, repos), Owner: ownerOf(img, repos, protected), Bytes: bytes, image: img.ID})
 		}
 	}
 	return out

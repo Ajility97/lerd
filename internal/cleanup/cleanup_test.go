@@ -47,10 +47,14 @@ func withImages(t *testing.T, imgs []image, layers map[string][]string) {
 	// Default to an empty ledger so a test that doesn't care never reads the real
 	// on-disk file; catalog-reap tests override this after calling withImages.
 	loadPulledImages = func() map[string]bool { return map[string]bool{} }
+	// No layer sizes by default, so targets keep the estimate podman gave them;
+	// the layer-accounting tests stub this themselves.
+	historySizes = func(string) ([]int64, error) { return nil, errors.New("no history in tests") }
 	withoutDiskReadings(t)
 	t.Cleanup(func() {
 		scanImages = podmanImages
 		imageLayers = podmanImageLayers
+		historySizes = podmanHistorySizes
 		loadPulledImages = imgledger.Load
 	})
 }
