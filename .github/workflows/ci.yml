@@ -255,3 +255,20 @@ jobs:
 
       - name: Run installer tests
         run: bats tests/installer/installer.bats
+
+      - name: Run the comment hook's tests
+        run: bats tests/hooks/pre-commit.bats
+
+  # The pre-commit hook only runs where a clone turned it on, so a pull request
+  # is held to the same three-line comment blocks here.
+  comments:
+    name: Comment blocks
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Every comment block the pull request touches stays within three lines
+        run: .githooks/pre-commit "origin/${{ github.base_ref }}"
