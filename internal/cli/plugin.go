@@ -295,10 +295,9 @@ func siteSwitchCommand(use, short, what string, set func(*config.Site, string, b
 	}
 }
 
-// askPluginNotifications asks whether a plugin that sends notifications may,
-// once, whether it was just installed or just started asking in an update. An
-// answer given before holds. Without a terminal nothing is assumed: it stays
-// unanswered, and the dashboard asks when it is next opened.
+// askPluginNotifications asks once whether a plugin may send notifications; an
+// earlier answer holds. Without a terminal nothing is assumed, it stays pending
+// and the dashboard asks next.
 func askPluginNotifications(name string) error {
 	p, err := plugins.Find(name)
 	if err != nil || plugins.NotificationState(p) != plugins.NotificationsPending {
