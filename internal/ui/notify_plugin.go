@@ -172,6 +172,19 @@ func handlePluginMessage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "a plugin token is required", http.StatusUnauthorized)
 		return
 	}
+	p, err := plugins.Find(plugin)
+	if err != nil {
+		http.Error(w, "plugin "+plugin+" is not installed", http.StatusForbidden)
+		return
+	}
+	switch plugins.NotificationState(p) {
+	case plugins.NotificationsNone:
+		http.Error(w, "plugin.yaml does not declare notifications: true", http.StatusForbidden)
+		return
+	case plugins.NotificationsPending, plugins.NotificationsDenied:
+		http.Error(w, "the user has not allowed notifications from "+plugin, http.StatusForbidden)
+		return
+	}
 	var req pluginMessageRequest
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, pluginMessageMaxBytes))
 	dec.DisallowUnknownFields()

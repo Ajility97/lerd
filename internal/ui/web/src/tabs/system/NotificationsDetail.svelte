@@ -20,6 +20,7 @@
     type NotifyKind
   } from '$lib/notify';
   import { apiFetch } from '$lib/api';
+  import { managedPlugins, loadManagedPlugins, setPluginNotifications } from '$stores/plugins';
   import { m } from '../../paraglide/messages.js';
 
   interface Device {
@@ -185,6 +186,10 @@
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
+  // Each plugin that sends notifications has its own switch under Plugin
+  // messages, so one that is too loud is silenced without the rest.
+  const notifyingPlugins = $derived($managedPlugins.filter((p) => p.notifications && p.notifications !== 'none'));
+
   const kindLabel: Record<NotifyKind, string> = {
     mail: m.notify_settings_category_mail(),
     message: m.notify_settings_category_message(),
@@ -214,6 +219,7 @@
     dump: m.notify_settings_category_dump_hint()
   };
 
+  onMount(() => { void loadManagedPlugins(); });
   onMount(() => {
     loadDevices();
     loadDelivery();
@@ -329,6 +335,15 @@
     </div>
   {/if}
 
+  {#snippet pluginRows()}
+    {#each notifyingPlugins as p (p.name)}
+      <div class="flex items-center justify-between gap-4 py-2 pl-4 border-b border-gray-100 dark:border-lerd-border">
+        <p class="text-xs text-gray-700 dark:text-gray-300 truncate">{p.name}</p>
+        <Toggle on={p.notifications === 'allowed'} title={p.name} onclick={() => setPluginNotifications(p.name, p.notifications !== 'allowed')} tone="accent" />
+      </div>
+    {/each}
+  {/snippet}
+
   <div class="flex-1 overflow-y-auto p-3">
     {#if deliveryTarget === 'native'}
       <div class="rounded-md border border-emerald-300 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-900/20 p-3 text-xs text-emerald-900 dark:text-emerald-200 mb-3">
@@ -347,6 +362,7 @@
               tone="accent"
             />
           </div>
+          {#if kind === 'plugin_message'}{@render pluginRows()}{/if}
         {/each}
       </div>
     {:else}
@@ -364,6 +380,7 @@
               tone="accent"
             />
           </div>
+          {#if kind === 'plugin_message'}{@render pluginRows()}{/if}
         {/each}
       </div>
     {/if}

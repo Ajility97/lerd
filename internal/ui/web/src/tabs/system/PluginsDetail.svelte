@@ -10,7 +10,7 @@
   import InstalledPluginTile from './InstalledPluginTile.svelte';
   import PluginDetailModal from './PluginDetailModal.svelte';
   import PluginsEmpty from './PluginsEmpty.svelte';
-  import { managedPlugins, loadManagedPlugins, installPlugin, removePlugin, updatePlugin } from '$stores/plugins';
+  import { managedPlugins, loadManagedPlugins, installPlugin, removePlugin, updatePlugin, setPluginNotifications } from '$stores/plugins';
   import { routeRest, goToTab } from '$stores/route';
   import { notifyLocalFailure, notifyLocalInfo } from '$lib/notify';
   import { apiUrl } from '$lib/api';
@@ -24,6 +24,19 @@
   let removing = $state('');
   let updating = $state('');
   let confirmName = $state('');
+
+  // A plugin that asks to send notifications sends none until the user answers.
+  // Install and update land here pending, from this page or the terminal, so
+  // the question comes once whichever way it arrived; closing it asks again later.
+  let notLater = $state<string[]>([]);
+  const asking = $derived($managedPlugins.find((p) => p.notifications === 'pending' && !notLater.includes(p.name)));
+  let answering = $state(false);
+  async function answerNotifications(name: string, allowed: boolean) {
+    answering = true;
+    const err = await setPluginNotifications(name, allowed);
+    answering = false;
+    if (err) notifyLocalFailure(err);
+  }
 
   // #plugins is the installed list; #plugins/browse[/<name>] the catalog, which
   // plugins.lerd.sh links straight into.
@@ -152,6 +165,8 @@
     changes={p.changes}
     features={p.features}
     hasDocs={p.has_docs}
+    notifications={p.notifications}
+    onnotifications={(allowed) => answerNotifications(p.name, allowed)}
     onclose={() => (openName = '')}
   >
     {#snippet actions()}
@@ -165,6 +180,17 @@
       </DetailButton>
     {/snippet}
   </PluginDetailModal>
+{/if}
+
+{#if asking}
+  {@const name = asking.name}
+  <Modal open title={m.system_plugins_notifyAskTitle({ name })} onclose={() => (notLater = [...notLater, name])}>
+    <p class="px-5 py-4 text-sm text-gray-700 dark:text-gray-300">{m.system_plugins_notifyAskBody({ name })}</p>
+    {#snippet footer()}
+      <DetailButton onclick={() => answerNotifications(name, false)} disabled={answering}>{m.system_plugins_notifyDeny()}</DetailButton>
+      <DetailButton tone="primary" onclick={() => answerNotifications(name, true)} loading={answering} disabled={answering}>{m.system_plugins_notifyAllow()}</DetailButton>
+    {/snippet}
+  </Modal>
 {/if}
 
 <Modal open={adding} title={m.system_plugins_installFrom()} onclose={() => (adding = false)}>

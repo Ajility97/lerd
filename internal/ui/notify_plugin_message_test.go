@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +26,29 @@ func pluginMessageRequestFor(t *testing.T, body string) *http.Request {
 	return req
 }
 
+// installNotifyingPlugin installs echo declaring notifications, with the user's
+// permission given, the state every message test but the consent ones needs.
+func installNotifyingPlugin(t *testing.T) {
+	t.Helper()
+	installAPIPlugin(t)
+	declareNotifications(t)
+	if err := plugins.SetNotifications("echo", true); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func declareNotifications(t *testing.T) {
+	t.Helper()
+	path := filepath.Join(plugins.Dir(), "echo", plugins.ManifestFile)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, append(data, "notifications: true\n"...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func resetPluginMessageRate(t *testing.T) {
 	t.Helper()
 	pluginMessageRate.Lock()
@@ -35,7 +60,7 @@ func resetPluginMessageRate(t *testing.T) {
 // its name so it never passes for lerd's own.
 func TestPluginMessage_DispatchesUnderTokensPlugin(t *testing.T) {
 	notifyGateConfigDir(t)
-	installAPIPlugin(t)
+	installNotifyingPlugin(t)
 	resetPluginMessageRate(t)
 	ch := broker.add()
 	defer broker.remove(ch)
@@ -63,7 +88,7 @@ func TestPluginMessage_DispatchesUnderTokensPlugin(t *testing.T) {
 
 func TestPluginMessage_RefusesWithoutValidToken(t *testing.T) {
 	notifyGateConfigDir(t)
-	installAPIPlugin(t)
+	installNotifyingPlugin(t)
 	for _, token := range []string{"", "bogus"} {
 		req := localRequest(http.MethodPost, "/api/notifications/plugin", `{"title":"hi"}`)
 		if token != "" {
@@ -79,7 +104,7 @@ func TestPluginMessage_RefusesWithoutValidToken(t *testing.T) {
 
 func TestPluginMessage_RefusesOffLoopback(t *testing.T) {
 	notifyGateConfigDir(t)
-	installAPIPlugin(t)
+	installNotifyingPlugin(t)
 	req := pluginMessageRequestFor(t, `{"title":"hi"}`)
 	req.RemoteAddr = "192.168.1.42:54321"
 	rec := httptest.NewRecorder()
@@ -93,7 +118,7 @@ func TestPluginMessage_RefusesOffLoopback(t *testing.T) {
 // refused rather than ignored.
 func TestPluginMessage_RefusesInvalidBodies(t *testing.T) {
 	notifyGateConfigDir(t)
-	installAPIPlugin(t)
+	installNotifyingPlugin(t)
 	resetPluginMessageRate(t)
 	for _, body := range []string{
 		`{"title":"hi","plugin":"other"}`,
@@ -167,7 +192,7 @@ func TestPluginMessage_TagsNeverCollideAcrossPlugins(t *testing.T) {
 // emoji, is accepted.
 func TestPluginMessage_AcceptsEscapedMessageAtLimits(t *testing.T) {
 	notifyGateConfigDir(t)
-	installAPIPlugin(t)
+	installNotifyingPlugin(t)
 	resetPluginMessageRate(t)
 	emoji := `\ud83d\ude00`
 	body := `{"title":"` + strings.Repeat(emoji, 100) + `","body":"` + strings.Repeat(emoji, 300) + `"}`
@@ -175,5 +200,69 @@ func TestPluginMessage_AcceptsEscapedMessageAtLimits(t *testing.T) {
 	handlePluginMessage(rec, pluginMessageRequestFor(t, body))
 	if rec.Code != http.StatusNoContent {
 		t.Errorf("status = %d, want 204 (%s)", rec.Code, rec.Body)
+	}
+}
+
+// A plugin sends nothing until it says it will and the user has said yes, and a
+// no is respected the same way.
+func TestPluginMessage_NeedsTheDeclarationAndTheUsersYes(t *testing.T) {
+	notifyGateConfigDir(t)
+	installAPIPlugin(t)
+	resetPluginMessageRate(t)
+	send := func() *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		handlePluginMessage(rec, pluginMessageRequestFor(t, `{"title":"hi"}`))
+		return rec
+	}
+
+	if rec := send(); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "plugin.yaml") {
+		t.Fatalf("undeclared: %d %q, want 403 naming plugin.yaml", rec.Code, rec.Body)
+	}
+	declareNotifications(t)
+	if rec := send(); rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "not allowed") {
+		t.Fatalf("not yet asked: %d %q, want 403", rec.Code, rec.Body)
+	}
+	if err := plugins.SetNotifications("echo", false); err != nil {
+		t.Fatal(err)
+	}
+	if rec := send(); rec.Code != http.StatusForbidden {
+		t.Fatalf("declined: %d, want 403", rec.Code)
+	}
+	if err := plugins.SetNotifications("echo", true); err != nil {
+		t.Fatal(err)
+	}
+	if rec := send(); rec.Code != http.StatusNoContent {
+		t.Fatalf("allowed: %d %q, want 204", rec.Code, rec.Body)
+	}
+}
+
+// The answer belongs to the user, so the plugin's own token cannot give it, and
+// the dashboard can.
+func TestPluginManager_NotificationsAnswerIsTheUsers(t *testing.T) {
+	notifyGateConfigDir(t)
+	installAPIPlugin(t)
+	declareNotifications(t)
+	answer := func(withToken bool) int {
+		req := localRequest(http.MethodPost, "/api/plugin-manager/echo/notifications", `{"allowed":true}`)
+		if withToken {
+			token, _ := plugins.Token("echo")
+			req.Header.Set(plugins.TokenHeader, token)
+		}
+		rec := httptest.NewRecorder()
+		handlePluginManager(rec, req)
+		return rec.Code
+	}
+	if code := answer(true); code != http.StatusForbidden {
+		t.Fatalf("with the plugin's token: %d, want 403", code)
+	}
+	p, _ := plugins.Find("echo")
+	if got := plugins.NotificationState(p); got != plugins.NotificationsPending {
+		t.Fatalf("state after a refused answer = %q, want pending", got)
+	}
+	if code := answer(false); code != http.StatusOK {
+		t.Fatalf("from the dashboard: %d, want 200", code)
+	}
+	if got := plugins.NotificationState(p); got != plugins.NotificationsAllowed {
+		t.Fatalf("state = %q, want allowed", got)
 	}
 }

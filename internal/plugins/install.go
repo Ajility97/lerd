@@ -125,7 +125,16 @@ func Remove(name string) error {
 		return fmt.Errorf("plugin %s is not installed", name)
 	}
 	ClearFailure(name)
-	return os.RemoveAll(dir)
+	if err := os.RemoveAll(dir); err != nil {
+		return err
+	}
+	// A reinstall is a new decision, so the answer about notifications goes too.
+	if cfg, err := config.LoadGlobal(); err != nil {
+		return err
+	} else if _, asked := cfg.PluginNotifications(name); !asked {
+		return nil
+	}
+	return config.UpdateGlobal(func(c *config.GlobalConfig) { c.ForgetPluginNotifications(name) })
 }
 
 func manifestName(dir string) (string, error) {

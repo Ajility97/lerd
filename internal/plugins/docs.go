@@ -116,6 +116,9 @@ func (p *Plugin) Features() []Feature {
 			add(strings.TrimSuffix(kind, "s"), strings.TrimSuffix(filepath.Base(f), ".yaml"), "")
 		}
 	}
+	if p.Notifications {
+		add("notifications", "", "")
+	}
 	return out
 }
 

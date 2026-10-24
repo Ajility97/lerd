@@ -369,6 +369,10 @@ type GlobalConfig struct {
 		// reads category filtering from here. Absent keys use the built-in
 		// default (everything on except the noisy dump kind).
 		Kinds map[string]bool `yaml:"kinds,omitempty" mapstructure:"kinds"`
+		// Plugins holds the user's answer to each plugin asking to send
+		// notifications. Kept here rather than in the plugin's folder, which the
+		// plugin can write; an absent name has not been asked yet.
+		Plugins map[string]bool `yaml:"plugins,omitempty" mapstructure:"plugins"`
 	} `yaml:"notifications,omitempty" mapstructure:"notifications"`
 	Tray struct {
 		// HighContrastIcon swaps the running tray icon for a single green glyph
@@ -1339,6 +1343,26 @@ func (c *GlobalConfig) NotificationTarget() string {
 // SetNotificationTarget stores the delivery sink. Persist via SaveGlobal.
 func (c *GlobalConfig) SetNotificationTarget(target string) {
 	c.Notifications.Target = target
+}
+
+// PluginNotifications reports what the user answered when the plugin asked to
+// send notifications, and whether they have been asked at all.
+func (c *GlobalConfig) PluginNotifications(name string) (allowed, asked bool) {
+	allowed, asked = c.Notifications.Plugins[name]
+	return allowed, asked
+}
+
+// SetPluginNotifications records the user's answer. Persist via SaveGlobal.
+func (c *GlobalConfig) SetPluginNotifications(name string, allowed bool) {
+	if c.Notifications.Plugins == nil {
+		c.Notifications.Plugins = map[string]bool{}
+	}
+	c.Notifications.Plugins[name] = allowed
+}
+
+// ForgetPluginNotifications drops the answer, so a reinstall asks again.
+func (c *GlobalConfig) ForgetPluginNotifications(name string) {
+	delete(c.Notifications.Plugins, name)
 }
 
 // NotifyKinds is the canonical set of notification categories, mirroring the

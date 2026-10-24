@@ -5,6 +5,7 @@
   import PluginIcon from '$components/PluginIcon.svelte';
   import PluginRequirements from '$components/PluginRequirements.svelte';
   import DetailTabs from '$components/DetailTabs.svelte';
+  import Toggle from '$components/Toggle.svelte';
   import DOMPurify from 'dompurify';
   import { apiUrl } from '$lib/api';
   import { loadPluginDocs, loadPluginLogs, authorProfile, type PluginFailure, type PluginFeature } from '$stores/plugins';
@@ -36,10 +37,13 @@
     changes?: string;
     features?: PluginFeature[];
     hasDocs?: boolean;
+    // Set for an installed plugin that sends notifications, with the switch.
+    notifications?: 'none' | 'pending' | 'allowed' | 'denied';
+    onnotifications?: (allowed: boolean) => void;
     onclose: () => void;
     actions?: Snippet;
   }
-  let { name, description, version, author, icon, images = [], repo, commit, adds = [], requires = [], missing = [], platforms = [], lerd, tags = [], error, installed = false, update, updateVersion, changes, features = [], hasDocs = false, onclose, actions }: Props = $props();
+  let { name, description, version, author, icon, images = [], repo, commit, adds = [], requires = [], missing = [], platforms = [], lerd, tags = [], error, installed = false, update, updateVersion, changes, features = [], hasDocs = false, notifications = 'none', onnotifications, onclose, actions }: Props = $props();
 
   type Tab = 'overview' | 'features' | 'docs' | 'logs';
   let tab = $state<Tab>('overview');
@@ -76,7 +80,8 @@
     page_script: m.system_plugins_feature_page_script,
     provides: m.system_plugins_feature_provides,
     service: m.system_plugins_feature_service,
-    framework: m.system_plugins_feature_framework
+    framework: m.system_plugins_feature_framework,
+    notifications: m.system_plugins_feature_notifications
   };
 
   const PLATFORM_NAMES: Record<string, string> = { linux: 'Linux', macos: 'macOS' };
@@ -195,6 +200,12 @@
       {#if lerd}
         {@render label('Lerd')}
         <dd class="font-mono text-gray-600 dark:text-gray-300">{lerd}</dd>
+      {/if}
+      {#if installed && notifications !== 'none' && onnotifications}
+        {@render label(m.system_plugins_notifications())}
+        <dd class="flex items-center">
+          <Toggle on={notifications === 'allowed'} title={m.system_plugins_notifications()} onclick={() => onnotifications?.(notifications !== 'allowed')} />
+        </dd>
       {/if}
       {#if tags.length}
         {@render label(m.system_plugins_tags())}

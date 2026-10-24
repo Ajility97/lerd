@@ -412,6 +412,9 @@ type managedPlugin struct {
 	Features    []plugins.Feature `json:"features,omitempty"`
 	Screenshots []string          `json:"screenshots,omitempty"`
 	HasDocs     bool              `json:"has_docs,omitempty"`
+	// Notifications is none, pending, allowed or denied; pending is the
+	// dashboard's cue to ask.
+	Notifications string `json:"notifications,omitempty"`
 }
 
 type pluginFailure struct {
@@ -478,6 +481,24 @@ func handlePluginManager(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, map[string]string{"html": html})
+	case r.Method == http.MethodPost && strings.HasSuffix(name, "/notifications"):
+		// The answer is the user's: a plugin's own token never gives it.
+		if r.Header.Get(plugins.TokenHeader) != "" {
+			http.Error(w, "a plugin cannot answer for the user", http.StatusForbidden)
+			return
+		}
+		var req struct {
+			Allowed bool `json:"allowed"`
+		}
+		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<10)).Decode(&req); err != nil {
+			http.Error(w, "invalid body", http.StatusBadRequest)
+			return
+		}
+		if err := plugins.SetNotifications(strings.TrimSuffix(name, "/notifications"), req.Allowed); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
 	case r.Method == http.MethodPost && strings.HasSuffix(name, "/update"):
 		if err := plugins.UpdateListed(strings.TrimSuffix(name, "/update")); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -525,7 +546,7 @@ func managedPlugins() []managedPlugin {
 	out := make([]managedPlugin, 0, len(list)+len(errs))
 	for _, p := range list {
 		row := managedPlugin{Name: p.Name, Version: p.Version, Description: p.Description, Adds: p.Surfaces(), Requires: p.Requirements(), Failure: failureFor(p.Name),
-			Features: p.Features(), HasDocs: p.Docs != ""}
+			Features: p.Features(), HasDocs: p.Docs != "", Notifications: plugins.NotificationState(p)}
 		for _, rel := range p.Screenshots {
 			row.Screenshots = append(row.Screenshots, pluginFileURL(p.Name, rel))
 		}
