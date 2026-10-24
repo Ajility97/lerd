@@ -598,6 +598,14 @@ func managedPlugins() []managedPlugin {
 		row := managedPlugin{Name: filepath.Base(e.Dir), Error: e.Error()}
 		if rev := (plugins.RevokedError{}); errors.As(e.Err, &rev) {
 			row.Revoked = &rev.Revocation
+			// The fixed commit is the way out of a revocation, so offer it
+			// without loading the revoked code.
+			if src, ok := plugins.InstalledSource(row.Name); ok {
+				row.Repo, row.Commit = src.Repo, src.Commit
+				if l, newer := plugins.CachedUpdate(row.Name); newer {
+					row.Update, row.UpdateVersion, row.Changes = l.Commit, l.Version, l.ChangesURL(src.Commit)
+				}
+			}
 		}
 		out = append(out, row)
 	}
