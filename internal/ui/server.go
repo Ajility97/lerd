@@ -1601,7 +1601,12 @@ func resolvePresentation(name string, custom *config.CustomService) presentation
 		presetName = custom.Preset
 	}
 	if p, err := config.LoadPreset(presetName); err == nil {
-		return presentation{p.Label, p.Category, p.Icon, config.NormalizeBrandColor(p.Color), p.AdminFor, p.AdminRank}
+		pres := presentation{p.Label, p.Category, p.Icon, config.NormalizeBrandColor(p.Color), p.AdminFor, p.AdminRank}
+		// A service the user wrote under a preset's name keeps the name it gives itself.
+		if custom != nil && custom.Preset == "" && custom.Label != "" {
+			pres.Label = custom.Label
+		}
+		return pres
 	}
 	if custom != nil {
 		return presentation{custom.Label, custom.Category, custom.Icon, config.NormalizeBrandColor(custom.Color), custom.AdminFor, custom.AdminRank}

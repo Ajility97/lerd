@@ -80,6 +80,21 @@ func TestServicePresentation_CarriesTheLabel(t *testing.T) {
 	}
 }
 
+// A service the user wrote under a preset's name is not that preset, so the label
+// it gives itself wins; one installed from the preset still takes the preset's.
+func TestServicePresentation_OwnServiceKeepsItsLabelOverASameNamedPreset(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	own := &config.CustomService{Name: "mysql", Label: "Analytics DB"}
+	if got := resolvePresentation("mysql", own).Label; got != "Analytics DB" {
+		t.Errorf("own service label = %q, want Analytics DB", got)
+	}
+	installed := &config.CustomService{Name: "mysql", Preset: "mysql", Label: "stale"}
+	if got := resolvePresentation("mysql", installed).Label; got != "MySQL" {
+		t.Errorf("preset-installed label = %q, want MySQL from the preset", got)
+	}
+}
+
 // A colour is the one part of the metadata that becomes CSS on the page, so
 // anything but a plain hex has to be dropped before it leaves the daemon.
 func TestServicePresentation_DropsAColourThatIsNotPlainHex(t *testing.T) {
