@@ -101,6 +101,11 @@ func runWSLSetup(cmd *cobra.Command, _ []string) error {
 	if err := installWindowsSide(w); err != nil {
 		return fmt.Errorf("Windows integration: %w", err)
 	}
+	// Global MCP already on means the user wants their assistants to see lerd,
+	// and on WSL most of those run on Windows.
+	if home, err := os.UserHomeDir(); err == nil && mcpEnabledGlobally(home) {
+		enableWindowsAIClients(false)
+	}
 
 	fmt.Fprintln(w)
 	fmt.Fprint(w, wslSetupDoneNote(needShutdown, os.Getenv("LERD_WSL_RESTART_HANDLED") == "1"))

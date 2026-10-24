@@ -58,6 +58,7 @@ Your sites live on the distro's own disk, not in `C:\Users\you`, and the two are
 - **Editor.** VS Code with the WSL extension (`code .` from a WSL terminal, or open the `\\wsl.localhost` folder), or PhpStorm opening that path with the WSL PHP interpreter. Both edit the files where they live.
 - **Terminal.** `lerd` works in Windows Terminal from inside a `\\wsl.localhost` folder as well as from a WSL shell.
 - **Browser.** `https://<site>.test` from any Windows browser, with the certificate trusted.
+- **AI assistants.** With global MCP on (`lerd mcp:enable-global`, or the dashboard's setting), Claude Code, Cursor, VS Code and the other supported assistants installed on Windows get lerd's MCP server through `lerd.exe mcp`. Open the assistant in the site's `\\wsl.localhost` folder and it works on that site. See [AI Integration](../features/mcp.md).
 - **Database clients.** A Windows client such as TablePlus, HeidiSQL or DBeaver connects to `127.0.0.1` on the port lerd shows for the service, since mirrored networking shares loopback with Windows.
 
 The dashboard's buttons and `lerd open` reach the Windows desktop too: a site opens in your default browser, a folder in Explorer, a terminal as a Windows Terminal tab on your distro's profile, and a file in an editor found on the Windows PATH through its own WSL launcher (Zed's or VS Code's `bin` folder), which opens it over WSL.
