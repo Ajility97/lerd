@@ -65,3 +65,5 @@ Every PR runs the following checks automatically. All must pass before merging.
 | Docs build | `npm run build` in `docs/` |
 | Installer tests | `bats tests/installer/installer.bats` |
 | UI screenshots | PR description has an image when UI files change |
+
+The Linux jobs restore the tray's `libayatana-appindicator3-dev` headers from an apt cache. That cache can hold a failed install as an empty one, so when the headers are still missing after it the job refreshes the package index and installs them itself. A failure on that step means apt is failing on the runner, not your change, and a rerun later usually clears it.
