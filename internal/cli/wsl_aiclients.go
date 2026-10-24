@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"os/exec"
 	"strings"
 
 	"github.com/geodro/lerd/internal/feedback"
@@ -25,7 +26,20 @@ func windowsAIHome() (aiHome, error) {
 		return aiHome{}, err
 	}
 	exe := strings.TrimSpace(local) + `\lerd\bin\lerd.exe`
-	return aiHome{dir: profile, command: exe, claude: windowsClaudeMCP, windows: true}, nil
+	return aiHome{dir: profile, command: exe, claude: windowsClaudeMCP, claudeDir: windowsClaudeConfigDir(), windows: true}, nil
+}
+
+// windowsClaudeConfigDir is the Windows user's CLAUDE_CONFIG_DIR as a WSL path,
+// "" when unset. It is read from the registry, since the environment WSL hands
+// PowerShell is the one Windows had when the distro started.
+func windowsClaudeConfigDir() string {
+	out, err := powershell("[Environment]::GetEnvironmentVariable('CLAUDE_CONFIG_DIR', 'User')")
+	if win := strings.TrimSpace(out); err == nil && win != "" {
+		if p, err := exec.Command("wslpath", "-u", win).Output(); err == nil {
+			return strings.TrimSpace(string(p))
+		}
+	}
+	return ""
 }
 
 // windowsClaudeMCP runs the Windows claude CLI's mcp subcommand, an exe or the
@@ -47,7 +61,7 @@ func windowsClaudeScript(args []string) string {
 	// misses a claude installed since, and Claude's own installer leaves its
 	// folder off PATH for the user to add, so that folder is looked in too.
 	return "$env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')\n" +
-		"$c = (Get-Command claude -ErrorAction SilentlyContinue).Source\n" +
+		"$c = (Get-Command claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1).Source\n" +
 		"if (-not $c) { $c = Join-Path $env:USERPROFILE '.local\\bin\\claude.exe'; if (-not (Test-Path $c)) { 'no-claude'; exit 0 } }\n" +
 		"& $c mcp " + strings.Join(quoted, " ") + "\nexit $LASTEXITCODE"
 }

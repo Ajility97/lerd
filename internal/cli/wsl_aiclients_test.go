@@ -148,3 +148,27 @@ func TestWindowsClaudeScript_quotesThePath(t *testing.T) {
 		t.Errorf("path not quoted for PowerShell: %s", got)
 	}
 }
+
+func TestWindowsHome_claudeConfigDirIsWhereTheSkillGoes(t *testing.T) {
+	h := windowsTestHome(t, func(...string) ([]byte, error) { return nil, nil })
+	h.claudeDir = filepath.Join(t.TempDir(), "claude-work")
+	if err := os.MkdirAll(h.claudeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeHomeContexts(h, false, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(h.claudeDir, "skills", "lerd", "SKILL.md")); err != nil {
+		t.Errorf("skill not under CLAUDE_CONFIG_DIR: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(h.dir, ".claude")); !os.IsNotExist(err) {
+		t.Errorf("a default .claude folder was created beside the custom one")
+	}
+}
+
+func TestWindowsClaudeScript_skipsPowerShellScripts(t *testing.T) {
+	got := windowsClaudeScript([]string{"get", "lerd"})
+	if !strings.Contains(got, "-CommandType Application") {
+		t.Errorf("claude.ps1 could be picked, which PowerShell may refuse to run: %s", got)
+	}
+}

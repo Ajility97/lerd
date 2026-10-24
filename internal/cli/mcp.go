@@ -354,7 +354,8 @@ func (h aiHome) has(c aiClient) bool {
 	if c.WindowsDir == "" {
 		return false
 	}
-	_, err := os.Stat(filepath.Join(h.dir, c.WindowsDir))
+	// contextPath, so a Claude profile under CLAUDE_CONFIG_DIR counts as installed.
+	_, err := os.Stat(h.contextPath(c.WindowsDir))
 	return err == nil
 }
 
