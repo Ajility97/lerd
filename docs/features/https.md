@@ -25,6 +25,12 @@ Certificates are stored in `~/.local/share/lerd/certs/sites/`.
 
 ---
 
+## Trust inside the PHP containers
+
+The PHP-FPM and FrankenPHP images trust the mkcert CA too, so composer, curl and the app's own requests accept `.test` HTTPS from inside the container. They also follow the roots you have distrusted on the host: every `!` entry in the host's `/etc/ca-certificates.conf` is distrusted in the image as well, so a root pulled after an incident stays out of PHP while Alpine's `ca-certificates` still ships it. The image picks up a change on its next build, so run `lerd php:rebuild` after distrusting a root. A host without that file, such as macOS, carries nothing over.
+
+---
+
 ## Browser trust (certutil / nss-tools)
 
 mkcert installs the local CA into two places: the system trust store, used by curl, PHP, wget and openssl, and the browser NSS databases used by Firefox and Chrome/Chromium. Writing to the browser stores needs `certutil`, which ships in `nss-tools`. When `certutil` is missing mkcert still trusts the system store, so command-line tools accept `.test` HTTPS, but browsers show a certificate warning. `lerd doctor` reports this under "browser HTTPS trust", and `lerd install` / `lerd dns:enable` print a note when it applies.

@@ -187,6 +187,45 @@ func mkcertTrustBlock(packages []string) string {
 	return block
 }
 
+// caTrustBlock is the image's trust store step: the mkcert CA, then the roots
+// the host has distrusted.
+func caTrustBlock(tmpDir string, packages []string) string {
+	return mkcertCABlock(tmpDir, packages) + hostDistrustBlock()
+}
+
+// hostCAConfPath is where Debian, Ubuntu and Alpine list the CA roots
+// update-ca-certificates installs, a leading "!" marking one distrusted.
+var hostCAConfPath = "/etc/ca-certificates.conf"
+
+// distrustedRootRe is a distrusted entry as the file writes it. Anything else
+// is left out, so the host file cannot put shell into the build.
+var distrustedRootRe = regexp.MustCompile(`^![A-Za-z0-9_.+/-]+\.crt$`)
+
+// hostDistrustBlock distrusts in the image the roots the host has distrusted,
+// so a root the host dropped after an incident stays dropped for PHP too while
+// Alpine's ca-certificates still ships it. Empty when the host keeps no such
+// file, as on macOS, or distrusts nothing.
+func hostDistrustBlock() string {
+	data, err := os.ReadFile(hostCAConfPath)
+	if err != nil {
+		return ""
+	}
+	var exprs []string
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if !distrustedRootRe.MatchString(line) {
+			continue
+		}
+		entry := strings.ReplaceAll(line[1:], ".", `\.`)
+		exprs = append(exprs, "-e 's|^"+entry+"$|!"+line[1:]+"|'")
+	}
+	if len(exprs) == 0 {
+		return ""
+	}
+	return "# CA roots the host distrusts in /etc/ca-certificates.conf stay distrusted here\n" +
+		"RUN sed -i " + strings.Join(exprs, " ") + " /etc/ca-certificates.conf && update-ca-certificates\n"
+}
+
 // ContainerfileHash returns the SHA-256 hash of the embedded PHP-FPM Containerfile.
 // This is used to detect when images need to be rebuilt after a lerd update.
 func ContainerfileHash() (string, error) {
@@ -553,7 +592,7 @@ func buildFPMImage(version string, force, local bool, customExts []string, extDe
 				mysqlClientCompatBlock +
 				buildCustomExtBlockWithToolchain(version, customExts, extDeps) +
 				buildCustomPackagesBlock(packages) +
-				mkcertCABlock(tmp, packages)
+				caTrustBlock(tmp, packages)
 			goto build
 		}
 	}
@@ -577,7 +616,7 @@ func buildFPMImage(version string, force, local bool, customExts []string, extDe
 		containerfile = strings.ReplaceAll(containerfile, "{{.CustomExtensions}}", buildCustomExtBlock(version, customExts, extDeps))
 		containerfile = strings.ReplaceAll(containerfile, "{{.CustomExtensionsRuntime}}", buildCustomExtRuntimeDeps(version, customExts, extDeps))
 		containerfile = strings.ReplaceAll(containerfile, "{{.CustomPackages}}", buildCustomPackagesBlock(packages))
-		containerfile = strings.ReplaceAll(containerfile, "{{.MkcertCA}}", mkcertCABlock(tmp, packages))
+		containerfile = strings.ReplaceAll(containerfile, "{{.MkcertCA}}", caTrustBlock(tmp, packages))
 	}
 
 build:
