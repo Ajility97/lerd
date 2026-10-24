@@ -141,11 +141,16 @@ func TestPluginMessage_RateLimitedPerPlugin(t *testing.T) {
 	}
 }
 
-// Without a tag of its own a message carries none, so two different messages
-// sent close together are both shown rather than collapsed into one.
+// An empty tag is no way out: the service worker tags it lerd-<kind>, so every
+// untagged message would replace the last in Web Push. Each gets one of its own.
 func TestPluginMessage_UntaggedMessagesStayApart(t *testing.T) {
-	if tag := pluginMessageNotification("echo", pluginMessageRequest{Title: "hi"}).Tag; tag != "" {
-		t.Errorf("tag = %q, want none", tag)
+	a := pluginMessageNotification("echo", pluginMessageRequest{Title: "hi"}).Tag
+	b := pluginMessageNotification("echo", pluginMessageRequest{Title: "hi"}).Tag
+	if a == "" || b == "" || a == b {
+		t.Errorf("untagged messages got %q and %q, want two different tags", a, b)
+	}
+	if tagged := pluginMessageNotification("echo", pluginMessageRequest{Title: "hi", Tag: "1"}).Tag; tagged == a || tagged == b {
+		t.Errorf("an untagged message took the tag a plugin can ask for: %q", tagged)
 	}
 }
 

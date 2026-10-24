@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -79,6 +81,13 @@ const (
 
 var pluginMessageTag = regexp.MustCompile(`^[a-z0-9-]{1,64}$`)
 
+// pluginMessageSeq numbers untagged messages, and the start time keeps the
+// numbers from repeating a tag a browser still holds after lerd-ui restarts.
+var (
+	pluginMessageSeq   atomic.Uint64
+	pluginMessageEpoch = strconv.FormatInt(time.Now().UnixNano(), 36)
+)
+
 // pluginMessageRate keeps when each plugin last sent a message, so a hook stuck
 // in a loop cannot flood the user.
 var pluginMessageRate = struct {
@@ -125,12 +134,12 @@ func (m pluginMessageRequest) validate() string {
 // pluginMessageNotification builds the notification for a plugin's message.
 // The title always names the plugin, so a plugin cannot pass for lerd itself.
 func pluginMessageNotification(plugin string, m pluginMessageRequest) push.Notification {
-	// Only a tag the plugin asked for: a shared default would collapse every
-	// untagged message into one. The colon cannot appear in a plugin name or a
-	// tag, so two plugins never land on the same tag.
-	tag := ""
-	if m.Tag != "" {
-		tag = "lerd-plugin-message:" + plugin + ":" + m.Tag
+	// The colon cannot appear in a plugin name or a tag, so two plugins never
+	// share one. An untagged message gets a tag of its own, since an empty one
+	// becomes lerd-<kind> in the service worker and would replace the last.
+	tag := "lerd-plugin-message:" + plugin + ":" + m.Tag
+	if m.Tag == "" {
+		tag = "lerd-plugin-message-once:" + plugin + ":" + pluginMessageEpoch + "-" + strconv.FormatUint(pluginMessageSeq.Add(1), 36)
 	}
 	return push.Notification{
 		Kind:     "plugin_message",
