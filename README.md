@@ -260,12 +260,16 @@ nix run github:lerd-env/lerd-nixos -- --help
 
 The [`lerd-nixos`](https://github.com/lerd-env/lerd-nixos) flake packages the binary and ships the `configuration.nix` blocks the stack needs. See the [NixOS guide](https://lerd.sh/getting-started/nixos) for the full runbook.
 
+### Windows (beta)
+
+Download [`Install-Lerd.exe`](https://github.com/lerd-env/lerd-desktop/releases/latest/download/Install-Lerd.exe) and run it. The wizard sets up WSL2, an Ubuntu 24.04 distro with your Linux user, lerd and the Lerd desktop app, which holds the tray and notifications on Windows. Already running WSL? Install lerd inside your distro as on Linux, then run `lerd wsl:setup`. See the [Windows (WSL2) guide](https://lerd.sh/getting-started/wsl2) for every step.
+
 > [!NOTE]
 > See the [installation docs](https://lerd.sh/getting-started/installation) for details.
 
 ### Desktop app (optional)
 
-Prefer a dedicated window to a browser tab? [Lerd Desktop](https://github.com/lerd-env/lerd-desktop) wraps the dashboard in a native app with native desktop notifications for captured mail, worker failures, and finished operations, no browser needed. Linux, shipped as a Flatpak:
+Prefer a dedicated window to a browser tab? [Lerd Desktop](https://github.com/lerd-env/lerd-desktop) wraps the dashboard in a native app with native desktop notifications for captured mail, worker failures, and finished operations, no browser needed. On Windows `Install-Lerd.exe` installs it for you. Linux, shipped as a Flatpak:
 
 ```bash
 flatpak install --user https://lerd.sh/lerd.flatpakref
