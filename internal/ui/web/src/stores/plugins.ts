@@ -190,8 +190,9 @@ export interface CatalogEntry {
 }
 
 // loadCatalog throws with lerd's reason when the catalog cannot be reached.
-export async function loadCatalog(): Promise<CatalogEntry[]> {
-  const res = await apiFetch('/api/plugin-manager/catalog');
+// fresh asks lerd to fetch the catalog first, as opening Browse does.
+export async function loadCatalog(fresh = false): Promise<CatalogEntry[]> {
+  const res = await apiFetch('/api/plugin-manager/catalog' + (fresh ? '?fresh=1' : ''));
   if (!res.ok) throw new Error((await res.text()).trim() || res.statusText);
   const list = await res.json();
   return Array.isArray(list) ? list : [];

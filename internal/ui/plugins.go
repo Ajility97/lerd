@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/geodro/lerd/internal/config"
 	"github.com/geodro/lerd/internal/plugins"
@@ -464,6 +465,11 @@ func handlePluginManager(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodGet && name == "":
 		writeJSON(w, managedPlugins())
 	case r.Method == http.MethodGet && name == "catalog":
+		// Opening Browse asks for the catalog as it is now, not as of the hourly
+		// check; within a minute of the last fetch, or offline, the copy held answers.
+		if r.URL.Query().Get("fresh") != "" && plugins.RefreshCatalogOlderThan(time.Minute) == nil {
+			broker.broadcastPlugins()
+		}
 		entries, err := catalogEntries()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadGateway)

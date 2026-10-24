@@ -69,9 +69,9 @@
     page = 0;
   });
 
-  async function load() {
+  async function load(fresh = false) {
     try {
-      entries = await loadCatalog();
+      entries = await loadCatalog(fresh);
       loadError = '';
     } catch (err) {
       loadError = err instanceof Error ? err.message : String(err);
@@ -81,7 +81,7 @@
   }
 
   onMount(async () => {
-    await load();
+    await load(true);
     // A plugins.lerd.sh "Install in Lerd" link lands on the plugin's own page.
     const i = shown.findIndex((e) => e.name === focus);
     if (i < 0) return;

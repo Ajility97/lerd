@@ -5,6 +5,7 @@ import PluginBrowse from './PluginBrowse.svelte';
 const A = 'a'.repeat(40);
 let catalog: object[];
 let posts: unknown[];
+const calls: string[] = [];
 
 beforeEach(() => {
   catalog = [
@@ -18,7 +19,7 @@ beforeEach(() => {
       posts.push(JSON.parse(init.body as string));
       return new Response('{}');
     }
-    if (String(url).endsWith('/catalog')) return new Response(JSON.stringify(catalog));
+    if (String(url).includes('/api/plugin-manager/catalog')) { calls.push(String(url)); return new Response(JSON.stringify(catalog)); }
     return new Response('[]');
   }) as unknown as typeof fetch;
 });
@@ -163,4 +164,11 @@ it('shows each listed plugin its version', async () => {
   expect(within(container.querySelector('#plugin-card-old') as HTMLElement).getByText('1.2.0')).toBeTruthy();
   await fireEvent.click(await findByText('old'));
   expect(within(getByRole('dialog')).getByText(/^v?1\.2\.0$/)).toBeTruthy();
+});
+
+// Opening Browse shows the catalog as it is now, not as of the last hourly check.
+it('asks for a fresh catalog when it opens', async () => {
+  calls.length = 0;
+  render(PluginBrowse);
+  await waitFor(() => expect(calls.some((u) => u.endsWith('/api/plugin-manager/catalog?fresh=1'))).toBe(true));
 });
