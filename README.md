@@ -16,7 +16,7 @@
 
 <a href="https://www.jetbrains.com/phpstorm/"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/lerd-env/lerd/main/docs/public/assets/sponsors/phpstorm-dark.svg"><img src="https://raw.githubusercontent.com/lerd-env/lerd/main/docs/public/assets/sponsors/phpstorm.svg" height="48" alt="JetBrains PhpStorm"></picture></a>
 
-https://github.com/user-attachments/assets/707ca4cc-7eef-4285-b7bf-fdeb37f61458
+https://github.com/user-attachments/assets/6e5889f4-01b7-4e8f-ada4-dffed9ddc53c
 
 Lerd runs Nginx, PHP-FPM, and your services as rootless [Podman](https://podman.io) containers,
 designed for PHP developers on Linux and macOS, and on Windows through WSL2 (beta).
