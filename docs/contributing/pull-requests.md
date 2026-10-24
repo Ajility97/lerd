@@ -64,7 +64,7 @@ Every PR runs the following checks automatically. All must pass before merging.
 | UI tests | `make test-ui` |
 | Docs build | `npm run build` in `docs/` |
 | Installer tests | `bats tests/installer/installer.bats` |
-| Comment blocks | `.githooks/pre-commit origin/main`, the pre-commit hook run over the whole pull request |
+| Comment blocks | `.githooks/pre-commit origin/main` (or the `release/` branch the pull request targets), the pre-commit hook run over the whole pull request |
 | UI screenshots | PR description has an image when UI files change |
 
 The Linux jobs restore the tray's `libayatana-appindicator3-dev` headers from an apt cache. That cache can hold a failed install as an empty one, so when the headers are still missing after it the job refreshes the package index and installs them itself. A failure on that step means apt is failing on the runner, not your change, and a rerun later usually clears it.
