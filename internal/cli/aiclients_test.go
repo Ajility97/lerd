@@ -28,6 +28,8 @@ func TestMain(m *testing.M) {
 	// have the global skill tests write into that real profile.
 	os.Unsetenv("CLAUDE_CONFIG_DIR")
 	platform.Current.TrayHost = true
+	// Inside WSL the enable-global path would otherwise write the real Windows profile.
+	platform.Current.WindowsSide = false
 	os.Exit(m.Run())
 }
 

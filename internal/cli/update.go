@@ -509,6 +509,7 @@ func refreshGlobalMCPSkills() {
 		feedback.Note("re-registering lerd with Claude Code (was missing)")
 		ensureClaudeMCPRegistered()
 	}
+	refreshWindowsAIClients(true)
 }
 
 // refreshProjectMCPSkills re-writes per-project AI artefacts for every opted-in

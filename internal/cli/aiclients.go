@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/geodro/lerd/internal/config"
@@ -63,6 +64,8 @@ type aiClient struct {
 	GlobalViaCLI bool      // register global scope via `claude mcp add` instead of a file
 	Contexts     []ctxFile // context/instructions docs this client loads
 	SkillsDir    string    // where the client loads skills from, rel to project root and $HOME; "" = no skills
+	WindowsDir   string    // folder in a Windows profile that means the client is installed there
+	WindowsMCP   string    // GlobalMCP in a Windows profile when it differs
 }
 
 // clientContexts is the client's own docs plus, for a client that loads skills,
@@ -169,6 +172,7 @@ var aiClients = []aiClient{
 		ServerKey:    "mcpServers",
 		GlobalViaCLI: true,
 		SkillsDir:    filepath.Join(".claude", "skills"),
+		WindowsDir:   ".claude",
 		Contexts: []ctxFile{{
 			Project: filepath.Join(".claude", "skills", "lerd", "SKILL.md"),
 			Global:  filepath.Join(".claude", "skills", "lerd", "SKILL.md"),
@@ -189,6 +193,7 @@ var aiClients = []aiClient{
 		GlobalMCP:  filepath.Join(".cursor", "mcp.json"),
 		MCPFormat:  fmtJSONMcpServers,
 		ServerKey:  "mcpServers",
+		WindowsDir: ".cursor",
 		Contexts: []ctxFile{{
 			Project: filepath.Join(".cursor", "rules", "lerd.mdc"),
 			Global:  filepath.Join(".cursor", "rules", "lerd.mdc"),
@@ -202,6 +207,7 @@ var aiClients = []aiClient{
 		GlobalMCP:  filepath.Join(".junie", "mcp", "mcp.json"),
 		MCPFormat:  fmtJSONMcpServers,
 		ServerKey:  "mcpServers",
+		WindowsDir: ".junie",
 		Contexts: []ctxFile{{
 			Project: filepath.Join(".junie", "guidelines.md"),
 			Global:  filepath.Join(".junie", "guidelines.md"),
@@ -215,15 +221,17 @@ var aiClients = []aiClient{
 		// file, so register globally only. The old .ai/mcp/mcp.json path was never
 		// Windsurf's — that directory belongs to Laravel Boost — so lerd no longer
 		// writes it; legacySharedAIMCP sweeps up any entry an older lerd left there.
-		GlobalMCP: filepath.Join(".codeium", "windsurf", "mcp_config.json"),
-		MCPFormat: fmtJSONMcpServers,
-		ServerKey: "mcpServers",
+		GlobalMCP:  filepath.Join(".codeium", "windsurf", "mcp_config.json"),
+		MCPFormat:  fmtJSONMcpServers,
+		ServerKey:  "mcpServers",
+		WindowsDir: filepath.Join(".codeium", "windsurf"),
 	},
 	{
 		Name: "codex",
 		// Codex has no project-scope MCP config; only ~/.codex/config.toml.
-		GlobalMCP: filepath.Join(".codex", "config.toml"),
-		MCPFormat: fmtTOMLCodex,
+		GlobalMCP:  filepath.Join(".codex", "config.toml"),
+		MCPFormat:  fmtTOMLCodex,
+		WindowsDir: ".codex",
 		Contexts: []ctxFile{{
 			Project: "AGENTS.md",
 			Global:  filepath.Join(".codex", "AGENTS.md"),
@@ -237,6 +245,7 @@ var aiClients = []aiClient{
 		GlobalMCP:  filepath.Join(".gemini", "settings.json"),
 		MCPFormat:  fmtJSONMcpServers,
 		ServerKey:  "mcpServers",
+		WindowsDir: ".gemini",
 		Contexts: []ctxFile{{
 			Project: "GEMINI.md",
 			Global:  filepath.Join(".gemini", "GEMINI.md"),
@@ -251,6 +260,8 @@ var aiClients = []aiClient{
 		MCPFormat:  fmtJSONServers,
 		ServerKey:  "servers",
 		NeedsType:  true,
+		WindowsDir: filepath.Join("AppData", "Roaming", "Code"),
+		WindowsMCP: filepath.Join("AppData", "Roaming", "Code", "User", "mcp.json"),
 		Contexts: []ctxFile{{
 			// VS Code has no fixed global instructions file; project only.
 			Project: filepath.Join(".github", "copilot-instructions.md"),
@@ -263,9 +274,10 @@ var aiClients = []aiClient{
 		// Antigravity reads only the HOME-level MCP config; its project scope is
 		// a known no-op, so register globally only. No Contexts: it auto-loads
 		// GEMINI.md and AGENTS.md, which the gemini and codex entries already write.
-		GlobalMCP: filepath.Join(".gemini", "config", "mcp_config.json"),
-		MCPFormat: fmtJSONMcpServers,
-		ServerKey: "mcpServers",
+		GlobalMCP:  filepath.Join(".gemini", "config", "mcp_config.json"),
+		MCPFormat:  fmtJSONMcpServers,
+		ServerKey:  "mcpServers",
+		WindowsDir: filepath.Join(".gemini", "config"),
 	},
 	{
 		Name:       "opencode",
@@ -273,6 +285,7 @@ var aiClients = []aiClient{
 		GlobalMCP:  filepath.Join(".config", "opencode", "opencode.json"),
 		MCPFormat:  fmtJSONOpenCode,
 		ServerKey:  "mcp",
+		WindowsDir: filepath.Join(".config", "opencode"),
 		Contexts: []ctxFile{{
 			// OpenCode reads AGENTS.md from the project root, which the codex
 			// entry already writes; only its own global copy is unclaimed.
@@ -348,17 +361,17 @@ func stripJSONComments(data []byte) []byte {
 // site from the directory the assistant is opened in (cwd) at runtime. Project
 // entries deliberately omit LERD_SITE_PATH so a committed .mcp.json / .ai config
 // stays portable across every teammate's checkout.
-func lerdJSONEntry(c aiClient) map[string]any {
+func lerdJSONEntry(c aiClient, command string) map[string]any {
 	// OpenCode folds the whole invocation into one array, names the transport
 	// "local" rather than "stdio", and wants the entry enabled explicitly.
 	if c.MCPFormat == fmtJSONOpenCode {
 		return map[string]any{
 			"type":    "local",
-			"command": []string{"lerd", "mcp"},
+			"command": []string{command, "mcp"},
 			"enabled": true,
 		}
 	}
-	entry := map[string]any{"command": "lerd", "args": []string{"mcp"}}
+	entry := map[string]any{"command": command, "args": []string{"mcp"}}
 	if c.NeedsType {
 		entry["type"] = "stdio"
 	}
@@ -368,13 +381,19 @@ func lerdJSONEntry(c aiClient) map[string]any {
 // writeClientMCP writes/merges the lerd MCP entry into a client's config file,
 // creating parent directories as needed.
 func writeClientMCP(path string, c aiClient) error {
+	return writeClientMCPCommand(path, c, "lerd")
+}
+
+// writeClientMCPCommand is writeClientMCP for an entry that runs command, which
+// a Windows client needs to be lerd.exe.
+func writeClientMCPCommand(path string, c aiClient, command string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return fmt.Errorf("creating %s: %w", filepath.Dir(path), err)
 	}
 	if c.MCPFormat == fmtTOMLCodex {
-		return mergeCodexTOML(path)
+		return mergeCodexTOMLCommand(path, command)
 	}
-	return mergeServerJSON(resolveClientConfigPath(path), c.ServerKey, lerdJSONEntry(c))
+	return mergeServerJSON(resolveClientConfigPath(path), c.ServerKey, lerdJSONEntry(c, command))
 }
 
 // writeClientContext writes a context/instructions doc per its format.
@@ -550,7 +569,12 @@ const codexLerdHeader = "[mcp_servers.lerd]"
 // tables, and rewrites quote styles — destructive for a hand-maintained file lerd
 // does not own. lerd's entry never changes, so once present it is left untouched.
 func mergeCodexTOML(path string) error {
-	block := codexLerdHeader + "\ncommand = \"lerd\"\nargs = [\"mcp\"]\n"
+	return mergeCodexTOMLCommand(path, "lerd")
+}
+
+func mergeCodexTOMLCommand(path, command string) error {
+	// strconv.Quote escapes as a TOML basic string does, so a Windows path survives.
+	block := codexLerdHeader + "\ncommand = " + strconv.Quote(command) + "\nargs = [\"mcp\"]\n"
 
 	data, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
