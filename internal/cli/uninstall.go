@@ -204,6 +204,7 @@ func runUninstall(force, keepData bool) error {
 		if home, err := os.UserHomeDir(); err == nil {
 			_ = RemoveGlobalAISkills(home, true)
 		}
+		removeWindowsAIClients(true)
 		feedback.Line("removing MCP integration (registered sites)")
 		if reg, err := config.LoadSites(); err == nil {
 			for _, s := range reg.Sites {

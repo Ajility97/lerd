@@ -2,6 +2,7 @@ package cli
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -276,6 +277,7 @@ func RunMCPEnableGlobal() error {
 	if err := WriteGlobalAISkills(home, true); err != nil {
 		return err
 	}
+	enableWindowsAIClients(true)
 
 	feedback.Done("done — restart your AI assistant for changes to take effect")
 	feedback.Note("lerd uses the directory you open Claude in as the site context")
@@ -310,6 +312,7 @@ func RunMCPDisableGlobal() error {
 	if err := RemoveGlobalAISkills(home, true); err != nil {
 		return err
 	}
+	removeWindowsAIClients(true)
 
 	feedback.Done("done — restart your AI assistant for changes to take effect")
 	return nil
@@ -320,35 +323,96 @@ func RunMCPDisableGlobal() error {
 // idempotent `claude mcp add` CLI. Global entries omit LERD_SITE_PATH so the
 // server uses the directory the assistant is opened in.
 func writeGlobalMCPConfigs(home string, verbose bool) error {
+	return writeHomeMCPConfigs(localAIHome(home), verbose)
+}
+
+// aiHome is where user-scope registration goes: this machine's home, or on WSL
+// the Windows profile, whose clients reach lerd through lerd.exe.
+type aiHome struct {
+	dir       string                               // the clients' home folder
+	command   string                               // what a registered entry runs
+	claude    func(args ...string) ([]byte, error) // Claude Code's `mcp` CLI
+	claudeDir string                               // CLAUDE_CONFIG_DIR, "" for ~/.claude
+	windows   bool                                 // a Windows profile: installed clients only
+}
+
+func localAIHome(home string) aiHome {
+	return aiHome{
+		dir:       home,
+		command:   "lerd",
+		claude:    func(args ...string) ([]byte, error) { return claudeMCP(args...) },
+		claudeDir: os.Getenv("CLAUDE_CONFIG_DIR"),
+	}
+}
+
+// has reports whether lerd registers with c here. A Windows profile only gets
+// the clients installed in it, so lerd does not litter it with config folders.
+func (h aiHome) has(c aiClient) bool {
+	if !h.windows {
+		return true
+	}
+	if c.WindowsDir == "" {
+		return false
+	}
+	_, err := os.Stat(filepath.Join(h.dir, c.WindowsDir))
+	return err == nil
+}
+
+func (h aiHome) mcpPath(c aiClient) string {
+	rel := c.GlobalMCP
+	if h.windows && c.WindowsMCP != "" {
+		rel = c.WindowsMCP
+	}
+	if rel == "" {
+		return ""
+	}
+	return filepath.Join(h.dir, rel)
+}
+
+// contextPath resolves a client's user-scope doc, which Claude Code reads from
+// CLAUDE_CONFIG_DIR when a profile sets it.
+func (h aiHome) contextPath(rel string) string {
+	claudeRel, err := filepath.Rel(".claude", rel)
+	if h.claudeDir == "" || err != nil || strings.HasPrefix(claudeRel, "..") {
+		return filepath.Join(h.dir, rel)
+	}
+	return filepath.Join(h.claudeDir, claudeRel)
+}
+
+func writeHomeMCPConfigs(h aiHome, verbose bool) error {
 	log := func(msg string) {
 		if verbose {
 			feedback.Note(msg)
 		}
 	}
 	for _, c := range aiClients {
+		if !h.has(c) {
+			continue
+		}
 		if c.GlobalViaCLI {
 			// Try remove first for idempotent re-registration, then add.
-			_, _ = claudeMCP("remove", "--scope", "user", "lerd")
-			out, err := claudeMCP("add", "--scope", "user", "lerd", "--", "lerd", "mcp")
-			if err != nil {
+			_, _ = h.claude("remove", "--scope", "user", "lerd")
+			out, err := h.claude("add", "--scope", "user", "lerd", "--", h.command, "mcp")
+			switch {
+			case errors.Is(err, errNoClaude):
+			case err != nil:
 				feedback.Warn("could not register with Claude Code (%v): %s", err, strings.TrimSpace(string(out)))
-				feedback.Note("run manually: claude mcp add --scope user lerd -- lerd mcp")
-			} else {
+				feedback.Note("run manually: claude mcp add --scope user lerd -- " + h.command + " mcp")
+			default:
 				log("registered in Claude Code (user scope)")
 			}
 			continue
 		}
-		if c.GlobalMCP == "" {
+		path := h.mcpPath(c)
+		if path == "" {
 			continue
 		}
-		globalPath := filepath.Join(home, c.GlobalMCP)
-		if err := writeClientMCP(globalPath, c); err != nil {
+		if err := writeClientMCPCommand(path, c, h.command); err != nil {
 			return err
 		}
-		written, _ := filepath.Rel(home, resolveClientConfigPath(globalPath))
-		log("updated ~/" + written)
+		log("updated " + resolveClientConfigPath(path))
 	}
-	if sweepLegacySharedAIMCP(home) {
+	if !h.windows && sweepLegacySharedAIMCP(h.dir) {
 		log("cleaned ~/" + legacySharedAIMCP + " (no longer written)")
 	}
 	return nil
@@ -373,21 +437,23 @@ func RefreshGlobalAISkills(home string, verbose bool) error {
 // globalContextPath resolves a client's user-scope doc under home, except that
 // Claude Code reads its config from CLAUDE_CONFIG_DIR when a profile sets it.
 func globalContextPath(home, rel string) string {
-	dir := os.Getenv("CLAUDE_CONFIG_DIR")
-	claudeRel, err := filepath.Rel(".claude", rel)
-	if dir == "" || err != nil || strings.HasPrefix(claudeRel, "..") {
-		return filepath.Join(home, rel)
-	}
-	return filepath.Join(dir, claudeRel)
+	return localAIHome(home).contextPath(rel)
 }
 
 func writeGlobalContexts(home string, verbose, createMissing bool) error {
+	return writeHomeContexts(localAIHome(home), verbose, createMissing)
+}
+
+func writeHomeContexts(h aiHome, verbose, createMissing bool) error {
 	for _, c := range aiClients {
+		if !h.has(c) {
+			continue
+		}
 		for _, cx := range clientContexts(c) {
 			if cx.Global == "" {
 				continue
 			}
-			full := globalContextPath(home, cx.Global)
+			full := h.contextPath(cx.Global)
 			if !createMissing && !contextAlreadyPresent(full, cx) {
 				continue
 			}
@@ -399,7 +465,7 @@ func writeGlobalContexts(home string, verbose, createMissing bool) error {
 			}
 		}
 		for _, cx := range staleSkillContexts(c) {
-			full := globalContextPath(home, cx.Global)
+			full := h.contextPath(cx.Global)
 			if changed, _ := removeClientContext(full, cx); changed && verbose {
 				feedback.Note("removed " + full)
 			}
@@ -530,6 +596,12 @@ func stripSentinelSection(path string) (bool, error) {
 // Write/RunMCPEnableGlobal path across the whole client registry: context docs,
 // global MCP config entries, and the Claude Code user-scope registration.
 func RemoveGlobalAISkills(home string, verbose bool) error {
+	return removeHomeAI(localAIHome(home), verbose)
+}
+
+// removeHomeAI takes lerd back out of every client in h, installed or not, since
+// one removed after lerd registered with it can still hold the entry.
+func removeHomeAI(h aiHome, verbose bool) error {
 	log := func(msg string) {
 		if verbose {
 			fmt.Println(msg)
@@ -538,12 +610,11 @@ func RemoveGlobalAISkills(home string, verbose bool) error {
 
 	for _, c := range aiClients {
 		if c.GlobalViaCLI {
-			if _, err := claudeMCP("remove", "--scope", "user", "lerd"); err == nil {
+			if _, err := h.claude("remove", "--scope", "user", "lerd"); err == nil {
 				log("  removed Claude Code user-scope MCP registration")
 			}
 		}
-		if c.GlobalMCP != "" {
-			full := filepath.Join(home, c.GlobalMCP)
+		if full := h.mcpPath(c); full != "" {
 			if changed, err := removeClientMCP(full, c); err != nil {
 				fmt.Printf("  warn: %s: %v\n", full, err)
 			} else if changed {
@@ -554,7 +625,7 @@ func RemoveGlobalAISkills(home string, verbose bool) error {
 			if cx.Global == "" {
 				continue
 			}
-			full := globalContextPath(home, cx.Global)
+			full := h.contextPath(cx.Global)
 			if changed, err := removeClientContext(full, cx); err != nil {
 				return err
 			} else if changed {
@@ -562,7 +633,7 @@ func RemoveGlobalAISkills(home string, verbose bool) error {
 			}
 		}
 	}
-	if sweepLegacySharedAIMCP(home) {
+	if !h.windows && sweepLegacySharedAIMCP(h.dir) {
 		log("  cleaned ~/" + legacySharedAIMCP)
 	}
 	return nil
