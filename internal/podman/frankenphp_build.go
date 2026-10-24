@@ -169,7 +169,7 @@ func buildFrankenPHPImage(version string, force bool, customExts, packages []str
 	}
 
 	exts := append(append([]string{}, frankenPHPRuntimeExtensions...), sanitizeExtNames(customExts)...)
-	containerfile, err := renderFrankenPHPContainerfile(version, exts, packages, mkcertCABlock(tmp, packages))
+	containerfile, err := renderFrankenPHPContainerfile(version, exts, packages, caTrustBlock(tmp, packages))
 	if err != nil {
 		return err
 	}

@@ -119,3 +119,24 @@ stage() { printf '%s\n' "$2" > "$1"; git add "$1"; }
   run "$HOOK"
   [ "$status" -eq 0 ]
 }
+
+@test "checks a branch against its base when given one, as CI does" {
+  stage a.go $'package a\n\n// one\nfunc A() {}'
+  git commit -qm base --no-verify
+  git branch -q base
+  stage a.go $'package a\n\n// one\n// two\n// three\n// four\nfunc A() {}'
+  git commit -qm grow --no-verify
+  run "$HOOK" base
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"a.go:3"* ]]
+  run "$HOOK" HEAD
+  [ "$status" -eq 0 ]
+}
+
+@test "fails on a base it cannot find instead of passing unchecked" {
+  stage a.go $'package a\n\nfunc A() {}'
+  git commit -qm base --no-verify
+  run "$HOOK" no-such-base
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"no-such-base"* ]]
+}
