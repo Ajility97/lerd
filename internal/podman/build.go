@@ -201,10 +201,8 @@ var hostCAConfPath = "/etc/ca-certificates.conf"
 // is left out, so the host file cannot put shell into the build.
 var distrustedRootRe = regexp.MustCompile(`^![A-Za-z0-9_.+/-]+\.crt$`)
 
-// hostDistrustBlock distrusts in the image the roots the host has distrusted,
-// so a root the host dropped after an incident stays dropped for PHP too while
-// Alpine's ca-certificates still ships it. Empty when the host keeps no such
-// file, as on macOS, or distrusts nothing.
+// hostDistrustBlock keeps roots the host distrusts out of the image, even while
+// Alpine still ships them. Empty when the host has no such file or distrusts nothing.
 func hostDistrustBlock() string {
 	data, err := os.ReadFile(hostCAConfPath)
 	if err != nil {
