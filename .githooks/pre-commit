@@ -1,19 +1,27 @@
 #!/usr/bin/env bash
 # Rejects a commit that leaves any comment block it touches longer than three
 # lines (CLAUDE.md). Enable once per clone: git config core.hooksPath .githooks
+# Given a base ref, as CI does, it checks what the branch adds since that ref.
 max=3
 status=0
+if [ -n "${1:-}" ]; then
+  diff=(git diff "$1...HEAD")
+  src=HEAD:
+else
+  diff=(git diff --cached)
+  src=:
+fi
 
 # check <path> [old path]: a rename is diffed against its old path, so only the
 # lines it really adds count.
 check() {
   local f=$1 added out
-  added=$(git diff --cached -U0 -M -- "$@" | awk '/^@@/ {
+  added=$("${diff[@]}" -U0 -M -- "$@" | awk '/^@@/ {
     split($3, a, ","); n = substr(a[1], 2); c = (a[2] == "" ? 1 : a[2])
     for (i = 0; i < c; i++) printf "%d ", n + i }')
   [ -z "$added" ] && return
   # The whole block around an added line counts, so growing an old one is caught.
-  out=$(git show ":$f" | awk -v max="$max" -v added="$added" -v file="$f" '
+  out=$(git show "$src$f" | awk -v max="$max" -v added="$added" -v file="$f" '
     BEGIN { n = split(added, l, " "); for (i = 1; i <= n; i++) want[l[i]] = 1 }
     function count() { if (len == 0) start = NR; len++; if (NR in want) hit = 1 }
     function flush() {
@@ -47,7 +55,7 @@ while IFS= read -r -d '' st; do
   IFS= read -r -d '' f
   case $f in *.go | *.ts | *.js | *.svelte) ;; *) continue ;; esac
   if [ -n "$old" ]; then check "$f" "$old"; else check "$f"; fi
-done < <(git diff --cached --name-status -z -M --diff-filter=AMR)
+done < <("${diff[@]}" --name-status -z -M --diff-filter=AMR)
 
 [ $status -eq 0 ] || echo "Shorten them, or commit with --no-verify if a block truly needs the room."
 exit $status
