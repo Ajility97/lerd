@@ -43,14 +43,15 @@ func StaleQuadletMounts() []string {
 }
 
 // quadletVolumeSource picks the host path out of a Volume= line, skipping the
-// named volumes and the %h specifier, which are not paths to check.
+// named volumes and the %h specifier, which are not paths to check, and the
+// provided-env dir, whose macOS source lives in the Podman Machine VM.
 func quadletVolumeSource(line string) (string, bool) {
 	rest, ok := strings.CutPrefix(line, "Volume=")
 	if !ok {
 		return "", false
 	}
 	src, _, ok := strings.Cut(rest, ":")
-	if !ok || src == "" || !strings.HasPrefix(src, "/") {
+	if !ok || src == "" || !strings.HasPrefix(src, "/") || src == ProvidedEnvVMDir {
 		return "", false
 	}
 	return src, true

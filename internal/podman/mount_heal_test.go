@@ -41,3 +41,21 @@ func TestStaleQuadletMountsFindsAPathThatWentAway(t *testing.T) {
 		}
 	}
 }
+
+// On macOS the provided-env source lives in the Podman Machine VM, so it is
+// never on the host's disk and must not be reported as gone.
+func TestStaleQuadletMountsSkipsTheProvidedEnvVMDir(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+	t.Setenv("XDG_DATA_HOME", tmp)
+	if err := os.MkdirAll(config.QuadletDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	unit := "[Container]\nImage=x\nVolume=" + ProvidedEnvVMDir + ":" + config.ProvidedEnvContainerDir + ":ro\n"
+	if err := os.WriteFile(filepath.Join(config.QuadletDir(), SharedFPMContainerName("8.4")+".container"), []byte(unit), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if stale := StaleQuadletMounts(); len(stale) != 0 {
+		t.Fatalf("StaleQuadletMounts() = %v, want none", stale)
+	}
+}
