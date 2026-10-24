@@ -53,10 +53,11 @@ func TestWSLHandoverNameservers_NothingToDo(t *testing.T) {
 // copy of WSL's file in /mnt/wsl, and the commands that install or start it.
 func withResolverSeams(t *testing.T, unit, dropin bool, mntConf string) *[]string {
 	t.Helper()
-	origUnit, origDropin, origMnt, origRun, origWrite, origStub, origUp := resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub, resolvedHasUpstream
+	origUnit, origDropin, origMnt, origRun, origWrite, origStub, origUp, origBoot := resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub, resolvedHasUpstream, systemdBooted
 	t.Cleanup(func() {
-		resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub, resolvedHasUpstream = origUnit, origDropin, origMnt, origRun, origWrite, origStub, origUp
+		resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub, resolvedHasUpstream, systemdBooted = origUnit, origDropin, origMnt, origRun, origWrite, origStub, origUp, origBoot
 	})
+	systemdBooted = func() bool { return true }
 	resolvedHasUpstream = func() bool { return dropin }
 	resolvConfIsStub = func() bool { return true }
 	p := filepath.Join(t.TempDir(), "mnt-resolv.conf")
@@ -172,5 +173,15 @@ func TestGlobalDNSSet(t *testing.T) {
 		if got := globalDNSSet(out); got != want {
 			t.Errorf("globalDNSSet(%q) = %v, want %v", out, got, want)
 		}
+	}
+}
+
+// With systemd off nothing can run resolved, so nothing is installed for it.
+func TestEnsureWSLResolver_systemdOffInstallsNothing(t *testing.T) {
+	withWSLSeams(t, true, false, wslResolvConf)
+	ran := withResolverSeams(t, false, false, wslResolvConf)
+	systemdBooted = func() bool { return false }
+	if err := EnsureWSLResolver(); err != nil || len(*ran) > 0 {
+		t.Errorf("err %v, ran %q, want nothing with systemd off", err, *ran)
 	}
 }

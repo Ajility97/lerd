@@ -49,6 +49,11 @@ var (
 		out, err := exec.Command("resolvectl", "dns").Output()
 		return err == nil && globalDNSSet(string(out))
 	}
+	// systemdBooted is sd_booted(3): systemd is PID 1 when this directory exists.
+	systemdBooted = func() bool {
+		_, err := os.Stat("/run/systemd/system")
+		return err == nil
+	}
 	// resolvConfIsStub reports resolv.conf linked to systemd-resolved's stub.
 	resolvConfIsStub = func() bool {
 		target, err := os.Readlink(resolvConfPath)
@@ -60,7 +65,8 @@ var (
 // upstream, which .test inside the distro is routed through. Debian's WSL image
 // ships without it, and Arch's leaves it off.
 func EnsureWSLResolver() error {
-	if !isWSL() {
+	// With systemd off there is no resolved to run; wsl:setup turns systemd on.
+	if !isWSL() || !systemdBooted() {
 		return nil
 	}
 	if !resolvedIsRunning() {
@@ -89,7 +95,7 @@ func EnsureWSLResolver() error {
 
 // WSLResolverMissing reports a WSL distro with no systemd-resolved running, where
 // .test resolves on Windows but not inside the distro.
-func WSLResolverMissing() bool { return isWSL() && !resolvedIsRunning() }
+func WSLResolverMissing() bool { return isWSL() && systemdBooted() && !resolvedIsRunning() }
 
 // wslHandoverNameservers returns WSL's DNS proxy addresses and search suffixes
 // when resolv.conf still needs handing to systemd-resolved, nil when there is nothing to do.
