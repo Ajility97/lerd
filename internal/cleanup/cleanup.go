@@ -303,7 +303,7 @@ func Inspect(scope Scope) (Plan, error) {
 	// If either layer set can't be read every base is kept, so an inspect
 	// failure never makes an in-use base look orphaned.
 	if len(baseCandidates) > 0 {
-		if live, ok := liveLayers(without(imgs, targetImages(p.Targets))); ok {
+		if live, ok := liveLayers(without(imgs, removedImages(p.Targets, imgs))); ok {
 			if baseLayers, err := imageLayers(imageIDs(baseCandidates)); err == nil {
 				for _, img := range baseCandidates {
 					if !builtUpon(baseLayers[img.ID], live) {
@@ -314,12 +314,12 @@ func Inspect(scope Scope) (Plan, error) {
 		}
 	}
 
-	creditFreedLayers(p.Targets, imgs)
 	p.UsedTotal = usedTotal(imgs, repos, prot)
 	p.Targets = append(p.Targets, staleServiceFiles()...)
 	// podman lists a multi-tag image once per tag, so dedupe by ref/ID to avoid
 	// counting or trying to remove the same target twice.
 	p.Targets = dedupTargets(p.Targets)
+	creditFreedLayers(p.Targets, imgs)
 	return p, nil
 }
 

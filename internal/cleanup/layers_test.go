@@ -141,3 +141,47 @@ func TestLayerSizesFrom(t *testing.T) {
 		t.Fatal("a history that doesn't line up with the layers must be refused")
 	}
 }
+
+// A base nothing is built on is listed by both the unused reap and the base
+// check; the copy that survives dedup is the one that gets the layer count.
+func TestInspect_DeepCreditsLayersOfABaseListedTwice(t *testing.T) {
+	withImages(t, []image{
+		{ID: "base82", Names: []string{"ghcr.io/lerd-env/lerd-php82-fpm-base:x"}, Size: 550, SharedSize: 549},
+	}, map[string][]string{"base82": {"alpine", "php82"}})
+	withProtected(t)
+	withHistory(t, map[string][]int64{"base82": {540, 9}})
+
+	p, err := Inspect(ScopeDeep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Targets) != 1 || p.Targets[0].Bytes != 549 {
+		t.Fatalf("want the base listed once at 549, got %+v", p.Targets)
+	}
+}
+
+// A base that keeps another tag stays on disk, so its layers are not counted
+// as freed, neither on its own row nor on the FPM image built on it.
+func TestInspect_DeepKeepsLayersOfABaseWithAnotherTag(t *testing.T) {
+	withImages(t, []image{
+		{ID: "fpm86", Names: []string{"localhost/lerd-php86-fpm:local"}, Size: 1200, Labels: map[string]string{"dev.lerd.fpm.containerfile-hash": "h"}},
+		{ID: "base86", Names: []string{"ghcr.io/lerd-env/lerd-php86-fpm-base:x", "localhost/my-base:keep"}, Size: 550, SharedSize: 549},
+	}, map[string][]string{
+		"fpm86":  {"alpine", "php86", "chromium"},
+		"base86": {"alpine", "php86"},
+	})
+	withProtected(t, "localhost/my-base:keep")
+	withHistory(t, map[string][]int64{
+		"fpm86":  {650, 540, 9},
+		"base86": {540, 9},
+	})
+
+	p, err := Inspect(ScopeDeep)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := targetBytes(p)
+	if got["localhost/lerd-php86-fpm:local"] != 650 || got["ghcr.io/lerd-env/lerd-php86-fpm-base:x"] != 1 {
+		t.Fatalf("want fpm 650 and the base's estimate of 1, got %+v", p.Targets)
+	}
+}

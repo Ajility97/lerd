@@ -54,7 +54,7 @@ func layerSizesFrom(layers []string, history []int64) (map[string]int64, bool) {
 // image holds, since podman's unique size reads a 1 GB FPM image as a few KB.
 // Ancestors go first; a target whose sizes can't be read keeps its estimate.
 func creditFreedLayers(targets []Target, imgs []image) {
-	removing := targetImages(targets)
+	removing := removedImages(targets, imgs)
 	if len(removing) == 0 {
 		return
 	}
@@ -80,7 +80,7 @@ func creditFreedLayers(targets []Target, imgs []image) {
 	// estimate already sits.
 	last := map[string]int{}
 	for i, t := range targets {
-		if t.image != "" {
+		if removing[t.image] {
 			last[t.image] = i
 		}
 	}
@@ -118,15 +118,32 @@ func creditFreedLayers(targets []Target, imgs []image) {
 	}
 }
 
-// targetImages is the set of image IDs the targets would remove.
-func targetImages(targets []Target) map[string]bool {
-	ids := map[string]bool{}
+// removedImages is the set of image IDs the targets remove outright. Untagging
+// one name of an image tagged twice frees nothing, so a tagged image counts only
+// when every name it carries is a target.
+func removedImages(targets []Target, imgs []image) map[string]bool {
+	refs := map[string]bool{}
 	for _, t := range targets {
 		if t.image != "" {
-			ids[t.image] = true
+			refs[t.ID] = true
 		}
 	}
-	return ids
+	out := map[string]bool{}
+	for _, img := range imgs {
+		if refs[shortID(img.ID)] || (!isOrphaned(img) && allTargeted(img.Names, refs)) {
+			out[img.ID] = true
+		}
+	}
+	return out
+}
+
+func allTargeted(names []string, refs map[string]bool) bool {
+	for _, n := range names {
+		if n != "" && n != "<none>:<none>" && !refs[n] {
+			return false
+		}
+	}
+	return true
 }
 
 // without returns the images whose ID is not in ids.
