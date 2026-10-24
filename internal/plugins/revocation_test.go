@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -111,5 +112,31 @@ func TestRevocation_RemoveForgetsTheKeep(t *testing.T) {
 	}
 	if loaded("bad") {
 		t.Fatal("a reinstall must be stopped again")
+	}
+}
+
+// Keeps answered at the same moment, from two dashboard tabs, all survive.
+func TestRevocation_ConcurrentKeepsAllHold(t *testing.T) {
+	installRevokable(t)
+	names := []string{"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8"}
+	var revoked []Revocation
+	for _, n := range names {
+		writePlugin(t, Dir(), n, "api_version: 1\nname: "+n+"\ncommands:\n  - {name: run, run: bin/run}\n")
+		revoked = append(revoked, Revocation{Name: n, Reason: "x", At: "2026-10-24"})
+	}
+	setRevocations(t, revoked...)
+	var wg sync.WaitGroup
+	for _, n := range names {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := KeepRevoked(n); err != nil {
+				t.Error(err)
+			}
+		}()
+	}
+	wg.Wait()
+	if kept := readKept(); len(kept) != len(names) {
+		t.Fatalf("kept = %v, want all %d", kept, len(names))
 	}
 }

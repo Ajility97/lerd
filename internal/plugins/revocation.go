@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
+	"syscall"
 
 	"github.com/geodro/lerd/internal/config"
 )
@@ -79,26 +81,54 @@ func readKept() map[string]string {
 	return kept
 }
 
-func writeKept(kept map[string]string) error {
+// keptMu and a lock file keep each read, change and write of the kept answers
+// whole, so two tabs keeping different plugins at once both stick.
+var keptMu sync.Mutex
+
+// updateKept applies change to the kept answers and writes them back when it
+// reports a change, beside the file and renamed over it so a reader never sees
+// half of it.
+func updateKept(change func(kept map[string]string) bool) error {
+	path := keptPath()
+	config.GuardRealWrite(path)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	keptMu.Lock()
+	defer keptMu.Unlock()
+	lock, err := os.OpenFile(path+".lock", os.O_RDWR|os.O_CREATE, 0o644)
+	if err != nil {
+		return err
+	}
+	defer lock.Close()
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
+		return err
+	}
+	defer func() { _ = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN) }()
+	kept := readKept()
+	if !change(kept) {
+		return nil
+	}
 	data, err := json.Marshal(kept)
 	if err != nil {
 		return err
 	}
-	config.GuardRealWrite(keptPath())
-	if err := os.MkdirAll(filepath.Dir(keptPath()), 0o755); err != nil {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
-	return os.WriteFile(keptPath(), data, 0o644)
+	return os.Rename(tmp, path)
 }
 
 // forgetKept drops a removed plugin's answer, so a reinstall is stopped again.
 func forgetKept(name string) error {
-	kept := readKept()
-	if _, ok := kept[name]; !ok {
-		return nil
-	}
-	delete(kept, name)
-	return writeKept(kept)
+	return updateKept(func(kept map[string]string) bool {
+		if _, ok := kept[name]; !ok {
+			return false
+		}
+		delete(kept, name)
+		return true
+	})
 }
 
 // Revoked lists the installed plugins a revocation is stopping now.
@@ -128,7 +158,8 @@ func KeepRevoked(name string) error {
 	if !ok {
 		return fmt.Errorf("plugin %s is not revoked", name)
 	}
-	kept := readKept()
-	kept[name] = r.At
-	return writeKept(kept)
+	return updateKept(func(kept map[string]string) bool {
+		kept[name] = r.At
+		return true
+	})
 }
