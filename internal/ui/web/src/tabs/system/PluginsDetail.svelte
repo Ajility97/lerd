@@ -33,9 +33,14 @@
   let answering = $state(false);
   async function answerNotifications(name: string, allowed: boolean) {
     answering = true;
-    const err = await setPluginNotifications(name, allowed);
-    answering = false;
-    if (err) notifyLocalFailure(err);
+    try {
+      const err = await setPluginNotifications(name, allowed);
+      if (err) notifyLocalFailure('plugin_notifications', m.system_plugins_notifications(), err);
+    } catch (e) {
+      notifyLocalFailure('plugin_notifications', m.system_plugins_notifications(), String(e));
+    } finally {
+      answering = false;
+    }
   }
 
   // #plugins is the installed list; #plugins/browse[/<name>] the catalog, which

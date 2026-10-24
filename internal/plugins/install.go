@@ -125,13 +125,20 @@ func Remove(name string) error {
 		return fmt.Errorf("plugin %s is not installed", name)
 	}
 	ClearFailure(name)
-	if err := os.RemoveAll(dir); err != nil {
+	// A reinstall is a new decision, so the answer about notifications goes
+	// first: a removal that fails after it leaves nothing to inherit.
+	if err := forgetNotifications(name); err != nil {
 		return err
 	}
-	// A reinstall is a new decision, so the answer about notifications goes too.
-	if cfg, err := config.LoadGlobal(); err != nil {
+	return os.RemoveAll(dir)
+}
+
+func forgetNotifications(name string) error {
+	cfg, err := config.LoadGlobal()
+	if err != nil {
 		return err
-	} else if _, asked := cfg.PluginNotifications(name); !asked {
+	}
+	if _, asked := cfg.PluginNotifications(name); !asked {
 		return nil
 	}
 	return config.UpdateGlobal(func(c *config.GlobalConfig) { c.ForgetPluginNotifications(name) })

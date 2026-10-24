@@ -17,6 +17,7 @@
     notifyDelivery,
     notifyNativeKinds,
     ALL_KINDS,
+    notifyLocalFailure,
     type NotifyKind
   } from '$lib/notify';
   import { apiFetch } from '$lib/api';
@@ -188,6 +189,10 @@
 
   // Each plugin that sends notifications has its own switch under Plugin
   // messages, so one that is too loud is silenced without the rest.
+  async function switchPlugin(name: string, allowed: boolean) {
+    const err = await setPluginNotifications(name, allowed).catch((e) => String(e));
+    if (err) notifyLocalFailure('plugin_notifications', m.system_plugins_notifications(), err);
+  }
   const notifyingPlugins = $derived($managedPlugins.filter((p) => p.notifications && p.notifications !== 'none'));
 
   const kindLabel: Record<NotifyKind, string> = {
@@ -335,14 +340,6 @@
     </div>
   {/if}
 
-  {#snippet pluginRows()}
-    {#each notifyingPlugins as p (p.name)}
-      <div class="flex items-center justify-between gap-4 py-2 pl-4 border-b border-gray-100 dark:border-lerd-border">
-        <p class="text-xs text-gray-700 dark:text-gray-300 truncate">{p.name}</p>
-        <Toggle on={p.notifications === 'allowed'} title={p.name} onclick={() => setPluginNotifications(p.name, p.notifications !== 'allowed')} tone="accent" />
-      </div>
-    {/each}
-  {/snippet}
 
   <div class="flex-1 overflow-y-auto p-3">
     {#if deliveryTarget === 'native'}
@@ -423,3 +420,12 @@
     {/if}
   </div>
 </DetailPanel>
+
+{#snippet pluginRows()}
+  {#each notifyingPlugins as p (p.name)}
+    <div class="flex items-center justify-between gap-4 py-2 pl-4 border-b border-gray-100 dark:border-lerd-border">
+      <p class="text-xs text-gray-700 dark:text-gray-300 truncate">{p.name}</p>
+      <Toggle on={p.notifications === 'allowed'} title={p.name} onclick={() => switchPlugin(p.name, p.notifications !== 'allowed')} tone="accent" />
+    </div>
+  {/each}
+{/snippet}

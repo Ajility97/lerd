@@ -1,6 +1,7 @@
 package config
 
 import (
+	"maps"
 	"os"
 	"slices"
 	"strconv"
@@ -987,6 +988,9 @@ func cloneGlobalConfig(in *GlobalConfig) *GlobalConfig {
 			out.Services[k] = cp
 		}
 	}
+	// Both are written by toggles while requests read the cached copy.
+	out.Notifications.Kinds = maps.Clone(in.Notifications.Kinds)
+	out.Notifications.Plugins = maps.Clone(in.Notifications.Plugins)
 	if in.Workspaces != nil {
 		out.Workspaces = make([]Workspace, len(in.Workspaces))
 		for i, w := range in.Workspaces {

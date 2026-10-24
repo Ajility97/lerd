@@ -979,3 +979,17 @@ func TestDumpsBuffer(t *testing.T) {
 		}
 	}
 }
+
+// A toggle writes the notification maps while requests read the cached config,
+// so a clone must not share them.
+func TestCloneGlobalConfig_DoesNotShareNotificationMaps(t *testing.T) {
+	in := &GlobalConfig{}
+	in.SetNativeKind("mail", true)
+	in.SetPluginNotifications("hello", true)
+	out := cloneGlobalConfig(in)
+	out.SetNativeKind("mail", false)
+	out.SetPluginNotifications("hello", false)
+	if !in.Notifications.Kinds["mail"] || !in.Notifications.Plugins["hello"] {
+		t.Fatalf("writing the clone changed the original: %+v", in.Notifications)
+	}
+}
