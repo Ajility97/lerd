@@ -180,6 +180,30 @@ run_with_tty() {
   [ "${MISSING_PKGS[0]}" = "nss-tools" ]
 }
 
+# ── check_dns_resolver ────────────────────────────────────────────────────────
+
+@test "check_dns_resolver leaves resolved to lerd install on WSL" {
+  function systemctl() { return 1; }
+  export -f systemctl
+  function is_wsl() { return 0; }
+  export -f is_wsl
+
+  MISSING_PKGS=()
+  check_dns_resolver >/dev/null 2>&1
+  [ "${#MISSING_PKGS[@]}" -eq 0 ]
+}
+
+@test "check_dns_resolver queues NetworkManager off WSL with no resolver" {
+  function systemctl() { return 1; }
+  export -f systemctl
+  function is_wsl() { return 1; }
+  export -f is_wsl
+
+  MISSING_PKGS=()
+  check_dns_resolver >/dev/null 2>&1
+  [ "${MISSING_PKGS[0]}" = "networkmanager" ]
+}
+
 # ── check_nm_dnsmasq ──────────────────────────────────────────────────────────
 
 @test "check_nm_dnsmasq queues dnsmasq on NetworkManager-only hosts" {

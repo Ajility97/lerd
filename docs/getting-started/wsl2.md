@@ -199,6 +199,8 @@ If you edit from VS Code on Windows, use the Remote-WSL extension and launch fro
 
 Inside the distro, WSL writes its own `/etc/resolv.conf` pointing straight at its DNS proxy, which bypasses systemd-resolved and so every `.test` route. lerd hands that file to systemd-resolved on install: it sets `generateResolvConf=false` in `/etc/wsl.conf`, keeps WSL's proxy as resolved's upstream in `/etc/systemd/resolved.conf.d/wsl-upstream.conf`, and from there takes the same path as on any Ubuntu machine. That drop-in is deliberately not removed by an uninstall, since the distro would be left with no upstream DNS.
 
+A distro without systemd-resolved, such as Debian's WSL image, gets it installed by `lerd install` (through `apt-get`), and one that ships it switched off, such as Arch, gets it started. Installing the package relinks `resolv.conf` to resolved's stub with no upstream, so lerd reads WSL's nameservers from `/mnt/wsl/resolv.conf` and sets them as resolved's upstream before it downloads anything. On a distro with neither resolved nor `apt-get`, install systemd-resolved yourself and run `lerd install` again; until then `lerd doctor` warns under `[WSL2]`, and `.test` resolves from Windows but not inside the distro.
+
 Windows resolves `.test` through the lerd agent described above. To trust HTTPS by hand instead of through `lerd wsl:setup`, copy the CA out of WSL and import it:
 
 ```bash
