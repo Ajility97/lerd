@@ -53,10 +53,11 @@ func TestWSLHandoverNameservers_NothingToDo(t *testing.T) {
 // copy of WSL's file in /mnt/wsl, and the commands that install or start it.
 func withResolverSeams(t *testing.T, unit, dropin bool, mntConf string) *[]string {
 	t.Helper()
-	origUnit, origDropin, origMnt, origRun, origWrite := resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile
+	origUnit, origDropin, origMnt, origRun, origWrite, origStub := resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub
 	t.Cleanup(func() {
-		resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile = origUnit, origDropin, origMnt, origRun, origWrite
+		resolvedUnitPresent, upstreamDropinPresent, wslGeneratedResolvConf, runSudo, writeRootFile, resolvConfIsStub = origUnit, origDropin, origMnt, origRun, origWrite, origStub
 	})
+	resolvConfIsStub = func() bool { return true }
 	p := filepath.Join(t.TempDir(), "mnt-resolv.conf")
 	if err := os.WriteFile(p, []byte(mntConf), 0o644); err != nil {
 		t.Fatal(err)
@@ -139,5 +140,14 @@ func TestWSLHandoverNameservers_alreadyHandedOver(t *testing.T) {
 	withResolverSeams(t, true, true, wslResolvConf)
 	if got, _ := wslHandoverNameservers(); got != nil {
 		t.Errorf("got %v, want nil once resolv.conf is resolved's and the upstream is set", got)
+	}
+}
+
+func TestWSLHandoverNameservers_leavesAUserWrittenResolvConf(t *testing.T) {
+	withWSLSeams(t, true, true, "nameserver 10.1.2.3\n")
+	withResolverSeams(t, true, false, wslResolvConf)
+	resolvConfIsStub = func() bool { return false }
+	if got, _ := wslHandoverNameservers(); got != nil {
+		t.Errorf("got %v, want nil: the user's own resolv.conf stays", got)
 	}
 }

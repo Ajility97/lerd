@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/geodro/lerd/internal/feedback"
 	"github.com/geodro/lerd/internal/wsl"
@@ -42,6 +43,11 @@ var (
 		return nil
 	}
 	writeRootFile = sudoWriteFile
+	// resolvConfIsStub reports resolv.conf linked to systemd-resolved's stub.
+	resolvConfIsStub = func() bool {
+		target, err := os.Readlink(resolvConfPath)
+		return err == nil && strings.HasSuffix(target, "systemd/resolve/stub-resolv.conf")
+	}
 )
 
 // EnsureWSLResolver gives a WSL distro systemd-resolved with WSL's DNS proxy
@@ -89,11 +95,12 @@ func wslHandoverNameservers() (nameservers, search []string) {
 	if ns, s := wsl.GeneratedNameservers(string(cur)); ns != nil {
 		return ns, s
 	}
-	if upstreamDropinPresent() {
+	// Installing resolved relinks resolv.conf to its stub and leaves it with no
+	// upstream at all, but WSL still writes its own copy under /mnt/wsl. A file
+	// the user wrote is theirs, whatever /mnt/wsl holds.
+	if upstreamDropinPresent() || !resolvConfIsStub() {
 		return nil, nil
 	}
-	// Installing resolved relinks resolv.conf to its stub and leaves it with no
-	// upstream at all, but WSL still writes its own copy under /mnt/wsl.
 	mnt, _ := os.ReadFile(wslGeneratedResolvConf)
 	return wsl.GeneratedNameservers(string(mnt))
 }
