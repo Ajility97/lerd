@@ -185,3 +185,34 @@ it('shows an update with its version and changes, and updates all', async () => 
     expect(updates).toEqual(['hello', 'other']);
   });
 });
+
+// A plugin that asks to send notifications is asked about once, however it was
+// installed, and the answer goes to lerd rather than staying in the page.
+it('asks whether a plugin may send notifications and records the answer', async () => {
+  installed = [{ name: 'hello', notifications: 'pending' }];
+  const plain = globalThis.fetch;
+  globalThis.fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    if (String(url).endsWith('/api/plugin-manager/hello/notifications')) {
+      calls.push({ method: 'POST', url: String(url), body: init?.body as string });
+      installed = [{ name: 'hello', notifications: 'allowed' }];
+      return new Response('{"ok":true}');
+    }
+    return plain(url, init);
+  }) as unknown as typeof fetch;
+
+  const { findByRole, queryByRole } = render(PluginsDetail);
+  const ask = within(await findByRole('dialog'));
+  expect(ask.getByText(/hello asks to send you notifications/)).toBeTruthy();
+  await fireEvent.click(ask.getByRole('button', { name: 'Allow' }));
+  await waitFor(() => expect(queryByRole('dialog')).toBeNull());
+  const answer = calls.find((c) => c.url.endsWith('/hello/notifications'));
+  expect(JSON.parse(answer?.body ?? '{}')).toEqual({ allowed: true });
+});
+
+// One already answered is never asked again, an update included.
+it('does not ask about a plugin whose notifications were already answered', async () => {
+  installed = [{ name: 'hello', notifications: 'denied' }];
+  const { findByText, queryByRole } = render(PluginsDetail);
+  await findByText('hello');
+  expect(queryByRole('dialog')).toBeNull();
+});

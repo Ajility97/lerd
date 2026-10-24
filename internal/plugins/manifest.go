@@ -50,6 +50,9 @@ type Manifest struct {
 	Docs string `yaml:"docs,omitempty" json:"docs,omitempty"`
 	// Screenshots are images in the plugin shown on its card in the dashboard.
 	Screenshots []string `yaml:"screenshots,omitempty" json:"screenshots,omitempty"`
+	// Notifications says the plugin may tell the user something through lerd's
+	// notifications, which it can only do once the user has allowed it.
+	Notifications bool `yaml:"notifications,omitempty" json:"notifications,omitempty"`
 }
 
 // Command is a CLI command, invoked as `lerd <plugin>:<name>`.
@@ -330,6 +333,7 @@ func (p *Plugin) Surfaces() []string {
 	add("provides", len(p.Provides) > 0)
 	add("services", p.ships(config.PluginServices))
 	add("frameworks", p.ships(config.PluginFrameworks))
+	add("notifications", p.Notifications)
 	return out
 }
 

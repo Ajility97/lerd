@@ -78,6 +78,8 @@ Time limits: hooks and API 30s, MCP tools 2m, site commands 30m, CLI none. `time
 
 `curl -fsS -H "X-Lerd-Plugin-Token: $LERD_API_TOKEN" "$LERD_API_URL/api/sites"` lists the sites; `/api/services`, `/api/status`, `/api/stats` and `/api/disk` are the dashboard's own data.
 
+To tell the user something, such as a command to run, declare `notifications: true` in plugin.yaml, then POST `{"title": "...", "body": "...", "url": "#sites/<site>", "tag": "..."}` to `$LERD_API_URL/api/notifications/plugin` with the token: only `title` is required (100 characters, `body` 300), `url` must start with `#`, a repeated `tag` replaces the earlier browser notification (desktop notifications show each), unknown fields are refused, and each plugin gets ten a minute. It reaches the user as a notification titled with the plugin's name, and only once they allowed it: lerd asks them at install, or at the update that adds the key, and answers `403` until then or after they switch it off, so treat a `403` as the user's choice and fall back to stderr. Never use it to report progress, and fall back to stderr when it fails, since older lerd answers 404.
+
 ## Rules
 
 - Scripts only run on the machine, never in a container: shell, Python, Node, anything but PHP, which lerd refuses. PHP code runs through `$LERD_BIN php ...` in the site's folder.

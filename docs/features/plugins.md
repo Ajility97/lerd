@@ -60,6 +60,7 @@ docs: DOCS.md               # instructions on its Documentation tab in the dashb
 icon: icon.svg              # single-colour SVG on its card; its rail page's icon when omitted
 screenshots: [docs/tab.png] # images shown on its card in the dashboard
 platforms: [linux, macos]   # where it runs; both when omitted
+notifications: true         # it sends notifications, once the user allows it
 version: 0.1.0
 description: A starting point for a lerd plugin
 
@@ -253,6 +254,33 @@ curl -fsS -H "X-Lerd-Plugin-Token: $LERD_API_TOKEN" "$LERD_API_URL/api/sites"
 The token is the plugin's own: lerd derives it from the plugin's name and a secret only your user can read, so a call can be traced to the plugin that made it. For anything else, `$LERD_BIN` runs lerd's CLI.
 
 `/api/services` gives each service's `label`, the name the dashboard shows when its definition sets one (capitalize the `name` when it is absent), and its `domain` when lerd serves it on one, so a plugin listing services needs neither the dashboard's naming rules nor lerd's config files.
+
+### Telling the user something
+
+A hook runs where nobody watches, so a plugin that needs the user to act sends a notification instead. It says so in its manifest:
+
+```yaml
+notifications: true
+```
+
+and lerd asks the user whether to allow it when the plugin is installed, or when an update first adds the key: in the terminal for `lerd plugin install` and `lerd plugin update`, and in the dashboard's Plugins page otherwise, including for one installed from a terminal that could not be asked. The answer holds across updates and is forgotten when the plugin is removed. Each plugin that asks has its own switch on its card and under **Plugin messages** in the notification settings, and `lerd plugin notifications <name> on|off` sets it from the terminal, so a plugin that is too loud is silenced without the rest. The answer is kept in lerd's own config, and a request carrying the plugin's token cannot give it.
+
+Once allowed, it sends with the same token:
+
+```bash
+curl -fsS -X POST -H "X-Lerd-Plugin-Token: $LERD_API_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"title":"Hosts file out of date","body":"myapp.test is missing from the hosts file.","tag":"hosts"}' \
+  "$LERD_API_URL/api/notifications/plugin"
+```
+
+| Field | | |
+| --- | --- | --- |
+| `title` | required | At most 100 characters. Shown as `<plugin>: <title>`, so a message never passes for lerd's own |
+| `body` | optional | At most 300 characters |
+| `url` | optional | A dashboard link starting with `#`, such as `#sites/myapp`, opened when the notification is clicked |
+| `tag` | optional | `a-z`, `0-9` and `-`, at most 64. In the browser and Web Push, a newer message with the same tag replaces the older one. The dashboard drops a repeat with the same tag within two seconds, and desktop notifications show each message. Without a tag, every message stands alone |
+
+It is delivered like every other notification, to the dashboard, Web Push or the desktop, under its own **Plugin messages** category the user can switch off. The plugin is the one the token belongs to. lerd answers `204` once it is sent, or when notifications are off; `403` when the manifest does not declare `notifications` or the user has not allowed it; `400` for a field it does not know or a value out of bounds; `401` without a valid token; `429` past ten messages a minute from the same plugin. Older lerd answers `404`, so a plugin that relies on it declares the release that added it in `lerd:`.
 
 ---
 

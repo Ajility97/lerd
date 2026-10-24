@@ -46,8 +46,8 @@ func TestPluginTool_NewThenList(t *testing.T) {
 	if err := json.Unmarshal([]byte(text), &got); err != nil {
 		t.Fatalf("%v: %s", err, text)
 	}
-	if len(got.Installed) != 1 || got.Installed[0].Name != "notes" || len(got.Installed[0].Surfaces) != 9 {
-		t.Fatalf("list = %s, want notes with all nine surfaces", text)
+	if len(got.Installed) != 1 || got.Installed[0].Name != "notes" || len(got.Installed[0].Surfaces) != 10 {
+		t.Fatalf("list = %s, want notes with all ten surfaces", text)
 	}
 
 	manifest := filepath.Join(plugins.Dir(), "notes", plugins.ManifestFile)

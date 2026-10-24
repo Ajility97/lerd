@@ -1,0 +1,14 @@
+#!/bin/sh
+# Tells the user something through lerd's notifications. lerd answers 403 until
+# the user allows this plugin to, so say so instead of failing quietly.
+set -eu
+
+code=$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
+  -H "X-Lerd-Plugin-Token: $LERD_API_TOKEN" -H 'Content-Type: application/json' \
+  -d "{\"title\":\"Test notification\",\"body\":\"A notification from $LERD_PLUGIN_NAME.\"}" \
+  "$LERD_API_URL/api/notifications/plugin")
+case "$code" in
+  204) echo "Sent." ;;
+  403) echo "Not allowed yet: lerd plugin notifications $LERD_PLUGIN_NAME on" >&2; exit 1 ;;
+  *) echo "lerd answered $code" >&2; exit 1 ;;
+esac

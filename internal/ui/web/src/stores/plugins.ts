@@ -117,6 +117,8 @@ export interface ManagedPlugin {
   features?: PluginFeature[];
   screenshots?: string[];
   has_docs?: boolean;
+  // Whether it may send notifications: pending until the user answers.
+  notifications?: 'none' | 'pending' | 'allowed' | 'denied';
 }
 
 export interface PluginFeature {
@@ -202,6 +204,16 @@ export async function installPlugin(source: string): Promise<string> {
   return mutate('/api/plugin-manager', {
     method: 'POST',
     body: JSON.stringify({ source }),
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
+// setPluginNotifications records the user's answer to a plugin asking to send
+// notifications, from the consent prompt or a toggle.
+export async function setPluginNotifications(name: string, allowed: boolean): Promise<string> {
+  return mutate('/api/plugin-manager/' + encodeURIComponent(name) + '/notifications', {
+    method: 'POST',
+    body: JSON.stringify({ allowed }),
     headers: { 'Content-Type': 'application/json' }
   });
 }
