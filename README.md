@@ -78,7 +78,7 @@ Lerd is built for PHP developers who want frictionless local development, on a L
 
 ### Interfaces
 
-- 🖥️ **Built-in Web UI.** Sites and services dashboards, live widgets and a Cmd+K palette, in fourteen languages and twelve themes, or your desktop's own colours on Omarchy, Plasma, GNOME and macOS, carried into every embedded admin dashboard. Screen reader friendly, with a streaming mode.
+- 🖥️ **Built-in Web UI.** Sites and services dashboards, live widgets and a Cmd+K palette, in fifteen languages and twelve themes, or your desktop's own colours on Omarchy, Noctalia, Plasma, GNOME, macOS and Windows, carried into every embedded admin dashboard. Screen reader friendly, with a streaming mode.
 
 - ✨ **Start a project from the dashboard.** The `+` in Sites scaffolds a project from the framework store or links one you already have, asks what `lerd init` asks, then runs composer and the JS build in the modal. Close the tab mid-install and it picks back up.
 
@@ -87,6 +87,8 @@ Lerd is built for PHP developers who want frictionless local development, on a L
 - 💻 **Terminal dashboard** (`lerd tui`). A sidebar and a ctrl+p palette that reaches every page, site, service and action, drawn in the terminal's own colours, with live status, worktree tabs, a shell drop-in, log tailing, databases with their snapshots and each service's tools and tuning, for tmux and SSH.
 
 - 🚀 **Start it without a terminal.** The dashboard brings lerd up from its own banner, streaming the start unit by unit. `lerd install` adds Lerd to the macOS Applications folder and the Linux app list, opening as a chromeless app window, so a cold start is a click. The tray is optional.
+
+- 🔌 **Plugins.** A folder with a `plugin.yaml` and scripts in shell, Python or Node adds commands, hooks, MCP tools, dashboard pages and services of its own, installed from the Plugins page out of a catalog where each plugin is approved at one commit and can be revoked.
 
 - 🧩 **PhpStorm plugin.** [Lerd for PhpStorm](https://plugins.jetbrains.com/plugin/34420-lerd) resolves the project you have open to its site and brings its logs, PHP version, workers, services, query findings and dumps into the IDE, with a path in a stack trace one click from the line that threw it.
 

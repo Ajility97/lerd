@@ -38,7 +38,7 @@ Around those, a checkout's uncommitted changes open in a diff editor, a suggeste
 
 - **The Sail import is a plugin** (#2287). `lerd import sail`, `lerd sail import` and the offer during `lerd link` are gone; the sail plugin, lerd-env/plugin-sail, brings a Sail project's database and files across with `lerd sail:import`, reads both `docker-compose.yml` and `compose.yaml`, handles MinIO and RustFS, and snapshots the site's database first. `lerd sail ...` still runs the project's own `vendor/bin/sail`.
 - **The PHP images distrust the CA roots the host distrusts** (#2308). Alpine's certificates can trail the host in dropping a compromised root, so each `!` entry in the host's `/etc/ca-certificates.conf` is carried into the image on the next `lerd php:rebuild`. lerd names no CA itself.
-- **PECL extensions install through PIE** (#2271, #2272) on PHP 8.1 and newer, falling back to pecl and then the release tarball, so a pecl.php.net outage or its CDN's compressed metadata can no longer publish images without pcov, xdebug or igbinary.
+- **PECL extensions install through PIE** (#2271, #2272) on PHP 8.1 and newer, falling back to pecl and then the release tarball, so a pecl.php.net outage or its CDN's compressed metadata no longer leaves an image without pcov, xdebug or igbinary on the first failed download. PHP 7.4 and 8.0, where PIE does not run, fall back to the tarball alone.
 - **Build log modals run edge to edge** (#2273), and a button showing a spinner keeps the height of the labelled buttons beside it.
 
 ### Fixed
@@ -48,6 +48,7 @@ Around those, a checkout's uncommitted changes open in a diff editor, a suggeste
 - **macOS asked to give lerd access to Apple Music** (#2265), after every update, because following the accent colour watched the whole preferences folder. lerd now reads only the one file that holds the accent.
 - **A multi-tenant site's subdomains could not load assets from its Vite dev server** (#2263). The dev server accepted every subdomain but listed only the exact domains as CORS origins.
 - **A service URL was moved onto the service's domain whatever port it named** (#2302), so an app's calls to a service's second port landed on the one its domain serves. Only the served port, or none, moves now.
+- **Cleanup credited an unused PHP image with almost nothing** (#2312). Removing a PHP version left a 1.2 GB FPM image that the reclaim preview put at about 26 KB, and the base it was built on was not offered at all. Each image's size now comes from the layers no remaining image holds, and an orphaned base shows up next to its FPM image.
 - **An asleep engine's Snapshots tab said there were no snapshots** (#2268). It now wakes the engine and waits for it before listing them.
 - **The site Overview drew more columns than its pane had room for** (#2270) in a tiled window, and the debug bridge and profiler switches disappeared with the site list hidden.
 - **The Initialize git button flickered on every sites refresh** (#2288, #2298), and lost its padding with the site list hidden.
