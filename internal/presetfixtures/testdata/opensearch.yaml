@@ -1,4 +1,5 @@
 name: opensearch
+label: "OpenSearch"
 image: docker.io/opensearchproject/opensearch:2.19.5
 description: OpenSearch single-node search and analytics engine
 stop_timeout: 30

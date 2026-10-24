@@ -8,6 +8,7 @@ import { sites } from './sites';
 import { groupByCategory, type CategoryGroup } from '$lib/presetCategories';
 import { announce, serviceStatusChanges } from '$lib/announce';
 import { readNDJSON } from '$lib/ndjson';
+import { definitionLabels } from '$lib/serviceLabels.svelte';
 import { fetchBackupList, fetchBackupText } from '$lib/backups';
 
 // One published port of a service: its container-internal port, its preset
@@ -20,6 +21,8 @@ export interface ServicePortMapping {
 
 export interface Service {
   name: string;
+  // The name the service is shown under, from its definition.
+  label?: string;
   status: string;
   version?: string;
   env_vars?: Record<string, string>;
@@ -28,6 +31,8 @@ export interface Service {
   connection_url?: string;
   // Host (published) port the service is exposed on; reflects a moved port.
   port?: number;
+  // Hostname nginx serves the service on, when it has one.
+  domain?: string;
   // Published-port override (0/undefined = default), the preset default host
   // port, and the extra published mappings — read by the ports modal.
   published_port?: number;
@@ -125,6 +130,9 @@ export interface UpdateProgress {
 export const updateProgress = writable<Record<string, UpdateProgress>>({});
 
 export const services = writable<Service[]>([]);
+services.subscribe((list) => {
+  definitionLabels.services = Object.fromEntries(list.filter((s) => s.label).map((s) => [s.name, s.label as string]));
+});
 export const servicesLoaded = writable<boolean>(false);
 
 export async function loadServices() {
@@ -725,34 +733,39 @@ export function serviceOpenable(svc: Service): boolean {
   return svc.status === 'active' || !!svc.idle_suspended;
 }
 
+// Names for presets whose definition may not carry a label yet: a store cache
+// fetched before labels existed, or a lerd ahead of the store it reads.
+const labelFallbacks: Record<string, string> = {
+  phpmyadmin: 'phpMyAdmin',
+  pgadmin: 'pgAdmin',
+  mysql: 'MySQL',
+  postgres: 'PostgreSQL',
+  'postgres-pgvector': 'PostgreSQL + pgvector',
+  'postgres-postgis': 'PostgreSQL + PostGIS',
+  meilisearch: 'Meilisearch',
+  mailpit: 'Mailpit',
+  rustfs: 'RustFS',
+  mongo: 'MongoDB',
+  'mongo-express': 'Mongo Express',
+  'stripe-mock': 'Stripe Mock',
+  elasticsearch: 'Elasticsearch',
+  elasticvue: 'Elasticvue',
+  memcached: 'Memcached',
+  rabbitmq: 'RabbitMQ',
+  valkey: 'Valkey',
+  typesense: 'Typesense',
+  'typesense-dashboard': 'Typesense Dashboard'
+};
+
+// serviceLabel is the name lerd shows a service under: the label its definition
+// carries, else a known name, else its name capitalized, with a versioned
+// instance (mysql-5-7) named after its family.
 export function serviceLabel(name: string): string {
-  const overrides: Record<string, string> = {
-    phpmyadmin: 'phpMyAdmin',
-    pgadmin: 'pgAdmin',
-    mysql: 'MySQL',
-    postgres: 'PostgreSQL',
-    'postgres-pgvector': 'PostgreSQL + pgvector',
-    'postgres-postgis': 'PostgreSQL + PostGIS',
-    meilisearch: 'Meilisearch',
-    mailpit: 'Mailpit',
-    rustfs: 'RustFS',
-    mongo: 'MongoDB',
-    'mongo-express': 'Mongo Express',
-    'stripe-mock': 'Stripe Mock',
-    elasticsearch: 'Elasticsearch',
-    elasticvue: 'Elasticvue',
-    memcached: 'Memcached',
-    rabbitmq: 'RabbitMQ',
-    valkey: 'Valkey',
-    typesense: 'Typesense',
-    'typesense-dashboard': 'Typesense Dashboard'
-  };
-  if (overrides[name]) return overrides[name];
-  // Versioned variants like "mysql-5-7"; show the family label.
+  const label = definitionLabels.services[name] || definitionLabels.presets[name];
+  if (label) return label;
   const m = name.match(/^([a-z][a-z0-9]*?)-(\d[\w-]*)$/);
-  if (m && overrides[m[1]]) return overrides[m[1]];
-  if (m) return capitalize(m[1]);
-  return capitalize(name);
+  const family = m ? m[1] : name;
+  return labelFallbacks[name] || labelFallbacks[family] || capitalize(family);
 }
 
 function capitalize(s: string): string {

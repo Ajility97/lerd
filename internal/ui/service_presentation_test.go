@@ -62,6 +62,39 @@ func TestServicePresentation_FallsBackToUserDefinedYAML(t *testing.T) {
 	}
 }
 
+// The display name travels with the definition, so a new preset is named
+// correctly without a dashboard release.
+func TestServicePresentation_CarriesTheLabel(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	if got := resolvePresentation("mysql", nil).Label; got != "MySQL" {
+		t.Errorf("mysql label = %q, want MySQL from its preset", got)
+	}
+	versioned := &config.CustomService{Name: "mysql-5-7", Preset: "mysql"}
+	if got := resolvePresentation("mysql-5-7", versioned).Label; got != "MySQL" {
+		t.Errorf("mysql-5-7 label = %q, want MySQL through its preset", got)
+	}
+	own := &config.CustomService{Name: "my-thing", Label: "My Thing™"}
+	if got := resolvePresentation("my-thing", own).Label; got != "My Thing™" {
+		t.Errorf("user-defined label = %q, want its own", got)
+	}
+}
+
+// A service the user wrote under a preset's name is not that preset, so the label
+// it gives itself wins; one installed from the preset still takes the preset's.
+func TestServicePresentation_OwnServiceKeepsItsLabelOverASameNamedPreset(t *testing.T) {
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+
+	own := &config.CustomService{Name: "mysql", Label: "Analytics DB"}
+	if got := resolvePresentation("mysql", own).Label; got != "Analytics DB" {
+		t.Errorf("own service label = %q, want Analytics DB", got)
+	}
+	installed := &config.CustomService{Name: "mysql", Preset: "mysql", Label: "stale"}
+	if got := resolvePresentation("mysql", installed).Label; got != "MySQL" {
+		t.Errorf("preset-installed label = %q, want MySQL from the preset", got)
+	}
+}
+
 // A colour is the one part of the metadata that becomes CSS on the page, so
 // anything but a plain hex has to be dropped before it leaves the daemon.
 func TestServicePresentation_DropsAColourThatIsNotPlainHex(t *testing.T) {
@@ -104,6 +137,12 @@ func TestHandleServicePresets_CarriesDiscoveryMetadata(t *testing.T) {
 	}
 	if len(pma.AdminFor) != 2 || pma.AdminFor[1] != "mariadb" {
 		t.Errorf("phpmyadmin admin_for must reach the UI, got %v", pma.AdminFor)
+	}
+	if got := byName["mysql"].Label; got != "MySQL" {
+		t.Errorf("mysql label = %q, want MySQL", got)
+	}
+	if got := byName["stripe-mock"].Label; got != "Stripe Mock" {
+		t.Errorf("stripe-mock label = %q, want Stripe Mock", got)
 	}
 }
 

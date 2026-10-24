@@ -218,6 +218,9 @@ type CustomService struct {
 	ConnectionURL string            `yaml:"connection_url,omitempty"`
 	Description   string            `yaml:"description,omitempty"`
 	DependsOn     []string          `yaml:"depends_on,omitempty"`
+	// Label is the name the service is shown under (MySQL, RustFS), for one its
+	// lowercase name spells wrong. Unset, a consumer capitalizes the name.
+	Label string `yaml:"label,omitempty" json:"label,omitempty"`
 	// Category groups the service under a discovery heading and Icon names an
 	// entry in the UI's icon set, so a new preset needs no UI edit to appear.
 	// Color is the brand tint the dashboard paints the mark with, a plain hex

@@ -1,4 +1,5 @@
 name: redisinsight
+label: "RedisInsight"
 image: docker.io/redis/redisinsight:latest
 description: RedisInsight web UI for the lerd Redis service
 ports:

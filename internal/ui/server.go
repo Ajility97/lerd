@@ -1408,6 +1408,7 @@ func secondaryPortMappings(defaultPorts []string, sc config.ServiceConfig) []Ser
 // ServiceResponse is the response for GET /api/services.
 type ServiceResponse struct {
 	Name              string            `json:"name"`
+	Label             string            `json:"label,omitempty"`
 	Status            string            `json:"status"`
 	Version           string            `json:"version,omitempty"`
 	EnvVars           map[string]string `json:"env_vars"`
@@ -1427,6 +1428,8 @@ type ServiceResponse struct {
 	// the service publishes no host port (e.g. a worker). The UI shows it in the
 	// status pill so a moved port reads at a glance.
 	Port int `json:"port,omitempty"`
+	// Domain is the hostname nginx serves the service on, empty when it has none.
+	Domain string `json:"domain,omitempty"`
 	// PublishedPort is the user's published-port override (0 when unset, i.e.
 	// using the default). DefaultPort is the preset/version default host port.
 	// ExtraPorts are the extra published mappings. The ports modal reads these
@@ -1578,9 +1581,10 @@ func presetNameOf(name string, custom *config.CustomService) string {
 }
 
 // servicePresentation is a service's discovery metadata as the dashboard needs
-// it: the section it groups under, the glyph and brand colour it draws with,
-// and the services its UI administers.
+// it: the name it is shown under, the section it groups under, the glyph and
+// brand colour it draws with, and the services its UI administers.
 type presentation struct {
+	Label     string
 	Category  string
 	Icon      string
 	Color     string
@@ -1597,10 +1601,15 @@ func resolvePresentation(name string, custom *config.CustomService) presentation
 		presetName = custom.Preset
 	}
 	if p, err := config.LoadPreset(presetName); err == nil {
-		return presentation{p.Category, p.Icon, config.NormalizeBrandColor(p.Color), p.AdminFor, p.AdminRank}
+		pres := presentation{p.Label, p.Category, p.Icon, config.NormalizeBrandColor(p.Color), p.AdminFor, p.AdminRank}
+		// A service the user wrote under a preset's name keeps the name it gives itself.
+		if custom != nil && custom.Preset == "" && custom.Label != "" {
+			pres.Label = custom.Label
+		}
+		return pres
 	}
 	if custom != nil {
-		return presentation{custom.Category, custom.Icon, config.NormalizeBrandColor(custom.Color), custom.AdminFor, custom.AdminRank}
+		return presentation{custom.Label, custom.Category, custom.Icon, config.NormalizeBrandColor(custom.Color), custom.AdminFor, custom.AdminRank}
 	}
 	return presentation{}
 }
@@ -1687,6 +1696,7 @@ func buildServiceResponseWithPortList(services map[string]config.ServiceConfig, 
 	pres := resolvePresentation(name, custom)
 	resp := ServiceResponse{
 		Name:              name,
+		Label:             pres.Label,
 		Status:            status,
 		Version:           podman.ServiceVersionLabel(image),
 		EnvVars:           envMap,
@@ -1700,6 +1710,7 @@ func buildServiceResponseWithPortList(services map[string]config.ServiceConfig, 
 		AdminRank:         pres.AdminRank,
 		Preset:            presetNameOf(name, custom),
 		Port:              hostPort,
+		Domain:            services[name].Domain,
 		SiteCount:         countSitesUsingService(name),
 		SiteDomains:       sitesUsingService(name),
 		Pinned:            config.ServiceIsPinned(name),
@@ -1958,6 +1969,7 @@ func frameworkWorkerServicesForSite(
 // PresetResponse describes a bundled service preset for the web UI.
 type PresetResponse struct {
 	Name           string                 `json:"name"`
+	Label          string                 `json:"label,omitempty"`
 	Description    string                 `json:"description"`
 	Image          string                 `json:"image,omitempty"`
 	Dashboard      string                 `json:"dashboard,omitempty"`
@@ -2023,6 +2035,7 @@ func handleServicePresets(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, PresetResponse{
 			Name:           p.Name,
+			Label:          p.Label,
 			Description:    p.Description,
 			Image:          image,
 			Dashboard:      p.Dashboard,

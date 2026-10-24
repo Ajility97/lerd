@@ -1,4 +1,5 @@
 name: rustfs
+label: "RustFS"
 default: true
 update_strategy: rolling
 description: RustFS S3-compatible object storage
