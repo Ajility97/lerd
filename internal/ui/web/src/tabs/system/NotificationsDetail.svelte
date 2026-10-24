@@ -17,9 +17,11 @@
     notifyDelivery,
     notifyNativeKinds,
     ALL_KINDS,
+    notifyLocalFailure,
     type NotifyKind
   } from '$lib/notify';
   import { apiFetch } from '$lib/api';
+  import { managedPlugins, loadManagedPlugins, setPluginNotifications } from '$stores/plugins';
   import { m } from '../../paraglide/messages.js';
 
   interface Device {
@@ -185,11 +187,20 @@
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
+  // Each plugin that sends notifications has its own switch under Plugin
+  // messages, so one that is too loud is silenced without the rest.
+  async function switchPlugin(name: string, allowed: boolean) {
+    const err = await setPluginNotifications(name, allowed).catch((e) => String(e));
+    if (err) notifyLocalFailure('plugin_notifications', m.system_plugins_notifications(), err);
+  }
+  const notifyingPlugins = $derived($managedPlugins.filter((p) => p.notifications && p.notifications !== 'none'));
+
   const kindLabel: Record<NotifyKind, string> = {
     mail: m.notify_settings_category_mail(),
     message: m.notify_settings_category_message(),
     worker_failed: m.notify_settings_category_worker_failed(),
     plugin_failed: m.notify_settings_category_plugin_failed(),
+    plugin_message: m.notify_settings_category_plugin_message(),
     job_failed: m.notify_settings_category_job_failed(),
     op_done: m.notify_settings_category_op_done(),
     snapshot: m.notify_settings_category_snapshot(),
@@ -203,6 +214,7 @@
     message: m.notify_settings_category_message_hint(),
     worker_failed: m.notify_settings_category_worker_failed_hint(),
     plugin_failed: m.notify_settings_category_plugin_failed_hint(),
+    plugin_message: m.notify_settings_category_plugin_message_hint(),
     job_failed: m.notify_settings_category_job_failed_hint(),
     op_done: m.notify_settings_category_op_done_hint(),
     snapshot: m.notify_settings_category_snapshot_hint(),
@@ -212,6 +224,7 @@
     dump: m.notify_settings_category_dump_hint()
   };
 
+  onMount(() => { void loadManagedPlugins(); });
   onMount(() => {
     loadDevices();
     loadDelivery();
@@ -327,6 +340,7 @@
     </div>
   {/if}
 
+
   <div class="flex-1 overflow-y-auto p-3">
     {#if deliveryTarget === 'native'}
       <div class="rounded-md border border-emerald-300 dark:border-emerald-500/40 bg-emerald-50 dark:bg-emerald-900/20 p-3 text-xs text-emerald-900 dark:text-emerald-200 mb-3">
@@ -345,6 +359,7 @@
               tone="accent"
             />
           </div>
+          {#if kind === 'plugin_message'}{@render pluginRows()}{/if}
         {/each}
       </div>
     {:else}
@@ -362,6 +377,7 @@
               tone="accent"
             />
           </div>
+          {#if kind === 'plugin_message'}{@render pluginRows()}{/if}
         {/each}
       </div>
     {/if}
@@ -404,3 +420,12 @@
     {/if}
   </div>
 </DetailPanel>
+
+{#snippet pluginRows()}
+  {#each notifyingPlugins as p (p.name)}
+    <div class="flex items-center justify-between gap-4 py-2 pl-4 border-b border-gray-100 dark:border-lerd-border">
+      <p class="text-xs text-gray-700 dark:text-gray-300 truncate">{p.name}</p>
+      <Toggle on={p.notifications === 'allowed'} title={p.name} onclick={() => switchPlugin(p.name, p.notifications !== 'allowed')} tone="accent" />
+    </div>
+  {/each}
+{/snippet}

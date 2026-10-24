@@ -20,10 +20,16 @@ commands:
   - name: sites
     usage: List lerd's sites through its API
     run: bin/sites
+  # `lerd hello:notify`, an example of telling the user something.
+  - name: notify
+    usage: Send the user a notification
+    run: bin/notify
 
 
 # Commands the scripts call beyond their interpreters; bin/sites uses curl.
 requires: [curl]
+# It may send notifications, which lerd asks the user to allow at install.
+notifications: true
 # Shown in the site's Commands menu and the command palette.
 site_commands:
   - name: greet

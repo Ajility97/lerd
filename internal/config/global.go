@@ -1,6 +1,7 @@
 package config
 
 import (
+	"maps"
 	"os"
 	"slices"
 	"strconv"
@@ -369,6 +370,10 @@ type GlobalConfig struct {
 		// reads category filtering from here. Absent keys use the built-in
 		// default (everything on except the noisy dump kind).
 		Kinds map[string]bool `yaml:"kinds,omitempty" mapstructure:"kinds"`
+		// Plugins holds the user's answer to each plugin asking to send
+		// notifications. Kept here rather than in the plugin's folder, which the
+		// plugin can write; an absent name has not been asked yet.
+		Plugins map[string]bool `yaml:"plugins,omitempty" mapstructure:"plugins"`
 	} `yaml:"notifications,omitempty" mapstructure:"notifications"`
 	Tray struct {
 		// HighContrastIcon swaps the running tray icon for a single green glyph
@@ -983,6 +988,9 @@ func cloneGlobalConfig(in *GlobalConfig) *GlobalConfig {
 			out.Services[k] = cp
 		}
 	}
+	// Both are written by toggles while requests read the cached copy.
+	out.Notifications.Kinds = maps.Clone(in.Notifications.Kinds)
+	out.Notifications.Plugins = maps.Clone(in.Notifications.Plugins)
 	if in.Workspaces != nil {
 		out.Workspaces = make([]Workspace, len(in.Workspaces))
 		for i, w := range in.Workspaces {
@@ -1341,10 +1349,30 @@ func (c *GlobalConfig) SetNotificationTarget(target string) {
 	c.Notifications.Target = target
 }
 
+// PluginNotifications reports what the user answered when the plugin asked to
+// send notifications, and whether they have been asked at all.
+func (c *GlobalConfig) PluginNotifications(name string) (allowed, asked bool) {
+	allowed, asked = c.Notifications.Plugins[name]
+	return allowed, asked
+}
+
+// SetPluginNotifications records the user's answer. Persist via SaveGlobal.
+func (c *GlobalConfig) SetPluginNotifications(name string, allowed bool) {
+	if c.Notifications.Plugins == nil {
+		c.Notifications.Plugins = map[string]bool{}
+	}
+	c.Notifications.Plugins[name] = allowed
+}
+
+// ForgetPluginNotifications drops the answer, so a reinstall asks again.
+func (c *GlobalConfig) ForgetPluginNotifications(name string) {
+	delete(c.Notifications.Plugins, name)
+}
+
 // NotifyKinds is the canonical set of notification categories, mirroring the
 // web UI's ALL_KINDS, in display order.
 var NotifyKinds = []string{
-	"mail", "message", "worker_failed", "plugin_failed", "job_failed", "op_done", "snapshot", "update_available", "nplusone", "slow_route", "dump",
+	"mail", "message", "worker_failed", "plugin_failed", "plugin_message", "job_failed", "op_done", "snapshot", "update_available", "nplusone", "slow_route", "dump",
 }
 
 // nativeKindDefault is the built-in on/off for a category the user has not set.

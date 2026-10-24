@@ -57,7 +57,7 @@ func NewPluginCmd() *cobra.Command {
 				return err
 			}
 			feedback.Done("Installed plugin " + p.Name)
-			return nil
+			return askPluginNotifications(p.Name)
 		},
 	})
 	cmd.AddCommand(&cobra.Command{
@@ -80,6 +80,22 @@ func NewPluginCmd() *cobra.Command {
 				return err
 			}
 			feedback.Done("Removed plugin " + args[0] + " (its data stays in " + plugins.DataDirFor(args[0]) + ")")
+			return nil
+		},
+	})
+	cmd.AddCommand(&cobra.Command{
+		Use:       "notifications <name> on|off",
+		Short:     "Allow or stop a plugin's notifications",
+		Args:      cobra.ExactArgs(2),
+		ValidArgs: []string{"on", "off"},
+		RunE: func(_ *cobra.Command, args []string) error {
+			if args[1] != "on" && args[1] != "off" {
+				return fmt.Errorf("expected on or off, got %q", args[1])
+			}
+			if err := plugins.SetNotifications(args[0], args[1] == "on"); err != nil {
+				return err
+			}
+			feedback.Done(fmt.Sprintf("Notifications from %s %s", args[0], args[1]))
 			return nil
 		},
 	})
@@ -164,6 +180,9 @@ func runPluginUpdate(_ *cobra.Command, args []string) error {
 			return err
 		}
 		feedback.Done("Updated plugin " + name)
+		if err := askPluginNotifications(name); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -274,4 +293,26 @@ func siteSwitchCommand(use, short, what string, set func(*config.Site, string, b
 			return nil
 		},
 	}
+}
+
+// askPluginNotifications asks once whether a plugin may send notifications; an
+// earlier answer holds. Without a terminal nothing is assumed, it stays pending
+// and the dashboard asks next.
+func askPluginNotifications(name string) error {
+	p, err := plugins.Find(name)
+	if err != nil || plugins.NotificationState(p) != plugins.NotificationsPending {
+		return nil
+	}
+	if !isInteractive() {
+		feedback.Note(fmt.Sprintf("%s asks to send you notifications. Allow it with `lerd plugin notifications %s on`.", name, name))
+		return nil
+	}
+	allowed := feedback.Confirm(fmt.Sprintf("Allow %s to send you notifications?", name), false)
+	if err := plugins.SetNotifications(name, allowed); err != nil {
+		return err
+	}
+	if !allowed {
+		feedback.Note(fmt.Sprintf("Change it any time with `lerd plugin notifications %s on`.", name))
+	}
+	return nil
 }
