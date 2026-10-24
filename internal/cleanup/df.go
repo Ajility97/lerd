@@ -8,17 +8,12 @@ import (
 	"github.com/geodro/lerd/internal/podman"
 )
 
-// podman reports image size two ways and only one of them is layer-aware.
-// `podman images` charges every image the full size of its chain and leaves
-// SharedSize at zero, so a PHP base shared by four builds is counted four
-// times; on a lerd stack that inflates a total several-fold. `podman system
-// df` does the accounting properly, and it is the only place those numbers
-// exist, so lerd reads them from there.
-//
-// The same holds on macOS: the figures describe the image store inside the
-// Podman Machine VM, which is where a cleanup actually frees blocks. Getting
-// them back on the host is a separate step, `lerd machine reclaim`, because
-// the VM's disk image is sparse and only ever grows.
+// `podman images` charges every image its whole chain, `podman system df`
+// charges shared layers to nobody but counts build intermediates as sharers, so
+// df is only the fallback for images creditFreedLayers cannot size.
+
+// On macOS these describe the store inside the Podman Machine VM; getting the
+// blocks back on the host is `lerd machine reclaim`, the VM disk only grows.
 
 // readUniqueBytes and readStoreBytes are the seams tests override.
 var (

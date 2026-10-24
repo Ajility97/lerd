@@ -50,6 +50,7 @@ type Target struct {
 	Desc  string // human description for the plan output
 	Owner string // OwnerLerd or OwnerOther
 	Bytes int64
+	image string // full image ID behind an image target, for layer accounting
 }
 
 // Plan is the set of lerd-owned resources that are safe to reclaim.
@@ -257,8 +258,8 @@ func Inspect(scope Scope) (Plan, error) {
 	prot, protErr := protectedImages()
 
 	var p Plan
-	add := func(id, desc string, owner string, bytes int64) {
-		p.Targets = append(p.Targets, Target{Kind: KindImage, ID: id, Desc: desc, Owner: owner, Bytes: bytes})
+	add := func(img image, id, desc string, owner string, bytes int64) {
+		p.Targets = append(p.Targets, Target{Kind: KindImage, ID: id, Desc: desc, Owner: owner, Bytes: bytes, image: img.ID})
 	}
 	var baseCandidates []image
 	for _, img := range imgs {
@@ -281,27 +282,11 @@ func Inspect(scope Scope) (Plan, error) {
 			// disk and strands nothing. Provable lerd orphans go in every tier;
 			// other dangling leftovers only when the deep tier is on.
 			if isLerd(img) || reapAllDangling {
-				add(shortID(img.ID), describeOrphan(img), ownerOf(img, repos, prot), reclaimable(img))
+				add(img, shortID(img.ID), describeOrphan(img), ownerOf(img, repos, prot), reclaimable(img))
 			}
 		default:
 			if baseName(img) != "" {
 				baseCandidates = append(baseCandidates, img)
-			}
-		}
-	}
-
-	// Only inspect layers when there is a base image whose in-use status must be
-	// decided; with none, skip the podman inspect calls entirely. If either the
-	// live-image set or the base layers can't be fully read, keep every base
-	// (an inspect failure must never make an in-use base look orphaned).
-	if len(baseCandidates) > 0 {
-		if live, ok := liveLayers(imgs); ok {
-			if baseLayers, err := imageLayers(imageIDs(baseCandidates)); err == nil {
-				for _, img := range baseCandidates {
-					if !builtUpon(baseLayers[img.ID], live) {
-						add(baseName(img), "orphaned PHP base image", OwnerLerd, reclaimable(img))
-					}
-				}
 			}
 		}
 	}
@@ -314,11 +299,27 @@ func Inspect(scope Scope) (Plan, error) {
 			p.Targets = append(p.Targets, deepTargets(unbuilt, repos, prot, canonPulled(), scope)...)
 		}
 	}
+	// Bases are decided against the live images minus what the deep tier reaps.
+	// If either layer set can't be read every base is kept, so an inspect
+	// failure never makes an in-use base look orphaned.
+	if len(baseCandidates) > 0 {
+		if live, ok := liveLayers(without(imgs, removedImages(p.Targets, imgs))); ok {
+			if baseLayers, err := imageLayers(imageIDs(baseCandidates)); err == nil {
+				for _, img := range baseCandidates {
+					if !builtUpon(baseLayers[img.ID], live) {
+						add(img, baseName(img), "orphaned PHP base image", OwnerLerd, reclaimable(img))
+					}
+				}
+			}
+		}
+	}
+
 	p.UsedTotal = usedTotal(imgs, repos, prot)
 	p.Targets = append(p.Targets, staleServiceFiles()...)
 	// podman lists a multi-tag image once per tag, so dedupe by ref/ID to avoid
 	// counting or trying to remove the same target twice.
 	p.Targets = dedupTargets(p.Targets)
+	creditFreedLayers(p.Targets, imgs)
 	return p, nil
 }
 
