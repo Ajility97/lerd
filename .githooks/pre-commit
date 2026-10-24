@@ -5,6 +5,8 @@
 max=3
 status=0
 if [ -n "${1:-}" ]; then
+  # A base git cannot diff against would leave no files and pass unchecked.
+  git merge-base "$1" HEAD >/dev/null 2>&1 || { echo "pre-commit: cannot compare against base $1" >&2; exit 2; }
   diff=(git diff "$1...HEAD")
   src=HEAD:
 else

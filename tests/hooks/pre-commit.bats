@@ -132,3 +132,11 @@ stage() { printf '%s\n' "$2" > "$1"; git add "$1"; }
   run "$HOOK" HEAD
   [ "$status" -eq 0 ]
 }
+
+@test "fails on a base it cannot find instead of passing unchecked" {
+  stage a.go $'package a\n\nfunc A() {}'
+  git commit -qm base --no-verify
+  run "$HOOK" no-such-base
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"no-such-base"* ]]
+}
