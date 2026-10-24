@@ -200,6 +200,10 @@ check_dns_resolver() {
     success "NetworkManager running"
   elif systemctl is-active --quiet systemd-resolved 2>/dev/null; then
     success "systemd-resolved running"
+  elif is_wsl; then
+    # WSL resolves through systemd-resolved, never NetworkManager, and lerd install
+    # installs or starts it at the point it can keep the distro's DNS working.
+    info "systemd-resolved not running yet (lerd install sets it up on WSL)"
   else
     warn "No supported DNS resolver running (need NetworkManager or systemd-resolved)"
     MISSING_PKGS+=("networkmanager")

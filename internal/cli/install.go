@@ -361,6 +361,14 @@ func runInstall(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
+	// Before the first download: a distro whose resolved package relinked
+	// resolv.conf has no working DNS until resolved gets WSL's proxy upstream.
+	if platform.Current.WindowsSide && wantDNS && !dns.HostOwnsResolver() {
+		if err := dns.EnsureWSLResolver(); err != nil {
+			feedback.Warn("%v", err)
+		}
+	}
+
 	// 3. Binaries (composer, fnm, mkcert) — after manager is persisted so an
 	// nvm choice skips the fnm download.
 	step("Downloading binaries")
