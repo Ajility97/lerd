@@ -84,6 +84,18 @@ func NewPluginCmd() *cobra.Command {
 		},
 	})
 	cmd.AddCommand(&cobra.Command{
+		Use:   "keep <name>",
+		Short: "Keep using a plugin the catalog revoked, after reading why",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(_ *cobra.Command, args []string) error {
+			if err := plugins.KeepRevoked(args[0]); err != nil {
+				return err
+			}
+			feedback.Done("Kept plugin " + args[0] + "; it runs again until the catalog revokes it again")
+			return nil
+		},
+	})
+	cmd.AddCommand(&cobra.Command{
 		Use:       "notifications <name> on|off",
 		Short:     "Allow or stop a plugin's notifications",
 		Args:      cobra.ExactArgs(2),

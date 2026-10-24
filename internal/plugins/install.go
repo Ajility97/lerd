@@ -138,6 +138,9 @@ func forgetNotifications(name string) error {
 	if err != nil {
 		return err
 	}
+	if err := forgetKept(name); err != nil {
+		return err
+	}
 	if _, asked := cfg.PluginNotifications(name); !asked {
 		return nil
 	}

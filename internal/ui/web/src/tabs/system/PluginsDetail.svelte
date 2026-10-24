@@ -10,7 +10,7 @@
   import InstalledPluginTile from './InstalledPluginTile.svelte';
   import PluginDetailModal from './PluginDetailModal.svelte';
   import PluginsEmpty from './PluginsEmpty.svelte';
-  import { managedPlugins, loadManagedPlugins, installPlugin, removePlugin, updatePlugin, setPluginNotifications } from '$stores/plugins';
+  import { managedPlugins, loadManagedPlugins, installPlugin, removePlugin, updatePlugin, setPluginNotifications, keepRevokedPlugin } from '$stores/plugins';
   import { routeRest, goToTab } from '$stores/route';
   import { notifyLocalFailure, notifyLocalInfo } from '$lib/notify';
   import { apiUrl } from '$lib/api';
@@ -57,6 +57,11 @@
     } finally {
       updating = '';
     }
+  }
+
+  async function keep(name: string) {
+    const err = await keepRevokedPlugin(name);
+    if (err) notifyLocalFailure('plugin_revoked', m.plugins_revoked_title({ plugin: name }), err);
   }
 
   // Every plugin with a newer approved commit, updated one after another.
@@ -179,6 +184,9 @@
         <DetailButton tone="primary" onclick={() => update(p.name)} loading={updating === p.name} disabled={updating !== ''} title={p.update.slice(0, 7)}>
           {m.system_plugins_update()}
         </DetailButton>
+      {/if}
+      {#if p.revoked}
+        <DetailButton onclick={() => keep(p.name)}>{m.plugins_revoked_keep()}</DetailButton>
       {/if}
       <DetailButton tone="danger" onclick={() => (confirmName = p.name)} loading={removing === p.name} disabled={removing !== ''}>
         {m.common_remove()}

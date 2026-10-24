@@ -29,6 +29,16 @@ export const siteTabPlugins = derived(plugins, ($p) => $p.filter((p) => p.site_t
 // How many installed plugins have a newer approved commit, for the rail's badge.
 export const pluginUpdates = derived(plugins, ($p) => $p.filter((p) => p.update).length);
 
+// A plugin the catalog revoked for a security problem: stopped until the user
+// removes it or chooses to keep using it.
+export interface PluginRevocation {
+  name: string;
+  reason: string;
+  at: string;
+}
+
+export const revokedPlugins = writable<PluginRevocation[]>([]);
+
 export async function loadPlugins() {
   // A lerd-ui from before plugins answers this path with something else.
   try {
@@ -36,6 +46,12 @@ export async function loadPlugins() {
     plugins.set(Array.isArray(list) ? list : []);
   } catch {
     plugins.set([]);
+  }
+  try {
+    const revoked = await apiJson<PluginRevocation[]>('/api/plugin-revocations');
+    revokedPlugins.set(Array.isArray(revoked) ? revoked : []);
+  } catch {
+    revokedPlugins.set([]);
   }
 }
 
@@ -117,6 +133,8 @@ export interface ManagedPlugin {
   features?: PluginFeature[];
   screenshots?: string[];
   has_docs?: boolean;
+  // Set when the catalog revoked it; it stays stopped until removed or kept.
+  revoked?: PluginRevocation;
   // Whether it may send notifications: pending until the user answers.
   notifications?: 'none' | 'pending' | 'allowed' | 'denied';
 }
@@ -172,8 +190,9 @@ export interface CatalogEntry {
 }
 
 // loadCatalog throws with lerd's reason when the catalog cannot be reached.
-export async function loadCatalog(): Promise<CatalogEntry[]> {
-  const res = await apiFetch('/api/plugin-manager/catalog');
+// fresh asks lerd to fetch the catalog first, as opening Browse does.
+export async function loadCatalog(fresh = false): Promise<CatalogEntry[]> {
+  const res = await apiFetch('/api/plugin-manager/catalog' + (fresh ? '?fresh=1' : ''));
   if (!res.ok) throw new Error((await res.text()).trim() || res.statusText);
   const list = await res.json();
   return Array.isArray(list) ? list : [];
@@ -206,6 +225,11 @@ export async function installPlugin(source: string): Promise<string> {
     body: JSON.stringify({ source }),
     headers: { 'Content-Type': 'application/json' }
   });
+}
+
+// keepRevokedPlugin runs a revoked plugin again because the user chose to.
+export async function keepRevokedPlugin(name: string): Promise<string> {
+  return mutate('/api/plugin-manager/' + encodeURIComponent(name) + '/keep', { method: 'POST' });
 }
 
 // setPluginNotifications records the user's answer to a plugin asking to send

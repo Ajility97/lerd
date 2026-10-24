@@ -50,12 +50,22 @@ func Load() ([]*Plugin, []LoadError) {
 
 	var plugins []*Plugin
 	var errs []LoadError
+	revoked := revocations()
+	var kept map[string]string
+	if len(revoked) > 0 {
+		kept = readKept()
+	}
 	for _, e := range entries {
 		dir := filepath.Join(Dir(), e.Name())
 		if !e.IsDir() {
 			continue
 		}
 		if _, err := os.Stat(filepath.Join(dir, ManifestFile)); err != nil {
+			continue
+		}
+		// A revoked plugin runs nothing until the user removes or keeps it.
+		if r, ok := revocationFor(e.Name(), revoked, kept); ok {
+			errs = append(errs, LoadError{Dir: dir, Err: RevokedError{r}})
 			continue
 		}
 		p, err := ReadPlugin(dir)
@@ -73,6 +83,11 @@ func Load() ([]*Plugin, []LoadError) {
 func Find(name string) (*Plugin, error) {
 	if !nameRe.MatchString(name) {
 		return nil, fmt.Errorf("invalid plugin name %q", name)
+	}
+	if revoked := revocations(); len(revoked) > 0 {
+		if r, ok := revocationFor(name, revoked, readKept()); ok {
+			return nil, RevokedError{r}
+		}
 	}
 	return ReadPlugin(filepath.Join(Dir(), name))
 }

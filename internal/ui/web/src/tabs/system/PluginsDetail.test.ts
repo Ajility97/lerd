@@ -1,6 +1,7 @@
 import { render, fireEvent, waitFor, within } from '@testing-library/svelte';
 import { it, expect, beforeEach, vi } from 'vitest';
 import PluginsDetail from './PluginsDetail.svelte';
+import * as notify from '$lib/notify';
 
 let installed: object[];
 const calls: { method: string; url: string; body?: string }[] = [];
@@ -215,4 +216,14 @@ it('does not ask about a plugin whose notifications were already answered', asyn
   const { findByText, queryByRole } = render(PluginsDetail);
   await findByText('hello');
   expect(queryByRole('dialog')).toBeNull();
+});
+
+// A refused keep leaves the plugin stopped, so the user has to hear why.
+it('reports a keep the server refused', async () => {
+  installed = [{ name: 'bad', error: 'revoked', revoked: { name: 'bad', reason: 'x', at: '2026-10-24' } }];
+  const failure = vi.spyOn(notify, 'notifyLocalFailure');
+  const { findByText, getByRole } = render(PluginsDetail);
+  await fireEvent.click(await findByText('bad'));
+  await fireEvent.click(within(getByRole('dialog')).getByRole('button', { name: 'Keep using it' }));
+  await waitFor(() => expect(failure).toHaveBeenCalledWith('plugin_revoked', expect.any(String), expect.stringContaining('not a lerd plugin')));
 });

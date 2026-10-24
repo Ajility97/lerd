@@ -69,3 +69,29 @@ func TestPluginManager_DescribesAnUpdate(t *testing.T) {
 		t.Errorf("the plugin list marks it for the rail's badge: %s", rec.Body)
 	}
 }
+
+// A revoked commit does not load, but the fixed commit the catalog approves
+// must still be offered, or the only way out is a remove and reinstall.
+func TestPluginManager_OffersTheFixToARevokedPlugin(t *testing.T) {
+	installAPIPlugin(t)
+	installedFromCatalog(t, strings.Repeat("a", 40))
+	catalog := plugins.Catalog{
+		Plugins: []plugins.Listing{{Name: "echo", Repo: "https://github.com/acme/echo", Commit: strings.Repeat("b", 40), Version: "0.2.0"}},
+		Revoked: []plugins.Revocation{{Name: "echo", Reason: "x", At: "2026-10-24", Commits: []string{strings.Repeat("a", 40)}}},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(catalog)
+	}))
+	t.Cleanup(srv.Close)
+	orig := plugins.CatalogURL
+	plugins.CatalogURL = srv.URL
+	t.Cleanup(func() { plugins.CatalogURL = orig })
+	if err := plugins.RefreshCatalogOlderThan(0); err != nil {
+		t.Fatal(err)
+	}
+
+	r := managedPlugins()[0]
+	if r.Revoked == nil || r.Update != strings.Repeat("b", 40) || r.UpdateVersion != "0.2.0" || r.Commit != strings.Repeat("a", 40) {
+		t.Errorf("row = %+v", r)
+	}
+}

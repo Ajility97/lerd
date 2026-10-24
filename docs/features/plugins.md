@@ -46,6 +46,12 @@ To be listed, a plugin meets the registry's [approval terms](https://github.com/
 
 lerd reads the catalog at most once a day from the command line and every hour while the dashboard runs, and keeps the last copy, so browsing and installed plugins work offline. To try another index, such as a registry pull request's, set `LERD_PLUGIN_CATALOG` to its `index.json` URL for the command: `LERD_PLUGIN_CATALOG=http://127.0.0.1:8000/index.json lerd plugin search`. That index is cached on its own, so the real catalog is never mixed in. Plugins installed from a folder or a repository of your own show as not listed and are never updated from the catalog.
 
+#### When a plugin is pulled
+
+A plugin removed from the catalog is simply no longer offered: what you installed keeps running, and gets no more updates. A plugin pulled for a security problem is **revoked** instead, with a reason. On its next catalog check, lerd stops a revoked plugin you have installed: its commands, hooks, pages, tabs, tools and endpoints stop running, it shows as broken on the Plugins page with the reason, and the dashboard shows a banner on every page until you answer, plus one notification. **Remove** uninstalls it; **Keep using it**, or `lerd plugin keep <name>`, runs it again if you trust it, until a later revocation asks again. A revocation can name the commits it covers, so once a fixed commit is approved, an install at an older one is stopped and offered the update.
+
+A listing means a maintainer read the plugin's code at one commit. It is not a warranty or a security audit: a plugin is its author's work, it runs as you, and lerd and its maintainers are not responsible for what an installed plugin does.
+
 ---
 
 ## plugin.yaml
@@ -340,7 +346,7 @@ Those calls hand the endpoint the site, and when the page is a worktree's they r
 
 ## Access and security
 
-A plugin runs as you, with everything you can do, so install only plugins you trust. Its API endpoints sit behind the same rules as lerd's own: open on the lerd host, closed to the LAN unless [remote control](../reference/commands.md#full-lan-exposure-dns-based) is on and the browser has signed in, and an endpoint marked `loopback_only` stays closed to remote dashboards until `lerd remote-control full-access on`. Only the plugin's `ui/` folder, its icon and its listed screenshots are served over HTTP, and a link among them that leads elsewhere is not followed.
+A plugin runs as you, with everything you can do, so install only plugins you trust; lerd and its maintainers are not responsible for what one does. Its API endpoints sit behind the same rules as lerd's own: open on the lerd host, closed to the LAN unless [remote control](../reference/commands.md#full-lan-exposure-dns-based) is on and the browser has signed in, and an endpoint marked `loopback_only` stays closed to remote dashboards until `lerd remote-control full-access on`. Only the plugin's `ui/` folder, its icon and its listed screenshots are served over HTTP, and a link among them that leads elsewhere is not followed.
 
 ---
 
